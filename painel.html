@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel de Convites</title>
+</head>
+<body>
+  <h1>Gerar Link de Convite</h1>
+  <button id="gerar">Gerar Convite</button>
+  <p id="link"></p>
+
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+  
+const firebaseConfig = {
+    apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
+    authDomain: "tune-8cafb.firebaseapp.com",
+    projectId: "tune-8cafb",
+    storageBucket: "tune-8cafb.firebasestorage.app",
+    messagingSenderId: "599729070480",
+    appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  async function gerarConvite() {
+    const token = crypto.randomUUID();
+    const expiresAt = Date.now() + (10 * 60 * 1000); // 10 min
+    const ref = doc(db, "tokens", token);
+
+    await setDoc(ref, {
+      expiresAt,
+      used: false
+    });
+
+    const link = `http://tunedks,com/account.html?token=${token}`;
+    document.getElementById("link").innerText = link;
+  }
+
+  document.getElementById("gerar").addEventListener("click", gerarConvite);
+  </script>
+</body>
+</html>
