@@ -43,7 +43,7 @@ async function validarToken() {
   const token = params.get("token");
 
   if (!token) {
-    window.location.href = "index.html";
+    window.location.href = "404.html"; // se não tiver token, manda pro 404
     return;
   }
 
@@ -51,20 +51,21 @@ async function validarToken() {
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    window.location.href = "index.html";
+    window.location.href = "404.html";
     return;
   }
 
-  const { expiresAt, used } = snap.data();
+  const { expiresAt } = snap.data();
 
-  if (Date.now() > expiresAt || used) {
-    await deleteDoc(ref); // já limpa token inválido
-    window.location.href = "index.html";
+  if (Date.now() > expiresAt) {
+    await deleteDoc(ref); // limpa token vencido
+    window.location.href = "404.html";
     return;
   }
 
-  // ✅ Token válido → consome imediatamente
-  await deleteDoc(ref); // apaga de vez (não dá pra usar mais)
+  // ✅ Token válido → apaga e libera
+  await deleteDoc(ref);
+}
 
   // segue normal a execução da página...
 }
@@ -276,4 +277,5 @@ registerForm.addEventListener('submit', async (e) => {
             currentFileInput = null;
         }
     }
+
 });
