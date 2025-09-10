@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel de Convites - Tune</title>
+  <link rel="icon" type="image/png" href="./assets/favicon.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-6">
+
+  <div class="max-w-3xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6 text-center">Painel de Convites</h1>
+
+    <!-- Botão para gerar token -->
+    <div class="mb-6 flex gap-4">
+      <button id="gerar" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-bold">Gerar Token</button>
+      <span id="link" class="text-green-400 break-all"></span>
+    </div>
+
+    <!-- Lista de tokens -->
+    <h2 class="text-xl font-semibold mb-2">Tokens Criados</h2>
+    <div id="tokensList" class="bg-gray-800 p-4 rounded space-y-2">
+      <!-- Tokens serão adicionados aqui -->
+    </div>
+  </div>
+
+  <script type="module">
+    // painel.js
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getFirestore, doc, setDoc, collection, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
+  authDomain: "tune-8cafb.firebaseapp.com",
+  projectId: "tune-8cafb",
+  storageBucket: "tune-8cafb.firebasestorage.app",
+  messagingSenderId: "599729070480",
+  appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const tokensListEl = document.getElementById("tokensList");
+const linkEl = document.getElementById("link");
+
+// Função para gerar código aleatório
+function gerarCodigo(length = 10) {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+export async function gerarConvite() {
+  const tokenCode = gerarCodigo(); // Código aleatório
+  const expiresAt = Date.now() + (10 * 60 * 1000); // 10 minutos
+  const docRef = await addDoc(collection(db, "tokens"), {
+    tokenCode,
+    expiresAt,
+    used: false
+  });
+
+  const link = `${window.location.origin}/account.html?token=${tokenCode}`;
+  linkEl.innerText = link;
+
+  await atualizarListaTokens();
+}
+
+export async function atualizarListaTokens() {
+  tokensListEl.innerHTML = "";
+  const tokensSnapshot = await getDocs(collection(db, "tokens"));
+
+  tokensSnapshot.forEach(docSnap => {
+    const { tokenCode, expiresAt, used } = docSnap.data();
+    const docId = docSnap.id;
+    const status = used ? "Usado" : (Date.now() > expiresAt ? "Expirado" : "Ativo");
+
+    const tokenEl = document.createElement("div");
+    tokenEl.className = "flex justify-between items-center bg-gray-700 p-2 rounded";
+
+    tokenEl.innerHTML = `
+      <span class="break-all">ID: ${docId} | Código: ${tokenCode} - <span class="font-semibold">${status}</span></span>
+      <div class="flex gap-2">
+        <button class="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-sm">Copiar</button>
+        <button class="bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-sm">Excluir</button>
+      </div>
+    `;
+
+    // Botão copiar
+    tokenEl.querySelector(".bg-blue-600").addEventListener("click", () => {
+      navigator.clipboard.writeText(`${window.location.origin}/account.html?token=${tokenCode}`);
+      alert("Link copiado!");
+    });
+
+    // Botão excluir
+    tokenEl.querySelector(".bg-red-600").addEventListener("click", async () => {
+      await deleteDoc(doc(db, "tokens", docId));
+      await atualizarListaTokens();
+    });
+
+    tokensListEl.appendChild(tokenEl);
+  });
+}
+
+// Eventos
+document.getElementById("gerar").addEventListener("click", gerarConvite);
+atualizarListaTokens();
+
+  </script>
+
+</body>
+</html>

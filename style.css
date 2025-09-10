@@ -1,0 +1,371 @@
+/* ============================= */
+/* GENERAL STYLES */
+/* ============================= */
+body {
+    background-color: #121212;
+    font-family: 'Nationale Regular', sans-serif;
+    color: #ddd;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    margin: 0;
+}
+
+.icon-logo {
+  width: 30px;
+  margin-bottom: 10px;
+}
+
+@keyframes fade {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade {
+  animation: fade 0.3s ease-out;
+  transition: opacity 0.3s ease;
+}
+
+/* ============================= */
+/* FONTS */
+/* ============================= */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+/* ============================= */
+/* PAGE CONTAINER */
+/* ============================= */
+.page-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+/* ============================= */
+/* CARD STYLES */
+/* ============================= */
+.card {
+    background-color: #262626;
+    border-radius: 20px;
+    padding: 40px 24px;
+    width: 100%;
+    max-width: 400px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* ============================= */
+/* PROFILE & PHOTO */
+/* ============================= */
+.profile-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 24px;
+}
+.profile-frame {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px solid #575757;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    cursor: pointer;
+}
+.profile-icon {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+}
+.add-photo-text {
+    color: #c4c4c4;
+    font-size: 0.8rem;
+    margin-top: 10px;
+    letter-spacing: 1px;
+}
+
+/* ============================= */
+/* FORM */
+/* ============================= */
+form {
+    width: 100%;
+}
+.form-group {
+    margin-bottom: 20px;
+}
+.input-label {
+    font-size: 0.9rem;
+    color: #ffffff;
+    margin-bottom: 8px;
+    display: block;
+}
+.input-field {
+    font-family: 'Nationale Regular';
+    background-color: #3e3e3e;
+    border: none;
+    color: #ffffff;
+    padding: 16px;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.input-field::placeholder {
+    color: #9e9e9e;
+}
+.input-field:focus {
+    outline: none;
+    border: 2px solid #ffffff;
+}
+
+/* ============================= */
+/* USERNAME INPUT & CHECKMARK */
+/* ============================= */
+.input-group-user {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.input-group-user .input-field {
+    padding-left: 45px;
+}
+.input-group-user .at-symbol {
+    position: absolute;
+    left: 16px;
+    color: #9e9e9e;
+    font-size: 1rem;
+    pointer-events: none;
+}
+.check-icon {
+    position: absolute;
+    right: 16px;
+    color: #4CAF50;
+    font-size: 24px;
+}
+
+/* ============================= */
+/* PASSWORD NOTE */
+/* ============================= */
+.password-note {
+    font-size: 0.75rem;
+    color: #9e9e9e;
+    margin-top: 8px;
+    padding: 0 10px;
+}
+
+/* ============================= */
+/* MAIN BUTTON */
+/* ============================= */
+.main-button {
+    width: 100%;
+    padding: 16px 0;
+    margin-top: 0px;
+    border-radius: 999px;
+    background-color: #ffffff;
+    color: #000000;
+    text-decoration: none;
+    text-align: center;
+    border: none;
+    font-family: 'Nationale Regular';
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+}
+.main-button:hover {
+    background-color: #9e9e9e;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  margin-top: 10%;
+  margin-bottom: 15px; /* Espaçamento inferior */
+}
+
+.checkbox-container input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-container label {
+  text-align: center;
+ font-family: 'Nationale Regular';  font-size: 14px;
+  color: #989898; /* Cor do texto */
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.checkbox-container .link-tidal {
+  color: #fff; /* Cor dos links */
+  text-decoration: none; /* Remove sublinhado padrão */
+  font-weight: bold; /* Deixa o texto dos links em negrito */
+}
+
+.checkbox-container .link-tidal:hover {
+  text-decoration: underline; /* Adiciona sublinhado ao passar o mouse */
+}
+
+/* ============================= */
+/* TOASTS */
+/* ============================= */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    z-index: 1000;
+}
+
+.toast {
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: bold;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    min-width: 250px;
+    max-width: 350px;
+    word-wrap: break-word;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeIn 0.5s forwards;
+    transition: opacity 0.5s, transform 0.5s;
+}
+
+.toast.success {
+    background-color: #4CAF50; /* Verde para sucesso */
+}
+
+.toast.error {
+    background-color: #f44336; /* Vermelho para erro */
+}
+
+/* Animação para aparecer e desaparecer */
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.toast.fade-out {
+    animation: fadeOut 0.5s forwards;
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+}
+
+.profile-frame {
+    position: relative; /* Necessário para posicionar o label absoluto dentro dele */
+    width: 120px; /* Ajuste conforme o tamanho do seu .profile-frame */
+    height: 120px; /* Ajuste conforme o tamanho do seu .profile-frame */
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer; /* Indica que é clicável */
+    display: flex; /* Para centralizar a imagem */
+    justify-content: center;
+    align-items: center;
+    background-color: #333; /* Cor de fundo se a imagem não carregar ou for transparente */
+}
+
+.profile-icon {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Garante que a imagem cubra o frame sem distorcer */
+    display: block; /* Remove espaço extra abaixo da imagem */
+}
+
+.add-photo-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer; /* O cursor de ponteiro é importante */
+    z-index: 10; /* Garante que o label esteja acima da imagem */
+}
+
+/* Se você quiser que o texto "ADICIONAR FOTO" também seja clicável, pode deixar assim */
+.profile-section {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.add-photo-text {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+.input-group-user {
+    display: flex; /* Ou grid */
+    align-items: center; /* Para alinhar o @, input e ícone na mesma linha */
+    /* ... outros estilos ... */
+}
+
+/* Este é o container que precisa empilhar VERTICALMENTE */
+/* Pode ser o próprio .card, ou um div específico em volta de .input-group-user e o feedback */
+.card { /* Ou outro seletor mais específico */
+    display: flex;
+    flex-direction: column; /* Garante que os elementos (incluindo o feedback) fiquem um embaixo do outro */
+    gap: 16px; /* Exemplo de espaçamento */
+}
+.username-feedback {
+    display: block; /* Garante que ele ocupe a linha inteira */
+    margin-top: 8px; /* Espaçamento acima do feedback */
+    margin-bottom: 12px; /* Espaçamento abaixo do feedback */
+    font-size: 0.85rem; /* Tamanho da fonte */
+    width: 100%; /* Garante que ocupe a largura disponível se necessário */
+}
+
+/* Adicione esta regra ao seu CSS */
+.username-input-container {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Opcional: Adicionar espaçamento entre os elementos */
+.username-input-container .input-group-user {
+    margin-bottom: 8px; /* Espaço entre o input e o texto de feedback */
+}
+
