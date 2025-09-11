@@ -57,7 +57,7 @@ function gerarCodigo(length = 10) {
 
 export async function gerarConvite() {
   const tokenCode = gerarCodigo(); // Código aleatório
-  const expiresAt = Date.now() + (10 * 60 * 1000); // 10 minutos
+ const expiresAt = Date.now() + (5 * 24 * 60 * 60 * 1000); // 5 dias
   const docRef = await addDoc(collection(db, "tokens"), {
     tokenCode,
     expiresAt,
