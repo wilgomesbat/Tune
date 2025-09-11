@@ -1,0 +1,214 @@
+
+
+/* Estilos para o rodapé */
+footer {
+    background-color: #00000000;
+        color: #a0a0a0b0; /* Cor do texto padrão do rodapé */
+    padding: 40px 20px; /* Espaçamento interno */
+    display: flex;
+    flex-direction: column; /* Organiza os itens em coluna */
+    align-items: center; /* Centraliza os itens horizontalmente */
+    text-align: center; /* Centraliza o texto */
+    }
+
+/* Redes sociais */
+.social-media-icons {
+    margin-bottom: 30px; /* Espaço abaixo dos ícones */
+    display: flex; /* Permite que os ícones fiquem na mesma linha */
+    gap: 20px; /* Espaço entre os ícones */
+}
+
+.social-media-icons a {
+    color: #9a9a9a; /* Cor branca para os ícones */
+    font-size: 28px; /* Tamanho dos ícones */
+    transition: color 0.3s ease; /* Transição suave na mudança de cor */
+}
+
+.social-media-icons a:hover {
+    color: #ffffff; /* Cor azul clara ao passar o mouse */
+}
+
+/* Conteúdo principal do rodapé */
+.footer-content {
+    max-width: 800px; /* Largura máxima para o conteúdo */
+    margin-bottom: 30px; /* Espaço abaixo do conteúdo */
+}
+
+.footer-content p {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 25px; /* Espaço abaixo do parágrafo */
+    color: #e0e0e0;
+}
+
+/* Links de navegação */
+.footer-links ul {
+    list-style: none; /* Remove os marcadores de lista */
+    padding: 0;
+    margin: 0 0 25px 0; /* Espaçamento abaixo da lista */
+}
+
+.footer-links li {
+    margin-bottom: 10px; /* Espaço entre os itens da lista */
+}
+
+.footer-links a {
+    color: #a0a0a0; /* Cor do link */
+    text-decoration: none; /* Remove sublinhado */
+    font-size: 15px;
+    transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: #f0f0f0; /* Cor mais clara ao passar o mouse */
+}
+
+/* Direitos autorais */
+.copyright {
+    margin-top: 40px; /* Espaço acima dos direitos autorais */
+    font-size: 13px;
+    color: #707070;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Espaço entre o ícone e o texto */
+}
+
+.copyright i {
+    font-size: 16px;
+}
+
+/* Estilos para o logo personalizado */
+.tune-logo {
+    opacity: 0.5;
+    width: 24px; /* Define a largura do logo (ajuste conforme necessário) */
+    height: 24px; /* Define a altura do logo (ajuste conforme necessário para manter a proporção) */
+    margin-right: 10px; /* Adiciona um espaço à direita do logo */
+    vertical-align: middle; /* Alinha o logo verticalmente com o texto */
+    /* Se o seu logo tiver uma cor que você quer mudar via CSS, 
+       e ele for SVG, você pode tentar usar filtros. Exemplo:
+       filter: invert(100%) sepia(0%) saturate(7473%) hue-rotate(180deg) brightness(109%) contrast(100%); 
+       Isso inverteria as cores. Ajuste os valores para obter o efeito desejado. */
+}
+
+/* Responsividade básica para telas menores */
+@media (max-width: 768px) {
+    footer {
+        padding: 30px 15px;
+    }
+
+    .social-media-icons {
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .social-media-icons a {
+        font-size: 24px;
+    }
+
+    .footer-content {
+        margin-bottom: 25px;
+    }
+
+    .footer-content p {
+        font-size: 13px;
+    }
+
+    .footer-links li {
+        margin-bottom: 8px;
+    }
+
+    .footer-links a,
+    .language-selector button {
+        font-size: 14px;
+    }
+
+    .copyright {
+        font-size: 12px;
+        margin-top: 30px;
+    }
+}
+
+/* Estilos base do botão */
+    .btn {
+    
+        font-family: 'Nationale Bold'; /* Corrigido para evitar conflito com a anterior */
+      background-color: #ffffff; /* fundo branco */
+      color: #000000; /* texto preto */
+      border: 2px solid #000000;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 80px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Animação ao passar o mouse */
+    .btn:hover {
+      background-color: #f0f0f0;
+      transform: translateY(-3px); /* levanta o botão */
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    /* Animação ao clicar */
+    .btn:active {
+      transform: translateY(1px); /* "pressiona" o botão */
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    /* Adicionando um efeito de brilho ao passar o mouse */
+    .btn::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      transform: rotate(45deg) translateY(-100%);
+      transition: transform 0.5s ease;
+    }
+
+    .btn:hover::after {
+      transform: rotate(45deg) translateX(100%);
+    }
+
+        .btnlic {
+    
+        font-family: 'Nationale Bold'; /* Corrigido para evitar conflito com a anterior */
+      background-color: #6a636300; /* fundo branco */
+      color: #ffffff; /* texto preto */
+      border: 2px solid #ffffff;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 80px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Agrupa os botões num contêiner */
+.buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* Quando a tela for menor que 600px, empilha os botões */
+@media (max-width: 600px) {
+  .buttons {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px; /* espaço entre eles */
+  }
+
+  .buttons .btn,
+  .buttons .btnlic {
+    width: 80%; /* fica mais largo no mobile */
+    text-align: center;
+  }
+}
