@@ -181,13 +181,13 @@
      target="_blank" class="btnlic">LICENÇA</a>
 </div>
 
-  <script>
-    const btn = document.getElementById('btnCadastro');
-    btn.addEventListener('click', () => {
-      // Redireciona para a tela de cadastro
-      window.location.href = 'cadastro';
-    });
-  </script> 
+<script>
+const btn = document.getElementById('btnCadastro');
+btn.addEventListener('click', () => {
+  // Redireciona para a tela de termos
+  window.location.href = 'termos.html'; // ou 'termos' se você já removeu a extensão do .htaccess
+});
+</script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
@@ -306,4 +306,3 @@ p.style.fontWeight = "bold"; // Garante que fique em negrito
   
 </body>
 </html>
-

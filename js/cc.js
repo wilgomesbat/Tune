@@ -132,7 +132,6 @@ const termosCheckbox = document.getElementById('termos-uso');
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Verifica se a checkbox está marcada
     if (!termosCheckbox.checked) {
         showToast("Você precisa aceitar os Termos de Uso e a Licença.", "error");
         return;
@@ -170,10 +169,11 @@ registerForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    try {
-        // Marcar token como usado
-        await setDoc(doc(db, "tokens", tokenDoc.id), { used: true }, { merge: true });
+    // Bloquear botão para evitar múltiplos cliques
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Criando...";
 
+    try {
         // Criar usuário
         const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
         const userUid = userCredential.user.uid;
@@ -210,6 +210,9 @@ registerForm.addEventListener('submit', async (e) => {
             uid: userUid
         });
 
+        // Marcar token como usado **apenas depois que tudo deu certo**
+        await setDoc(doc(db, "tokens", tokenDoc.id), { used: true }, { merge: true });
+
         showToast("Conta criada com sucesso!", "success");
         setTimeout(() => window.location.href = "index.html", 4000);
 
@@ -217,6 +220,8 @@ registerForm.addEventListener('submit', async (e) => {
         console.error(err);
         showToast(`Erro: ${err.message}`, "error");
     } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Criar";
         profileFile = null;
         if (currentFileInput) {
             currentFileInput.remove();
@@ -224,3 +229,42 @@ registerForm.addEventListener('submit', async (e) => {
         }
     }
 });
+
+const submitBtn = document.getElementById('submitBtn');
+const nomeInput = document.getElementById('nome');
+const userInputField = document.getElementById('user');
+const emailInput = document.getElementById('email');
+const senhaInput = document.getElementById('senha');
+
+// Função que checa se o formulário está pronto para envio
+function checkFormReady() {
+    const nome = nomeInput.value.trim();
+    const user = userInputField.value.trim();
+    const email = emailInput.value.trim();
+    const senha = senhaInput.value.trim();
+    const token = tokenInput.value.trim();
+
+    // Condição: todos os campos preenchidos, foto enviada e token preenchido
+    if (nome && user && email && senha && profileFile && token) {
+        submitBtn.style.opacity = "1";
+        submitBtn.style.pointerEvents = "auto";
+    } else {
+        submitBtn.style.opacity = "0.5";
+        submitBtn.style.pointerEvents = "none";
+    }
+}
+
+// Eventos de input para atualizar dinamicamente
+[nomeInput, userInputField, emailInput, senhaInput, tokenInput].forEach(input => {
+    input.addEventListener('input', checkFormReady);
+});
+
+// Caso queira atualizar quando a foto for selecionada
+const profileInput = document.getElementById('profile-image-input');
+profileInput.addEventListener('change', (e) => {
+    profileFile = e.target.files[0] || null;
+    checkFormReady();
+});
+
+// Inicializa estado do botão
+checkFormReady();
