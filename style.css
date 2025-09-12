@@ -206,6 +206,17 @@ form {
   margin-bottom: 30px; /* Espaçamento inferior */
 }
 
+.checkbox-container input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
 
 .checkbox-container label {
   text-align: center;
@@ -352,10 +363,37 @@ form {
     display: flex;
     flex-direction: column;
 }
-
-/* Opcional: Adicionar espaçamento entre os elementos */
-.username-input-container .input-group-user {
-    margin-bottom: 8px; /* Espaço entre o input e o texto de feedback */
+/* Avatar container */
+#AvatarFileUpload {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  background: #f9f9f9;
+  border: 2px solid #575757;
+  border-radius: 50%;
+  margin: auto;
+  overflow: hidden;
+  cursor: pointer; /* mãozinha ao passar */
 }
 
+/* Imagem do avatar */
+#AvatarFileUpload .selected-image-holder img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transition: 0.3s;
+}
 
+/* Hover opcional: escurece levemente e mostra efeito */
+#AvatarFileUpload:hover .selected-image-holder img {
+  filter: brightness(0.8);
+}
+
+/* Input invisível cobrindo toda a área */
+#AvatarFileUpload input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}

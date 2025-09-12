@@ -37,33 +37,22 @@ let isUsernameAvailable = false;
 let debounceTimeout;
 let isTokenValid = false;
 
-// --- Upload de foto ---
-function handleFileSelect(event) {
-    const fileInput = event.target;
-    profileFile = fileInput.files[0];
+const imageInput = document.getElementById('profile-image-input');
+const imageViewer = document.getElementById('profile-preview');
 
-    if (profileFile) {
-        const reader = new FileReader();
-        reader.onload = (e) => profileIcon.src = e.target.result;
-        reader.readAsDataURL(profileFile);
-    }
+imageInput.addEventListener('change', e => {
+  if (!e.target.files || e.target.files.length === 0) return;
 
-    fileInput.value = '';
-    fileInput.removeEventListener('change', handleFileSelect);
-    if (currentFileInput === fileInput) currentFileInput = null;
-}
+  profileFile = e.target.files[0]; // ← usa a variável global
+  const reader = new FileReader();
 
-profileFrame.addEventListener('click', () => {
-    if (currentFileInput) return;
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*';
-    fileInput.style.display = 'none';
-    fileInput.addEventListener('change', handleFileSelect);
-    currentFileInput = fileInput;
-    document.body.appendChild(fileInput);
-    fileInput.click();
+  reader.onload = () => {
+    imageViewer.src = reader.result; // atualiza a imagem
+  };
+
+  reader.readAsDataURL(profileFile);
 });
+
 
 // --- Toast ---
 function showToast(message, type) {

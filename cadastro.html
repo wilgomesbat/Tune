@@ -119,14 +119,15 @@
                 <img class="text-logo" src="./assets/tunelogo.png" alt="Tune" />
             </div>
             <section class="card">
-                <div class="profile-section">
-    <div class="profile-frame">
-        <img class="profile-icon" src="assets/artistpfp.png" alt="Ícone de perfil padrão">
-        <input type="file" id="profile-image-input" accept="image/*" style="display: none;">
-        <label for="profile-image-input" class="add-photo-label"></label>
+<div class="profile-section">
+  <div id="AvatarFileUpload">
+    <div class="selected-image-holder">
+      <img src="assets/artistpfp.png" alt="AvatarInput" id="profile-preview">
     </div>
-    <p class="add-photo-text">ADICIONAR FOTO</p>
+    <input type="file" accept="image/*" name="avatar" id="profile-image-input">
+  </div>
 </div>
+
 
                 <form id="registerForm">
                     <div class="form-group">
@@ -207,7 +208,4 @@
 
     <script type="module" src="./js/cc.js"></script>
 </body>
-
 </html>
-
-
