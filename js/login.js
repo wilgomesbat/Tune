@@ -22,7 +22,7 @@ const auth = getAuth(app);
 // 🔁 Se já estiver logado, vai direto para o menu
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    window.location.href = "menu.html";
+    window.location.href = "tuneteam";
   }
 });
 
@@ -92,3 +92,4 @@ function showToast(message) {
     setTimeout(() => toast.remove(), 500);
   }, 3000);
 }
+
