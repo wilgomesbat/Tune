@@ -30,12 +30,34 @@ const formGroupUser = userInput.closest('.form-group');
 const usernameFeedback = document.createElement('p');
 formGroupUser.appendChild(usernameFeedback);
 
+// Função para verificar o status de manutenção
+async function verificarManutencao() {
+    // Referência ao documento de status no Firestore
+    const docRef = doc(db, "config", "status");
+    try {
+        const docSnap = await getDoc(docRef);
+        
+        // Verifica se o documento existe e se a chave 'manutencao' é true
+        if (docSnap.exists() && docSnap.data().manutencao) {
+            // Redireciona para a página de manutenção
+            window.location.href = "man.html";
+        }
+    } catch (e) {
+        console.error("Erro ao verificar status de manutenção: ", e);
+    }
+}
+
+// Executa a função imediatamente
+verificarManutencao();
+
 // Variáveis globais
 let profileFile = null;
 let currentFileInput = null;
 let isUsernameAvailable = false;
 let debounceTimeout;
 let isTokenValid = false;
+
+
 
 const imageInput = document.getElementById('profile-image-input');
 const imageViewer = document.getElementById('profile-preview');

@@ -363,25 +363,34 @@ form {
     display: flex;
     flex-direction: column;
 }
+
 /* Avatar container */
 #AvatarFileUpload {
   position: relative;
   width: 120px;
   height: 120px;
-  background: #f9f9f9;
+  background: #f9f9f9; /* Pode manter um fundo padrão para casos de erro */
   border: 2px solid #575757;
   border-radius: 50%;
   margin: auto;
-  overflow: hidden;
-  cursor: pointer; /* mãozinha ao passar */
+  overflow: hidden; /* ESSENCIAL para cortar o que excede o círculo */
+  cursor: pointer;
 }
 
-/* Imagem do avatar */
+#AvatarFileUpload .selected-image-holder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%; /* Garante que o holder também seja circular */
+  overflow: hidden; /* ESSENCIAL para cortar o que excede o círculo dentro do holder */
+}
+
 #AvatarFileUpload .selected-image-holder img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
+  object-fit: cover; /* MUDEI PARA 'COVER'! Isso fará a imagem preencher todo o espaço, cortando as partes que excedem */
+  object-position: center center; /* MUDEI PARA 'CENTER CENTER'! Isso vai centralizar a imagem dentro do contêiner, garantindo que o foco principal fique no meio */
+  /* Removi border-radius aqui, pois o pai já tem e o overflow está cuidando do corte */
+  background: #f9f9f9; /* Fundo para garantir que não apareça preto se a imagem tiver transparência */
   transition: 0.3s;
 }
 
@@ -396,4 +405,37 @@ form {
   inset: 0;
   opacity: 0;
   cursor: pointer;
+  z-index: 1; /* Garante que o input esteja acima da imagem para ser clicável */
+}
+/* Centralizar tela de manutenção */
+.maintenance-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: 80vh;
+  padding: 20px;
+  text-align: center;
+}
+
+.maintenance-icon {
+  width: 100px;
+  max-width: 80%;
+  height: auto;
+}
+
+.headline {
+    font-family: 'Nationale Black';
+    text-transform: uppercase;
+    font-size: 2rem;
+  color: hsl(0, 0%, 100%);
+  margin-bottom: 10px;
+}
+
+p {
+  font-size: 1rem;
+  color: #ccccccaf;
+  padding: 2% 20% 2% 20%;
+  max-width: 400px;
 }
