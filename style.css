@@ -203,8 +203,8 @@ form {
 .checkbox-container {
   display: flex;
   align-items: center;
-  margin-top: 10%;
-  margin-bottom: 30px; /* Espaçamento inferior */
+  margin-top: 0%;
+  margin-bottom: 50px; /* Espaçamento inferior */
 }
 
 .checkbox-container input[type="checkbox"]:checked::after {
@@ -496,4 +496,5 @@ p {
 .status-icon.success {
     filter: brightness(100%) contrast(100%);
 }
+
 
