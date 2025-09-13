@@ -25,10 +25,7 @@ const tokenInput = document.getElementById('token'); // input para código
 const tokenFeedback = document.getElementById('token-feedback');
 const profileFrame = document.querySelector('.profile-frame');
 const profileIcon = document.querySelector('.profile-icon');
-
-const formGroupUser = userInput.closest('.form-group');
-const usernameFeedback = document.createElement('p');
-formGroupUser.appendChild(usernameFeedback);
+const usernameStatusIcon = document.getElementById('username-status-icon');
 
 // Função para verificar o status de manutenção
 async function verificarManutencao() {
@@ -94,44 +91,48 @@ userInput.addEventListener('input', () => {
     clearTimeout(debounceTimeout);
     isUsernameAvailable = false;
 
+    // Remove status anterior e esconde o ícone
+    usernameStatusIcon.classList.remove('success', 'error', 'visible');
+
     let username = userInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
     userInput.value = username;
 
-    if (!username) {
-        usernameFeedback.textContent = '';
-        return;
-    }
+    if (!username) return;
 
+    // Username muito curto
     if (username.length < 3) {
-        usernameFeedback.textContent = 'Nome de usuário muito curto.';
-        usernameFeedback.style.color = '#e1a39eff';
+         usernameStatusIcon.src = "assets/cancel_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg";
+        usernameStatusIcon.classList.remove('success');
+        usernameStatusIcon.classList.add('error', 'visible');
         return;
     }
 
-    usernameFeedback.textContent = 'Verificando...';
-    usernameFeedback.style.color = '#fff';
-
-    debounceTimeout = setTimeout(async () => {
-        try {
-            const usernameDocRef = doc(db, "nomes", username);
-            const docSnap = await getDoc(usernameDocRef);
-            if (docSnap.exists()) {
-                usernameFeedback.textContent = 'Nome de usuário já em uso.';
-                usernameFeedback.style.color = '#e1a39eff';
-                isUsernameAvailable = false;
-            } else {
-                usernameFeedback.textContent = 'Disponível!';
-                usernameFeedback.style.color = '#b3b3b3ff';
-                isUsernameAvailable = true;
-            }
-        } catch (err) {
-            console.error(err);
-            usernameFeedback.textContent = 'Erro ao verificar.';
-            usernameFeedback.style.color = '#e1a39eff';
+// Debounce para evitar muitas requisições ao Firestore
+debounceTimeout = setTimeout(async () => {
+    try {
+        const usernameDocRef = doc(db, "nomes", username);
+        const docSnap = await getDoc(usernameDocRef);
+        if (docSnap.exists()) {
+            usernameStatusIcon.src = "assets/cancel_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg";
+            usernameStatusIcon.classList.remove('success');
+            usernameStatusIcon.classList.add('error', 'visible');
             isUsernameAvailable = false;
+        } else {
+            usernameStatusIcon.src = "assets/check_circle_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg";
+            usernameStatusIcon.classList.remove('error');
+            usernameStatusIcon.classList.add('success', 'visible');
+            isUsernameAvailable = true;
         }
-    }, 500);
-});
+    } catch (err) {
+        console.error(err);
+        usernameStatusIcon.src = "assets/cancel_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg";
+        usernameStatusIcon.classList.remove('success');
+        usernameStatusIcon.classList.add('error', 'visible');
+        isUsernameAvailable = false;
+    }
+}, 500);
+}); // ✅ FECHA O EVENT LISTENER
+
 
 // --- Validação de token ---
 async function validarTokenCode(tokenCode) {
@@ -290,3 +291,4 @@ profileInput.addEventListener('change', (e) => {
 
 // Inicializa estado do botão
 checkFormReady();
+
