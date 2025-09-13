@@ -116,7 +116,8 @@ form {
     width: 100%;
 }
 .form-group {
-    margin-bottom: 20px;
+      margin-bottom: 0px; /* Reduz a margem padrão para 0 */
+    padding-bottom: 16px; /* Adiciona o espaçamento como padding */
 }
 .input-label {
     font-size: 0.9rem;
@@ -148,7 +149,7 @@ form {
 .input-group-user {
     position: relative;
     display: flex;
-    align-items: center;
+    align-items: right;
 }
 .input-group-user .input-field {
     padding-left: 45px;
@@ -351,15 +352,16 @@ form {
     gap: 16px; /* Exemplo de espaçamento */
 }
 .username-feedback {
-    display: block; /* Garante que ele ocupe a linha inteira */
-    margin-top: 8px; /* Espaçamento acima do feedback */
-    margin-bottom: 12px; /* Espaçamento abaixo do feedback */
-    font-size: 0.85rem; /* Tamanho da fonte */
-    width: 100%; /* Garante que ocupe a largura disponível se necessário */
+    display: block;
+    margin-top: 8px;
+    margin-bottom:2x; /* Adiciona espaçamento apenas quando o parágrafo estiver visível */
+    font-size: 0.85rem;
+    width: 100%;
 }
 
 /* Adicione esta regra ao seu CSS */
 .username-input-container {
+    align-self: flex-start; /* Alinha o item à esquerda */
     display: flex;
     flex-direction: column;
 }
@@ -439,3 +441,59 @@ p {
   padding: 2% 20% 2% 20%;
   max-width: 400px;
 }
+
+/* Container do input com posição relativa */
+.input-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+/* Container do input */
+.input-group-user {
+    position: relative; /* essencial para o ícone absoluto */
+    display: flex;
+    align-items: center;
+}
+
+/* Símbolo @ */
+.at-symbol {
+    margin-right: 4px;
+    font-weight: bold;
+}
+
+/* Input */
+.input-field {
+    flex: 1;
+    padding-right: 30px; /* espaço para o ícone */
+}
+
+.input-group-user {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.status-icon {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    opacity: 0;
+    transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.status-icon.visible {
+    opacity: 1;
+}
+
+/* Filtro para colorir o SVG */
+.status-icon.error {
+    filter: invert(27%) sepia(94%) saturate(7151%) hue-rotate(356deg) brightness(91%) contrast(114%);
+}
+
+.status-icon.success {
+    filter: brightness(100%) contrast(100%);
+}
+
