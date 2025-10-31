@@ -5,29 +5,28 @@
 }
 
 body {
-
   font-family: 'Nationale Regular';
     /* Define a cor de fundo padrão para navegadores que não suportam gradientes */
-    /* Gradiente linear do topo para a base */
-    background: #121212;
-}
+    background-color: #000000;
 
-    @font-face {
-  font-family: 'Nationale Regular';
-  src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
-       url('./fonts/Nationale-Regular.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
+    /* Gradiente linear do topo para a base */
+    background: linear-gradient(to bottom, #000000 0%, #000000 100%);
 }
 
 @font-face {
-  font-family: 'Nationale Bold'; /* Corrigido para evitar conflito com a anterior */
-  src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
-       url('./fonts/Nationale-Bold.woff') format('woff');
-  font-weight: bold;
-  font-style: normal;
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
 }
-
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
 @font-face {
     font-family: 'Nationale Black';
     src: url('./fonts/Nationale-Black.woff2') format('woff2'),
@@ -35,7 +34,6 @@ body {
     font-weight: bold;
     font-style: normal;
 }
-
 
 .container {
   width: 100%;
@@ -109,17 +107,6 @@ h1 {
   margin: 20px 0;
 }
 
-.btn-ini {
-  width: 30%;
-  padding: 12px;
-  margin-bottom: 10px;
-  border: 1px solid #ffffff;
-  background: #ffffff;
-  color: rgb(0, 0, 0);
-  border-radius: 10px;
-  cursor: pointer;
-}
-
 .btn-social {
   width: 100%;
   padding: 12px;
@@ -158,45 +145,111 @@ footer p {
   margin-top: 10px;
 }
 
-/* From Uiverse.io by Wendell47 */ 
-a.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 15px 30px;
-  border: 0;
-  position: relative;
+/* Container que esconde o que está fora da tela */
+.carousel-container-auto-scroll {
   overflow: hidden;
-  border-radius: 10rem;
-  transition: all 0.2s;
-  font-weight: bold;
-  cursor: pointer;
-  color: rgb(0, 0, 0);
-  z-index: 0;
-  box-shadow: 0 0px 7px -5px rgba(0, 0, 0, 0.5);
-  text-decoration: none;
-  background: rgb(255, 255, 255); /* fundo visível */
 }
 
-a.button:hover {
-  background: rgb(177, 177, 177);
-  color: rgb(0, 0, 0);
-}
-
-.hoverEffect {
-  position: absolute;
-  bottom: 0;
-  top: 0;
-  left: 0;
-  right: 0;
+/* Onde a animação acontece */
+.artists-scroll-area {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 0; /* <— z-index menor que o texto */
+  gap: 20px;
+  padding: 10px 0;
+  white-space: nowrap; /* Evita quebra de linha dos itens */
+  animation: scroll 30s linear infinite; /* Aplica a animação de rolagem automática */
+  animation-play-state: running; /* Garante que a animação está rodando */
 }
 
-a.button span {
+/* Pausa a rolagem ao passar o mouse por cima */
+.artists-scroll-area:hover {
+  animation-play-state: paused;
+}
+
+/* A keyframe da animação que faz a rolagem */
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%); /* Rola 50% da largura do contêiner */
+  }
+}
+
+/* Os estilos dos itens do artista (iguais ao exemplo anterior) */
+.carousel-wrapper {
+  max-width: 100%;
+  margin: 20px auto;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  padding: 0 10px;
+}
+
+.carousel-title {
+  text-align: center;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+}
+
+.artist-item {
+  flex: 0 0 auto;
+  text-align: center;
+  width: 150px;
+}
+
+.artist-image-wrapper {
   position: relative;
-  z-index: 1; /* garante que o texto fique acima do hoverEffect */
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto 10px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
 
+.artist-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.artist-name {
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+/* ========================================================== */
+/* ESTILO PARA O VÍDEO (GIF-LIKE) - AGORA CENTRALIZADO */
+/* ========================================================== */
+
+.video-container {
+    /* Define o tamanho da div que contém o vídeo */
+    width: 100%;
+    
+    /* Limita a largura do container */
+    max-width: 400px; 
+    
+    /* ⭐ CENTRALIZA O BLOCO ⭐ */
+    margin-left: auto;
+    margin-right: auto;
+    
+    /* Espaço após o vídeo */
+    margin-bottom: 30px; 
+    
+    /* Estilo de card */
+    border-radius: 12px;
+    overflow: hidden; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); 
+}
+
+#background-video {
+    /* Ocupa 100% do container */
+    width: 100%;
+    height: 100%;
+    
+    /* Crucial: Faz o vídeo preencher e cortar, como um background-size: cover */
+    object-fit: cover; 
+    
+    /* Garante que o vídeo se comporte como um bloco */
+    display: block; 
+}

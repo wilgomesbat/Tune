@@ -2,7 +2,7 @@
 /* GENERAL STYLES */
 /* ============================= */
 body {
-    background-color: #121212;
+    background-color: #000000;
     font-family: 'Nationale Regular', sans-serif;
     color: #ddd;
     min-height: 100vh;
@@ -496,4 +496,3 @@ p {
 .status-icon.success {
     filter: brightness(100%) contrast(100%);
 }
-
