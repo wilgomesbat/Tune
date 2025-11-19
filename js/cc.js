@@ -197,11 +197,11 @@ registerForm.addEventListener('submit', async (e) => {
     submitBtn.innerText = "Criando...";
 
     try {
-        // Criar usuário
+        // Criar usuário (Loga o usuário automaticamente se for sucesso)
         const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
         const userUid = userCredential.user.uid;
 
-        // Upload da foto
+        // Upload da foto (AGORA FUNCIONA, pois o usuário está logado e a regra 'fotos_perfil' existe)
         const storageRef = ref(storage, `fotos_perfil/${userUid}/${profileFile.name}`);
         await uploadBytes(storageRef, profileFile);
         const photoURL = await getDownloadURL(storageRef);
@@ -233,7 +233,7 @@ registerForm.addEventListener('submit', async (e) => {
             uid: userUid
         });
 
-        // Marcar token como usado **apenas depois que tudo deu certo**
+        // Marcar token como usado
         await setDoc(doc(db, "tokens", tokenDoc.id), { used: true }, { merge: true });
 
         showToast("Conta criada com sucesso!", "success");
@@ -241,7 +241,30 @@ registerForm.addEventListener('submit', async (e) => {
 
     } catch (err) {
         console.error(err);
-        showToast(`Erro: ${err.message}`, "error");
+        let userMessage = 'Erro desconhecido. Tente novamente.';
+
+        // 🎯 Lógica para Erros Personalizados 🎯
+
+        // Erros de Autenticação (auth/)
+        if (err.code && err.code.startsWith('auth/')) {
+             if (err.code === 'auth/email-already-in-use') {
+                 userMessage = 'O e-mail já está em uso por outro usuário.';
+             } else if (err.code === 'auth/weak-password') {
+                 userMessage = 'A senha deve ter pelo menos 6 caracteres.';
+             } else {
+                 userMessage = 'Erro no registro. Verifique seu e-mail e senha.';
+             }
+        // Erros de Storage (storage/)
+        } else if (err.code && err.code.startsWith('storage/')) {
+            // Este erro (unauthorized) ocorre se a regra de segurança não for atendida (ex: foto muito grande)
+            userMessage = 'Erro no Upload da Foto. Verifique o tamanho do arquivo ou tente outra imagem.';
+        // Outros erros
+        } else {
+            userMessage = `Erro: ${err.message}`; 
+        }
+        
+        showToast(userMessage, "error");
+
     } finally {
         submitBtn.disabled = false;
         submitBtn.innerText = "Criar";
@@ -291,4 +314,3 @@ profileInput.addEventListener('change', (e) => {
 
 // Inicializa estado do botão
 checkFormReady();
-

@@ -22,7 +22,7 @@ const auth = getAuth(app);
 // 🔁 Se já estiver logado, vai direto para o menu
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    window.location.href = "tuneteam";
+    window.location.href = "menu.html";
   }
 });
 
@@ -49,12 +49,12 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   // Tentar login
 try {
   await signInWithEmailAndPassword(auth, email, password);
-  window.location.href = "index";
+  window.location.href = "menu.html";
 } catch (error) {
   if (error.code === "auth/user-not-found") {
     showToast("Este usuário não está cadastrado. Crie uma conta.");
     setTimeout(() => {
-      window.location.href = "login";
+      window.location.href = "cadastro.html";
     }, 2000);
   } else if (error.code === "auth/wrong-password") {
     showToast("Senha incorreta.");
@@ -67,6 +67,17 @@ try {
 
 });
 
+// ▶️ Google login
+document.getElementById("googleLogin").addEventListener("click", () => {
+  const provider = new GoogleAuthProvider();
+  signInWithPopup(auth, provider)
+    .then(() => {
+      window.location.href = "tuneteam";
+    })
+    .catch((error) => {
+      showToast("Erro ao fazer login com Google: " + error.message);
+    });
+});
 
 // ▶️ Função de toast personalizado
 function showToast(message) {

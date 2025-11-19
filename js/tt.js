@@ -1,11 +1,9 @@
+// 1. IMPORTAÇÕES DE MÓDULOS DO FIREBASE
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, updateDoc, setDoc, query, where, onSnapshot, orderBy, getDocs, limit } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, where, getDocs, limit } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { getDatabase, ref as databaseRef, set, onDisconnect, serverTimestamp, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
-// ================================
-// 2️⃣ CONFIGURAÇÃO DO FIREBASE
-// ================================
+// 2. CONFIGURAÇÃO DO FIREBASE
 const firebaseConfig = {
     apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
     authDomain: "tune-8cafb.firebaseapp.com",
@@ -18,153 +16,172 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-const rtdb = getDatabase(app);
 
-// ================================
-// 3️⃣ ELEMENTOS DO DOM
-// ================================
+// 3. ELEMENTOS DO DOM
 const elements = {
+    // Dashboard
+    totalAlbums: document.getElementById("total-albums"),
+    totalArtists: document.getElementById("total-artists"),
+    totalAccesses: document.getElementById("total-accesses"),
+    totalMusics: document.getElementById("total-musics"), // Para total de músicas
+    latestReleasesBody: document.getElementById("latest-releases-body"),
+    // Formulários
+    albumForm: document.getElementById("albumForm"),
+    songForm: document.getElementById("songForm"),
+    // Listas
+    albumsListContainer: document.getElementById("albums-list"),
+    musicListContainer: document.getElementById("musics-list"),
+    loadingMessage: document.getElementById("loading-message"),
+    // Pop-up de Aviso
+    warningModal: document.getElementById('warning-modal'),
+    warningMessage: document.getElementById('warning-message'),
+    // Outros
+    greeting: document.getElementById("greeting"),
+    albumInput: document.getElementById("album"),
+    trackSection: document.getElementById("trackSection"),
+    topNav: document.querySelector("#topNav"),
+    sectionOne: document.querySelector(".fw-bold"),
+    artistsListContainer: document.getElementById("artists-list"), // Novo elemento a ser adicionado no HTML
     adminList: document.getElementById("admin-list"),
-    adminLoading: document.getElementById("admin-loading")
+    adminLoading: document.getElementById("admin-loading"),
 };
 
-// ================================
-// 4️⃣ FUNÇÕES DE STATUS ONLINE/OFFLINE
-// ================================
+// --- LÓGICA PARA GERENCIAR O STATUS ONLINE/OFFLINE DOS ADMINISTRADORES ---
+
+// Função para atualizar o status online de um usuário
 async function updateUserStatus(userId, isOnline) {
     const userDocRef = doc(db, "usuarios", userId);
-    const rtdbRef = databaseRef(rtdb, `status/${userId}`);
-
     try {
-        // Atualiza RTDB
-        await set(rtdbRef, { isOnline, lastSeen: serverTimestamp() });
-
-        // Atualiza Firestore
-        await updateDoc(userDocRef, { online: isOnline, lastSeen: new Date() });
-
-        console.log(`Status do admin ${userId} => ${isOnline}`);
+        await updateDoc(userDocRef, {
+            online: isOnline,
+            lastSeen: new Date() // Opcional: registrar o último visto
+        });
+        console.log(`Status do admin ${userId} atualizado para ${isOnline}`);
     } catch (error) {
         console.error("Erro ao atualizar status do admin:", error);
     }
 }
 
-function setupOnlineStatusManagement(user) {
+// Função para verificar o status online do usuário logado e atualizar a UI
+function monitorUserStatus(user) {
     if (!user) return;
+
     const userId = user.uid;
-    const rtdbRef = databaseRef(rtdb, `status/${userId}`);
+    const userDocRef = doc(db, "usuarios", userId);
 
-    // Define status offline no disconnect
-    onDisconnect(rtdbRef).set({ isOnline: false, lastSeen: serverTimestamp() });
+    // Monitora as mudanças no documento do usuário
+    onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const userData = docSnap.data();
+            const isAdmin = userData.niveladmin === 1; // Verifica se é um administrador
 
-    // Marca usuário como online imediatamente
-    set(rtdbRef, { isOnline: true, lastSeen: serverTimestamp() });
-}
-
-// ================================
-// 5️⃣ MONITORA LISTA DE ADMINS EM TEMPO REAL
-// ================================
-function monitorAdminsStatus() {
-    const statusRef = databaseRef(rtdb, 'status');
-
-    onValue(statusRef, (snapshot) => {
-        const statuses = snapshot.val() || {};
-        document.querySelectorAll(".admin-item").forEach(el => {
-            const userId = el.dataset.userId;
-            const indicator = el.querySelector(".status-indicator");
-            if (!indicator) return;
-
-            if (statuses[userId]?.isOnline) {
-                indicator.classList.add('bg-green-500');
-                indicator.classList.remove('bg-gray-500');
-            } else {
-                indicator.classList.add('bg-gray-500');
-                indicator.classList.remove('bg-green-500');
+            if (isAdmin) {
+                const onlineStatus = userData.online || false; // Padrão para false se não existir
+                const adminElements = document.querySelectorAll(`.admin-item[data-user-id="${userId}"]`);
+                adminElements.forEach(el => {
+                    const statusIndicator = el.querySelector('.status-indicator');
+                    if (statusIndicator) {
+                        statusIndicator.classList.remove('bg-green-500', 'bg-gray-500');
+                        if (onlineStatus) {
+                            statusIndicator.classList.add('bg-green-500'); // Verde para online
+                        } else {
+                            statusIndicator.classList.add('bg-gray-500'); // Cinza para offline
+                        }
+                    }
+                });
             }
-        });
+        }
+    }, (error) => {
+        console.error("Erro ao monitorar status do usuário:", error);
     });
 }
 
-// ================================
-// 6️⃣ CARREGA ADMINS DO FIRESTORE
-// ================================
+// Lógica para definir o status como online ao entrar na página e offline ao sair
+function setupOnlineStatusManagement() {
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            const userId = user.uid;
+            // Define o status como online quando o usuário entra ou recarrega a página
+            updateUserStatus(userId, true);
+            monitorUserStatus(user); // Inicia o monitoramento do status
+
+            // Define o status como offline quando o usuário sai da página
+            window.addEventListener('beforeunload', () => {
+                updateUserStatus(userId, false);
+            });
+        } else {
+            // Se não houver usuário logado, garante que nenhum status fique como online indevidamente
+            console.log("Nenhum usuário logado.");
+        }
+    });
+}
+
+// --- LÓGICA PARA LISTAR ADMINISTRADORES (REVISADA PARA STATUS ONLINE) ---
 async function fetchAdmins() {
-    if (!elements.adminList) return;
     if (elements.adminLoading) {
         elements.adminLoading.style.display = 'block';
-        elements.adminLoading.textContent = "Carregando administradores...";
+        elements.adminLoading.textContent = "";
     }
 
     try {
-        const q = query(collection(db, "usuarios"), where("niveladmin", "==", 1));
-        onSnapshot(q, (snapshot) => {
-            elements.adminList.innerHTML = '';
+        // Busca todos os usuários que são administradores (niveladmin === 1)
+        const usersQuery = query(collection(db, "usuarios"), where("niveladmin", "==", 1));
 
-            if (snapshot.empty) {
-                elements.adminList.innerHTML = '<p class="text-gray-500">Nenhum administrador encontrado.</p>';
-                if (elements.adminLoading) elements.adminLoading.style.display = 'none';
-                return;
+        onSnapshot(usersQuery, (querySnapshot) => {
+            if (elements.adminList) {
+                elements.adminList.innerHTML = ''; // Limpa a lista existente
+
+                if (querySnapshot.empty) {
+                    elements.adminList.innerHTML = '<p class="text-xs text-gray-500">Nenhum admin encontrado.</p>';
+                } else {
+                    querySnapshot.forEach((doc) => {
+                        const user = doc.data();
+                        const userId = doc.id; // Pega o ID do documento do usuário
+                        const isOnline = user.online || false; // Pega o status online, com padrão false
+
+                        const adminElement = document.createElement('div');
+adminElement.className = "flex items-center gap-2 text-white p-1 rounded-md cursor-pointer admin-item";
+adminElement.setAttribute('data-user-id', userId);
+
+// Alteração aqui para remover a exibição do nome e focar apenas na foto e status
+adminElement.innerHTML = `
+    <div class="relative w-10 h-10">
+        <img class="w-full h-full rounded-full" src="${user.foto || './assets/default-profile.png'}" alt="Foto de perfil">
+        <span class="status-indicator absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-900 ${isOnline ? 'bg-green500' : 'bg-gray-500'}"></span>
+    </div>
+`;
+elements.adminList.appendChild(adminElement);                    });
+                }
             }
-
-            snapshot.forEach((docSnap) => {
-                const user = docSnap.data();
-                const userId = docSnap.id;
-
-                const adminEl = document.createElement('div');
-                adminEl.className = "flex items-center gap-2 text-white p-1 rounded-md cursor-pointer admin-item";
-                adminEl.dataset.userId = userId;
-                adminEl.innerHTML = `
-                    <div class="relative w-10 h-10">
-                        <img class="w-full h-full rounded-full object-cover" 
-                             src="${user.foto || './assets/default-profile.png'}" 
-                             alt="Foto de perfil">
-                        <span class="status-indicator absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-900 bg-gray-500"></span>
-                    </div>
-                                    `;
-
-                elements.adminList.appendChild(adminEl);
-            });
-
-            if (elements.adminLoading) elements.adminLoading.style.display = 'none';
-
-            // Começa a monitorar status depois de renderizar a lista
-            monitorAdminsStatus();
+            if (elements.adminLoading) {
+                elements.adminLoading.style.display = 'none';
+            }
+        }, (error) => {
+            console.error("Erro ao buscar administradores:", error);
+            if (elements.adminList) {
+                elements.adminList.innerHTML = '<p class="text-xs text-red-500">Erro ao carregar admins.</p>';
+            }
+            if (elements.adminLoading) {
+                elements.adminLoading.style.display = 'none';
+            }
         });
-
     } catch (error) {
-        console.error("Erro ao buscar administradores:", error);
-        if (elements.adminList) elements.adminList.innerHTML = '<p class="text-red-500">Erro ao carregar administradores.</p>';
-        if (elements.adminLoading) elements.adminLoading.style.display = 'none';
+        console.error("Erro ao configurar o listener de administradores:", error);
+        if (elements.adminList) {
+            elements.adminList.innerHTML = '<p class="text-xs text-red-500">Erro ao carregar admins.</p>';
+        }
+        if (elements.adminLoading) {
+            elements.adminLoading.style.display = 'none';
+        }
     }
 }
-
-// ================================
-// 7️⃣ AUTENTICAÇÃO E VERIFICAÇÃO DE NÍVEL
-// ================================
-onAuthStateChanged(auth, async (user) => {
-    if (!user) return;
-
-    const docRef = doc(db, "usuarios", user.uid);
-    const docSnap = await getDoc(docRef);
-
-    if (!docSnap.exists()) return;
-
-    const userData = docSnap.data();
-    if (userData.niveladmin !== 1) return;
-
-    // Configura status online/offline
-    setupOnlineStatusManagement(user);
-
-    // Carrega admins
-    fetchAdmins();
-});
-
 
 // --- FUNÇÕES AUXILIARES PARA MODAL DE AVISO ---
 function showWarningPopup(message) {
     if (elements.warningModal && elements.warningMessage) {
         elements.warningMessage.innerText = message;
         elements.warningModal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden'; // Impede a rolagem da página principal
     } else {
         console.error("Elemento de modal de aviso ou mensagem não encontrado.");
     }
@@ -173,7 +190,7 @@ function showWarningPopup(message) {
 function hideWarningPopup() {
     if (elements.warningModal) {
         elements.warningModal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
+        document.body.style.overflow = 'auto'; // Permite a rolagem da página principal
     }
 }
 
@@ -187,11 +204,12 @@ function formatNumber(num) {
 
 // --- LÓGICA DE AUTENTICAÇÃO E VERIFICAÇÃO DE NÍVEL ---
 function setupAuthAndAdminChecks() {
-    onAuthStateChanged(auth, (user) => { // 'auth' agora está definido
+    onAuthStateChanged(auth, (user) => {
         if (!user) {
             showWarningPopup("Você precisa estar logado como administrador para acessar este painel.");
         } else {
             checkAdminLevelAndShowWarning(user.uid);
+            // Inicia o monitoramento do status do usuário logado
             monitorUserStatus(user);
         }
     });
@@ -209,13 +227,7 @@ async function checkAdminLevelAndShowWarning(uid) {
             if (nivelAdmin !== 1) {
                 showWarningPopup("Você não tem permissão para acessar este painel.");
             } else {
-                hideWarningPopup();
-                // Se o usuário for um admin válido, agora podemos carregar os dados e iniciar os listeners
-                setupDisplayLogic();
-                setupCounterListeners();
-                setupOnlineStatusManagement();
-                fetchAdmins(); // Certifique-se de que a lista de admins é carregada
-                fetchAndRenderRecentArtists(); // Carrega artistas recentes se a seção existir
+                hideWarningPopup(); // Permite acesso se for admin nível 1
             }
         } else {
             showWarningPopup("Seus dados de acesso não foram encontrados. Por favor, contate o suporte.");
@@ -292,29 +304,28 @@ function setupDisplayLogic() {
             if (elements.loadingMessage) elements.loadingMessage.style.display = 'none';
             if (querySnapshot.empty) {
                 elements.albumsListContainer.innerHTML = '<p class="col-span-full text-center text-gray-400">Nenhum álbum encontrado.</p>';
-            } else {
-                querySnapshot.forEach((doc) => {
-                    const album = doc.data();
-                    const albumCard = document.createElement('div');
-                    albumCard.className = 'bg-gray-800 rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 p-4 cursor-pointer flex flex-col items-center text-center flex-shrink-0 w-40 sm:w-48 md:w-56 lg:w-64';
-                    albumCard.innerHTML = `
-                        <div class="relative w-full pb-[100%] bg-transparent rounded-md">
-                            <img src="${album.cover || ''}"
-                                 alt="Capa do Álbum: ${album.album}"
-                                 class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-md block">
-                        </div>
-                        <div class="mt-4 w-full">
-                            <h3 class="text-base font-semibold text-white truncate">${album.album}</h3>
-                            <p class="text-gray-400 text-sm truncate">${album.artist}</p>
-                            <div class="mt-2 text-gray-500 text-xs">
-                                <span>${album.date ? album.date.split('-')[0] : ''}</span> &bull;
-                                <span>Álbum</span>
-                            </div>
-                        </div>
-                    `;
-                    elements.albumsListContainer.appendChild(albumCard);
-                });
             }
+            querySnapshot.forEach((doc) => {
+                const album = doc.data();
+                const albumCard = document.createElement('div');
+                albumCard.className = 'bg-gray-800 rounded-lg shadow-lg overflow-hidden transform transition-transform hover:scale-105 p-4 cursor-pointer flex flex-col items-center text-center flex-shrink-0 w-40 sm:w-48 md:w-56 lg:w-64';
+                albumCard.innerHTML = `
+                    <div class="relative w-full pb-[100%] bg-transparent rounded-md">
+                        <img src="${album.cover || ''}"
+                             alt="Capa do Álbum: ${album.album}"
+                             class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-md block">
+                    </div>
+                    <div class="mt-4 w-full">
+                        <h3 class="text-base font-semibold text-white truncate">${album.album}</h3>
+                        <p class="text-gray-400 text-sm truncate">${album.artist}</p>
+                        <div class="mt-2 text-gray-500 text-xs">
+                            <span>${album.date ? album.date.split('-')[0] : ''}</span> &bull;
+                            <span>Álbum</span>
+                        </div>
+                    </div>
+                `;
+                elements.albumsListContainer.appendChild(albumCard);
+            });
         }, (error) => {
             console.error("Erro ao carregar álbuns:", error);
             if (elements.albumsListContainer) elements.albumsListContainer.innerHTML = '<p class="col-span-full text-center text-red-500">Erro ao carregar álbuns.</p>';
@@ -322,7 +333,7 @@ function setupDisplayLogic() {
         });
     }
 
-    // LÓGICA PARA OBTER E EXIBIR MÚSICAS
+    // LÓGICA PARA OBTER E EXIBIR MÚSICAS (se houver uma lista específica para isso)
     if (elements.musicListContainer) {
         const q = query(collection(db, "musicas"), orderBy("releaseDate", "desc"));
         onSnapshot(q, (snapshot) => {
@@ -476,7 +487,14 @@ function setupDisplayLogic() {
         }, {});
         sectionOneObserver.observe(elements.sectionOne);
     }
+
+    // Lógica para listar administradores (se houver uma seção separada para admins)
+    if (elements.adminList && elements.adminLoading) {
+        fetchAdmins(); // Chamada para buscar e exibir administradores
+    }
 }
+
+// ... (seu código existente de inicialização do Firebase) ...
 
 /**
  * Formata um timestamp do Firestore em um formato legível (DD/MM/AAAA).
@@ -520,7 +538,9 @@ async function fetchAndRenderRecentArtists() {
     if (!artistsContainer) return;
 
     try {
+        // A consulta (query) está correta, pois o campo 'criadoEm' já existe
         const q = query(collection(db, "usuarios"), orderBy("criadoEm", "desc"), limit(5));
+
         const querySnapshot = await getDocs(q);
         artistsContainer.innerHTML = '';
 
@@ -531,64 +551,94 @@ async function fetchAndRenderRecentArtists() {
 
         querySnapshot.forEach((doc) => {
             const artist = doc.data();
-            const artistId = doc.id;
-            const entryDate = artist.criadoEm;
-            const artistName = artist.nomeArtistico || artist.apelido;
-            const artistPhoto = artist.foto || 'assets/default-artist.png';
+            const artistId = doc.id; 
+            
+            // AQUI ESTÃO OS AJUSTES 👇
+            const entryDate = artist.criadoEm; // O campo já é uma string, não precisa de .toDate()
+            const artistName = artist.nomeArtistico || artist.apelido; // Use nomeArtistico ou apelido como fallback
+            const artistPhoto = artist.foto || 'assets/default-artist.png'; // Use o campo 'foto'
 
             const artistCard = document.createElement("div");
             artistCard.className = "flex items-center gap-4 bg-[#232323] p-3 rounded-lg";
+            
             artistCard.innerHTML = `
-                <div class="relative w-16 h-16 flex-shrink-0">
-                    <img src="${artistPhoto}" alt="Foto do Artista" class="w-full h-full rounded-full object-cover">
-                    <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-black ${artist.online ? 'bg-green-500' : 'bg-gray-500'}"></span>
+                <img src="${artistPhoto}" alt="Foto de perfil de ${artistName}" class="w-12 h-12 rounded-full object-cover">
+                <div class="flex-grow">
+                    <h4 class="font-bold text-white">${artistName}</h4>
+                    <p class="text-xs text-gray-400">UID: <span class="artist-uid" data-uid="${artistId}">${artistId}</span></p>
+                    <p class="text-xs text-gray-500">Desde: ${entryDate}</p>
                 </div>
-                <div>
-                    <h4 class="text-white font-bold text-lg">${artistName || 'Nome Indisponível'}</h4>
-                    <p class="text-gray-400 text-sm">Desde: ${entryDate ? entryDate.split('T')[0] : 'Data Indisponível'}</p>
-                </div>
+                <button class="copy-uid-btn text-gray-400 hover:text-white transition-colors" data-uid="${artistId}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h-2.5-2.5-2.5M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
             `;
+            
             artistsContainer.appendChild(artistCard);
         });
+
+        document.querySelectorAll(".copy-uid-btn").forEach(button => {
+            button.addEventListener("click", () => {
+                const uidToCopy = button.getAttribute("data-uid");
+                copyToClipboard(uidToCopy);
+            });
+        });
+
     } catch (error) {
-        console.error("Erro ao buscar artistas recentes:", error);
-        artistsContainer.innerHTML = '<p class="text-red-500">Erro ao carregar artistas.</p>';
+        console.error("Erro ao buscar e renderizar artistas recentes: ", error);
+        artistsContainer.innerHTML = '<p class="text-red-500 text-center">Ocorreu um erro ao carregar os artistas.</p>';
     }
 }
 
-// --- FUNÇÃO DE TOAST (Implementação básica, personalize se necessário) ---
-function showToast(message) {
-    const toastContainer = document.getElementById('toast-container') || createToastContainer();
-    const toastElement = document.createElement('div');
-    toastElement.className = 'toast bg-gray-700 text-white p-2 rounded-md shadow-lg mb-2';
-    toastElement.textContent = message;
-    toastContainer.appendChild(toastElement);
+// --- ATENÇÃO ---
+// Certifique-se de que a função showToast existe e está configurada
+// no seu código principal para exibir as mensagens. Se ela não estiver
+// no código que você forneceu, você precisará adicioná-la.
+// Exemplo de showToast:
+/*
+function showToast(msg, bgColor = "bg-red-600") {
+    let toast = document.createElement("div");
+    toast.innerText = msg;
+    toast.className = `fixed bottom-6 left-1/2 transform -translate-x-1/2 ${bgColor} text-white px-4 py-2 rounded shadow-lg text-sm z-50 animate-fade`;
+    document.body.appendChild(toast);
     setTimeout(() => {
-        toastElement.remove();
-        if (toastContainer.children.length === 0) {
-            toastContainer.remove();
-        }
+        toast.classList.add("opacity-0");
+        setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+*/
 
-function createToastContainer() {
-    const container = document.createElement('div');
-    container.id = 'toast-container';
-    container.style.position = 'fixed';
-    container.style.bottom = '20px';
-    container.style.right = '20px';
-    container.style.zIndex = '1000';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column-reverse';
-    container.style.gap = '10px';
-    document.body.appendChild(container);
-    return container;
-}
-
-
-// --- INICIALIZAÇÃO GERAL ---
-document.addEventListener('DOMContentLoaded', () => {
-    // A autenticação é verificada primeiro. Se o usuário for um admin válido,
-    // as outras funções de carregamento de dados e listeners serão chamadas.
-    setupAuthAndAdminChecks();
+// Chame a função para carregar os artistas quando o DOM estiver pronto
+document.addEventListener("DOMContentLoaded", () => {
+    // ... (outras inicializações, se houver)
+    fetchAndRenderRecentArtists();
 });
+
+// --- INICIALIZAÇÃO AO CARREGAR O DOM ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Configura a autenticação e verificação de admin
+    setupAuthAndAdminChecks();
+    // Configura os listeners para os contadores
+    setupCounterListeners();
+    // Configura a lógica de exibição de listas e formulários
+    setupDisplayLogic();
+    // Inicia o gerenciamento do status online
+    setupOnlineStatusManagement();
+
+    // Lógica para listar todos os artistas/usuários (se o elemento existir)
+    if (elements.artistsListContainer) {
+        fetchAndDisplayArtists(); // Certifique-se de que esta função está definida em algum lugar ou remova a chamada
+    }
+
+    // A função fetchAdmins já é chamada dentro de setupDisplayLogic() se os elementos existirem.
+    // Se precisar chamá-la separadamente, remova a chamada de dentro de setupDisplayLogic().
+});
+
+// --- FUNÇÃO EXEMPLO PARA BUSCAR E EXIBIR ARTISTAS (SE NECESSÁRIO) ---
+async function fetchAndDisplayArtists() {
+    // Implemente aqui a lógica para buscar artistas do Firestore e exibi-los no elements.artistsListContainer
+    // Exemplo:
+    // const artistsRef = collection(db, "usuarios"); // Ou uma coleção específica de artistas
+    // const q = query(artistsRef, orderBy("nome"));
+    // onSnapshot(q, (snapshot) => { ... });
+    console.log("Função fetchAndDisplayArtists chamada (implemente a lógica)");
+}
