@@ -89,6 +89,24 @@
     font-size: 3rem; /* Aumenta o tamanho em telas maiores, como tablets e desktops */
   }
     }
+    body {
+  background: linear-gradient(-45deg, #121212, #000000, #101010);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+  height: 100vh;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
     .sub {
       color: #bdbdbd;
       font-size: .95rem;
@@ -130,7 +148,8 @@
       margin-top: 6px;
     }
     .time {
-      background: #0e0e1257;
+      font-family: 'Nationale Black';
+      background: #0e0e1200;
       border-radius: 10px;
       padding: 10px 14px;
       min-width: 70px;
@@ -138,7 +157,7 @@
     }
     .time strong {
       display: block;
-      font-size: 1.2rem;
+      font-size: 2.2rem;
     }
     footer {
       opacity: .9;
@@ -172,25 +191,34 @@
     <div id="user-info" class="flex flex-col items-center gap-2 hidden"></div>
 </div>
 
-<div class="video-container">
-    <video id="background-video" autoplay loop muted playsinline>
-        <source src="./assets/datetune.mp4" type="video/mp4">
-        Seu navegador não suporta a tag de vídeo.
-    </video>
-</div>
+<div class="countdown-container">
+                    <div class="countdown" id="launch-countdown">
+              <div class="time">
+                  <strong id="countdown-days">00</strong>
+                  <small>Dias</small>
+              </div>
+              <div class="time">
+                  <strong id="countdown-hours">00</strong>
+                  <small>Horas</small>
+              </div>
+              <div class="time">
+                  <strong id="countdown-minutes">00</strong>
+                  <small>Minutos</small>
+              </div>
+              
+          </div>
+
 <div class="brand">
     <div id="user-info" class="flex flex-col items-center gap-2 hidden"></div>
 </div>
 
-      <h4 class="headline">UMA NOVA EXPERIÊNCIA </h4>
+
 
 
       <div class="buttons">
   <button class="btn" id="btnCadastro">CADASTRO ARTISTA</button>
-  <a href="https://docs.google.com/forms/d/e/1FAIpQLSdbKTORR5sxlEu78_pBJpTwFsjO-YrYqLLQyJWHMp2etLabZw/viewform" 
-     target="_blank" class="btnlic">LICENÇA</a>
-</div>
 
+</div>
 
 
 
@@ -198,23 +226,73 @@
 <script>
 const btn = document.getElementById('btnCadastro');
 btn.addEventListener('click', () => {
-
-  window.location.href = 'cadastro.html'; // ou 'termos' se você já removeu a extensão do .htaccess
+  window.location.href = 'cadastro.html'; 
 });
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Data alvo: 3 de Janeiro de 2026
+    const launchDate = new Date("Jan 3, 2026 00:00:00").getTime();
+
+    // Elementos do DOM
+    const daysEl = document.getElementById('countdown-days');
+    const hoursEl = document.getElementById('countdown-hours');
+    const minutesEl = document.getElementById('countdown-minutes');
+    const secondsEl = document.getElementById('countdown-seconds');
+    const countdownContainer = document.getElementById('launch-countdown');
+
+    function formatNumber(num) {
+        return num < 10 ? '0' + num : num;
+    }
+
+    function updateCountdown() {
+        const now = new Date().getTime();
+        const distance = launchDate - now;
+
+        if (distance < 0) {
+            // Se a data já passou
+            clearInterval(countdownInterval);
+            if (countdownContainer) {
+                countdownContainer.innerHTML = '<p class="headline" style="font-size: 1.5rem; margin: 0;">JÁ LANÇOU!</p>';
+            }
+            return;
+        }
+
+        // Cálculos de tempo
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        // Atualiza o DOM
+        if (daysEl) daysEl.textContent = formatNumber(days);
+        if (hoursEl) hoursEl.textContent = formatNumber(hours);
+        if (minutesEl) minutesEl.textContent = formatNumber(minutes);
+        if (secondsEl) secondsEl.textContent = formatNumber(seconds);
+    }
+
+    // Chama a função imediatamente para evitar um segundo de "00"
+    updateCountdown();
+
+    // Atualiza a cada segundo
+    const countdownInterval = setInterval(updateCountdown, 1000);
+});
+</script>
+
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-
+// ... (seu código Firebase e de Autenticação) ...
 const firebaseConfig = {
-  apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
-  authDomain: "tune-8cafb.firebaseapp.com",
-  projectId: "tune-8cafb",
-  storageBucket: "tune-8cafb.firebasestorage.app",
-  messagingSenderId: "599729070480",
-  appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
+  apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
+  authDomain: "tune-8cafb.firebaseapp.com",
+  projectId: "tune-8cafb",
+  storageBucket: "tune-8cafb.firebasestorage.app",
+  messagingSenderId: "599729070480",
+  appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -222,67 +300,67 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 document.addEventListener('DOMContentLoaded', () => {
-  const userInfo = document.getElementById('user-info');
-  const btnCadastro = document.getElementById('btnCadastro');
-  const btnLicenca = document.getElementById('btnLicenca');
+  const userInfo = document.getElementById('user-info');
+  const btnCadastro = document.getElementById('btnCadastro');
+  const btnLicenca = document.getElementById('btnLicenca');
 
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      // Esconde botões
-      if (btnCadastro) btnCadastro.style.display = 'none';
-      if (btnLicenca) btnLicenca.style.display = 'none';
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // Esconde botões
+      if (btnCadastro) btnCadastro.style.display = 'none';
+      if (btnLicenca) btnLicenca.style.display = 'none';
 
-      // Mostra div do usuário
-      userInfo.classList.remove('hidden');
+      // Mostra div do usuário
+      userInfo.classList.remove('hidden');
 
-      // Busca dados do usuário
-      const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
+      // Busca dados do usuário
+      const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
 
-        // Limpa div antes de criar elementos
-        userInfo.innerHTML = '';
+        // Limpa div antes de criar elementos
+        userInfo.innerHTML = '';
 
-        // Cria imagem
-        const img = document.createElement('img');
-        img.src = data.foto;
-        img.alt = 'Foto do artista';
-        img.className = 'w-28 h-28 rounded-full border-2 border-fff shadow-md';
-        userInfo.appendChild(img);
+        // Cria imagem
+        const img = document.createElement('img');
+        img.src = data.foto;
+        img.alt = 'Foto do artista';
+        img.className = 'w-28 h-28 rounded-full border-2 border-fff shadow-md';
+        userInfo.appendChild(img);
 
-        // Cria nome
+        // Cria nome
 const p = document.createElement('p');
 p.textContent = data.nomeArtistico;
 p.className = 'text-lg mt-2'; // Mantém classes utilitárias do Tailwind
 p.style.fontFamily = "'Nationale Bold', sans-serif"; // Aplica fonte específica
 p.style.fontWeight = "bold"; // Garante que fique em negrito
-         userInfo.appendChild(p);
+         userInfo.appendChild(p);
 
-      }
+      }
 
-      // Botão de logout opcional
-      if (!document.getElementById('btnLogout')) {
-        const btnLogout = document.createElement('button');
-        btnLogout.id = 'btnLogout';
-        btnLogout.textContent = 'SAIR';
-        btnLogout.className = 'btn mt-4 bg-red-600 hover:bg-red-700';
-        btnLogout.addEventListener('click', async () => {
-          await signOut(auth);
-          window.location.reload();
-        });
-        btnLicenca.insertAdjacentElement('afterend', btnLogout);
-      }
+      // Botão de logout opcional
+      if (!document.getElementById('btnLogout')) {
+        const btnLogout = document.createElement('button');
+        btnLogout.id = 'btnLogout';
+        btnLogout.textContent = 'SAIR';
+        btnLogout.className = 'btn mt-4 bg-red-600 hover:bg-red-700';
+        btnLogout.addEventListener('click', async () => {
+          await signOut(auth);
+          window.location.reload();
+        });
+        btnLicenca.insertAdjacentElement('afterend', btnLogout);
+      }
 
-    } else {
-      // Mostra botões quando não logado
-      if (btnCadastro) btnCadastro.style.display = 'inline-block';
-      if (btnLicenca) btnLicenca.style.display = 'inline-block';
+    } else {
+      // Mostra botões quando não logado
+      if (btnCadastro) btnCadastro.style.display = 'inline-block';
+      if (btnLicenca) btnLicenca.style.display = 'inline-block';
 
-      // Esconde div do usuário
-      userInfo.classList.add('hidden');
-      userInfo.innerHTML = '';
-    }
-  });
+      // Esconde div do usuário
+      userInfo.classList.add('hidden');
+      userInfo.innerHTML = '';
+    }
+  });
 });
 </script>
 
