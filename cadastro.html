@@ -6,8 +6,8 @@
     <title>Criar conta - Pré-cadastro</title>
 
     <link rel="icon" type="image/png" href="./assets/favicon.png" />
-    <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./rodape.css" />
+    <link rel="stylesheet" href="./ccstyle.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,0,0&icon_names=gpp_bad" />    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,0,0&icon_names=check_circle" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
           integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
@@ -115,9 +115,9 @@
 <body>
     <main class="page-container">
         <div class="container animate-fade">
-            <div class="brand">
-                <img class="text-logo" src="./assets/tunelogo.png" alt="Tune" />
-            </div>
+            <div class="logo-area">
+    <img src="assets/tunelogocima.png" alt="Logo Tune" class="main-logo-tidal">
+  </div>
             <section class="card">
 <div class="profile-section">
   <div id="AvatarFileUpload">
@@ -129,8 +129,8 @@
 </div>
                 <form id="registerForm">
                     <div class="form-group">
-                        <label for="nome" class="input-label">Nome artístico</label>
-                        <input type="text" id="nome" class="input-field" placeholder="Nome" required />
+                        <label for="nome" class="input-label">Nome</label>
+                        <input type="text" id="nome" class="input-field" placeholder="Nome da conta" required />
                     </div>
 
                    <div class="form-group">
@@ -159,18 +159,15 @@
                         </p>
                     </div>
 
-                    <div class="form-group">
-    <label for="token" class="input-label">Código de verificação</label>
-    <input type="text" id="token" class="input-field" placeholder="Digite seu código" required />
-    <p id="token-feedback" class="username-feedback"></p>
-</div>
+                    <button type="button" id="artist-toggle-btn" class="main-button artist-toggle-button inactive">
+    Sou artista
+</button>
 
 <div class="checkbox-container">
     <input type="checkbox" id="termos-uso">
     <label for="termos-uso">
         Ao clicar em criar conta, você confirma que leu e concorda com os 
-        <a href="termos.html" class="link-tidal">Termos de Uso</a> do TUNE e que reivindica a <a class="link-tidal">Licença Exclusiva<a/>, concordando com os 
-        <a class="link-tidal">Termos e Condições</a> da mesma.
+        <a href="termos.html" class="link-tidal">Termos de Uso</a> do TUNE e concorda com o mesmo.
     </label>
 </div>
     <button type="submit" id="submitBtn" class="main-button">
@@ -200,13 +197,15 @@
 
                 <div class="copyright">
                     <img src="assets/tuneicon.png" alt="Logo TUNE" class="tune-logo">
-                    © 2025 TUNE DKS
+                    © 2026 TUNE DKS
                 </div>
             </footer>
         </div>
     </main>
 
     <div id="toast-container"></div>
+
+ 
 
     <script type="module" src="./js/cc.js"></script>
 </body>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Página do Artista</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+
+  /* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+body {
+ 
+    font-family: 'Nationale Regular';
+
+    }
+
+    .artist-bg-gradient {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      /* Gradiente: do #121212 (cor de fundo) para transparente, cobrindo os 40% inferiores. */
+      background: linear-gradient(to top, #121212 0%, transparent 40%);
+      z-index: 1; /* Garante que o gradiente fique acima da imagem de capa, mas abaixo do texto */
+    }
+  </style>
+</head>
+<body class="bg-[#121212] text-white">
+
+  <div id="artist" class="relative min-h-screen">
+    <div id="artist-header" class="relative main-header h-[450px] md:h-[500px] flex items-end p-6 md:p-8 rounded-[40px] overflow-hidden">
+      <div class="absolute inset-0 bg-cover bg-center" id="artist-cover-bg"></div>
+      <div class="absolute inset-0 artist-bg-gradient"></div> 
+      
+      <!-- Indicador de conta banida -->
+      <div id="ban-indicator" class="absolute inset-0 z-20 bg-black bg-opacity-70 backdrop-blur-sm hidden flex-col items-center justify-center text-center p-4">
+        <span class="text-red-500 text-6xl mb-4">🚫</span>
+        <h2 class="text-3xl font-bold text-red-400">CONTA BANIDA</h2>
+        <p class="text-xl text-gray-300 mt-2">Este perfil está indisponível. O acesso foi restrito pela administração.</p>
+      </div>
+      
+      <!-- Bloco de informações do artista -->
+      <div class="relative z-10 text-white flex flex-col items-start">
+        <!-- Selo de verificação -->
+        <div id="verified-status-container" class="flex items-center text-sm font-semibold mb-2">
+          <img src="/assets/verificado.png" alt="Verificado" class="w-4 h-4 mr-2">
+          <span class="tracking-tight">Artista verificado</span>
+        </div>
+
+        <!-- Nome do artista -->
+        <h1 id="artist-name" class="text-5xl md:text-7xl font-extrabold leading-tight text-left">
+          Nome do Artista
+        </h1>
+
+        <!-- Ouvintes mensais -->
+        <p id="artist-listeners" class="text-sm font-medium text-gray-300 mt-2 text-left">
+          0 ouvintes mensais
+        </p>
+      </div>
+    </div>
+
+    <!-- Seções adicionais -->
+    <div class="p-6 md:p-8 flex items-center space-x-4 sticky top-0 z-20" style="background-color: #00000000;"></div>
+
+    <div id="top-tracks-container" class="p-6 md:p-8"></div>
+    <div id="albums-container" class="p-6 md:p-8"></div>
+    <div id="stations-container" class="p-6 md:p-8"></div>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

@@ -1,35 +1,37 @@
-/* ============================= */
-/* GENERAL STYLES */
-/* ============================= */
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.658);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(136, 136, 136, 0.589);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(85, 85, 85, 0.637);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.custom-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 body {
-    background-color: #000000;
-    font-family: 'Nationale Regular', sans-serif;
-    color: #ddd;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 24px;
-    margin: 0;
-}
+ 
+    font-family: 'Nationale Regular';
 
-.icon-logo {
-  width: 30px;
-  margin-bottom: 10px;
-}
+    }
 
-@keyframes fade {
-  0% { opacity: 0; transform: translateY(10px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.animate-fade {
-  animation: fade 0.3s ease-out;
-  transition: opacity 0.3s ease;
-}
-
-/* ============================= */
-/* FONTS */
-/* ============================= */
 @font-face {
     font-family: 'Nationale Regular';
     src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
@@ -51,449 +53,2096 @@ body {
     font-weight: bold;
     font-style: normal;
 }
-
-/* ============================= */
-/* PAGE CONTAINER */
-/* ============================= */
-.page-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
+@font-face {
+    font-family: 'cy-grotesk-grand';
+    src: url('./fonts/cy-grotesk-grand-medium.ttf') format('truetype');
+    font-weight: 500; /* Médio */
+    font-style: normal;
 }
 
-/* ============================= */
-/* CARD STYLES */
-/* ============================= */
+
+strong, b, .font-bold, .font-semibold {
+    font-family: 'Nationale Bold', sans-serif !important; 
+}
+
+/* REGRA PARA USAR A VARIAÇÃO REGULAR */
+.font-nationale-regular, .regular-text {
+    /* Usa o nome exato do @font-face: 'Nationale Regular' */
+    font-family: 'Nationale Regular', sans-serif !important; 
+    font-weight: normal !important;
+}
+
+
+html,
+body,
+#app,
+#principal {
+  width: 100%;
+  height: 100%;
+  overflow-y: hidden;
+}
+
+#app {
+  min-width: 767px;
+  overflow-x: auto;
+}
+
 .card {
-    background-color: #262626;
-    border-radius: 20px;
-    padding: 40px 24px;
-    width: 100%;
-    max-width: 400px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  font-family: 'Nationale Bold';
+  background-color: rgb(19, 19, 19);
+  color: #ffffff;
+  margin: 20px 20px 0 20px;
+  padding: 10px 18px;
+  border-radius: 20px;
+  /* border: 1px solid #fff; */  /* removi a borda para tirar o tracado */
+  opacity: 0.8;
+  font-weight: 500;
+  font-size: 0.9em;
 }
 
-/* ============================= */
-/* PROFILE & PHOTO */
-/* ============================= */
-.profile-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 24px;
-}
-.profile-frame {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    border: 2px solid #575757;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    cursor: pointer;
-}
-.profile-icon {
-    width: 100px;
-    height: 100px;
-    object-fit: contain;
-}
-.add-photo-text {
-    color: #c4c4c4;
-    font-size: 0.8rem;
-    margin-top: 10px;
-    letter-spacing: 1px;
+.card h3 {
+  margin-top: 0;
+  font-size: 16px;
 }
 
-/* ============================= */
-/* FORM */
-/* ============================= */
-form {
-    width: 100%;
-}
-.form-group {
-      margin-bottom: 0px; /* Reduz a margem padrão para 0 */
-    padding-bottom: 16px; /* Adiciona o espaçamento como padding */
-}
-.input-label {
-    font-size: 0.9rem;
-    color: #ffffff;
-    margin-bottom: 8px;
-    display: block;
-}
-.input-field {
-    font-family: 'Nationale Regular';
-    background-color: #3e3e3e;
-    border: none;
-    color: #ffffff;
-    padding: 16px;
-    border-radius: 8px;
-    width: 100%;
-    box-sizing: border-box;
-}
-.input-field::placeholder {
-    color: #9e9e9e;
-}
-.input-field:focus {
-    outline: none;
-    border: 2px solid #ffffff;
+.card p {
+  font-size: 14px;
+  color: #ffffff;
+  margin: 10px 0 20px;
 }
 
-/* ============================= */
-/* USERNAME INPUT & CHECKMARK */
-/* ============================= */
-.input-group-user {
-    position: relative;
-    display: flex;
-    align-items: right;
-}
-.input-group-user .input-field {
-    padding-left: 45px;
-}
-.input-group-user .at-symbol {
-    position: absolute;
-    left: 16px;
-    color: #9e9e9e;
-    font-size: 1rem;
-    pointer-events: none;
-}
-.check-icon {
-    position: absolute;
-    right: 16px;
-    color: #4CAF50;
-    font-size: 24px;
+.bootn {
+  display: inline-block;
+  padding: 10px 18px;
+  background-color: #fff;   /* fundo branco */
+  color: #000;              /* texto preto */
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: bold;
+  -webkit-text-fill-color: #000;
+  font-size: 14px;
+  border: none;
+  box-shadow: none;
+  line-height: 1;           /* para o texto não ficar com altura maior */
+  text-align: center;       /* garante alinhamento horizontal */
+  vertical-align: middle;   /* ajuda no alinhamento vertical */
 }
 
-/* ============================= */
-/* PASSWORD NOTE */
-/* ============================= */
-.password-note {
-    font-size: 0.75rem;
-    color: #9e9e9e;
-    margin-top: 8px;
-    padding: 0 10px;
+/* Adicione estas regras para o fundo desfocado e as bordas */
+#album-cover-bg {
+  filter: blur(50px); /* Ajusta o nível de desfoque */
+  transform: scale(1.1); /* Evita bordas visíveis após o desfoque */
+  transition: background-image 0.5s ease-in-out, filter 0.5s ease-in-out;
 }
 
-/* ============================= */
-/* MAIN BUTTON */
-/* ============================= */
-.main-button {
-    width: 100%;
-    padding: 16px 0;
-    margin-top: 0px;
-    border-radius: 999px;
-    background-color: #ffffff;
-    color: #000000;
-    text-decoration: none;
-    text-align: center;
-    border: none;
-    font-family: 'Nationale Regular';
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: bold;
-}
-.main-button:hover {
-    background-color: #9e9e9e;
+#album-header {
+  margin: 20px;
+  border-radius: 20px; /* Adiciona a borda arredondada */
 }
 
-.checkbox-container {
+    .left, .center, .right {
   display: flex;
   align-items: center;
-  margin-top: 0%;
-  margin-bottom: 50px; /* Espaçamento inferior */
+  gap: 15px;
 }
 
-.checkbox-container input[type="checkbox"]:checked::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 6px;
-  width: 5px;
-  height: 10px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+/* Overall Container */
+.navbar-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 60px;
+  padding: 0 16px;
+  background-color: #00000000;
+  box-sizing: border-box;
 }
 
-.checkbox-container label {
-  text-align: center;
- font-family: 'Nationale Regular';  font-size: 14px;
-  color: #989898; /* Cor do texto */
-  line-height: 1.5;
+/* Left and Right Sections */
+.nav-left,
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* Spacing between items */
+}
+
+
+
+
+.logo-image {
+  width: 32px;
+  height: 32px;
+}
+
+.icon-circle {
+  /* Propriedades existentes (tamanho, cor, borda) */
+  width: 48px;
+  height: 48px;
+  background-color: #121212;
+  border: 1px solid #282828;
+  border-radius: 50%;
+
+  /* Propriedades para centralizar o ícone */
+  display: flex; /* Define o contêiner como um Flexbox */
+  justify-content: center; /* Centraliza horizontalmente */
+  align-items: center; /* Centraliza verticalmente */
+}
+
+.nav-icon {
+
+  width: 30px;
+  height: 30px;
+}
+
+/* Common Styles for Links/Buttons */
+.nav-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s ease-in-out;
+}
+
+.nav-link:hover {
+  color: #a7a7a7;
+}
+
+/* Specific Link/Button Styles */
+.install-app .link-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+}
+
+.login-button {
+  height: 48px;
+  padding: 0 24px;
+  background-color: #fff;
+  color: #000;
+  font-weight: 700;
+  border-radius: 24px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.login-button:hover {
+  background-color: #f6f6f6;
+  color: #000;
+}
+
+.btn-login {
+  background: #fff;
+  color: #000 !important;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+/* Restante do seu CSS (se houver) */
+
+/*playlists */
+
+ul.playlists {
+  list-style: none;
+  padding: 0;
+}
+
+ul.playlists li.serie-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 10px;
+}
+
+
+ul.playlists li.serie-item a {
+  display: flex;
+  text-decoration: none;
+  color: inherit;
+}
+
+.serie-capa {
+  width: 100px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-right: 12px;
+}
+
+.serie-info h5 {
+  margin: 0 0 5px 0;
+  font-size: 1.1em;
+}
+
+.serie-info p {
+  margin: 0;
+  font-size: 0.9em;
+  color: #555;
+}
+
+
+
+#principal {
+  background-color: #0a0a0afb;;;
+  transition: background-color 1s ease;
+  color: #fff;
+}
+
+#principal #latNav {
+  max-width: 24px;
+  background-color: #0a0a0afb;;
+}
+
+#principal #latNav a {
+  text-decoration: none;
+  color: #fff;
+}
+
+#principal #latNav .nav .nav-item .nav-link {
+  color: #fff;
+  fill: #fff;
+  font-size: 0.9em;
+  font-weight: bold;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+#principal #latNav .nav .nav-item .nav-link svg {
+  margin-right: 13px;
+}
+
+#principal #latNav .nav .nav-item .nav-link.ativo,
+#principal #latNav .nav .nav-item .nav-link:hover {
+  opacity: 1;
+}
+
+#principal #latNav #underList button {
+  background-color: rgba(0, 0, 0, 0);
+  border: 0;
+  display: flex;
+  color: #fff;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+  padding: 8px 24px;
+  width: 100%;
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+#principal #latNav #underList button .plus_bttn,
+#principal #latNav #underList button .heart_bttn {
+  width: 24px;
+  height: 24px;
+  margin-right: 16px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#principal #latNav #underList button .plus_bttn {
+  background-color: #fff;
+}
+
+#principal #latNav #underList button .heart_bttn {
+  background: linear-gradient(125deg, #773de3 41%, #cffff1 100%);
+  fill: #fff;
+}
+
+#principal #latNav #underList button:hover {
+  opacity: 1;
+}
+
+#principal #latNav #playlistSidebar {
+  width: 100%;
+  overflow-y: auto;
+  box-shadow: inset 0 30px 15px rgba(10, 10, 10, 0.2);
+}
+
+#principal #latNav #playlistSidebar li {
+  width: 100%;
+  list-style-type: none;
+}
+
+#principal #latNav #playlistSidebar li a {
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+#principal #latNav #installApp {
+  fill: #fff;
+  font-size: 0.9em;
+  font-weight: 500;
+  opacity: 0.8;
+  transition: opacity 0.3s;
+}
+
+#principal #latNav #installApp svg {
+  margin-right: 15px;
+}
+
+#principal #latNav #installApp:hover {
+  opacity: 1;
+}
+
+#principal #feed {
+  background: linear-gradient(
+    180deg,
+    #121212 80%,
+    #202020 100%
+  );
+  border-radius: 30px 30px 0 0; /* Arredonda os cantos superiores */
+
+  overflow-y: auto;
+}
+
+#principal #feed #topNav {
+  transition: background-color .3s ease;
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+
+
+#principal #feed #topNav #arrowMenu button {
+  border: none;
+  margin: 5px;
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background-color: rgba(0, 0, 0, 0.671);
+  fill: #fff;
+  opacity: 0.5;
+}
+
+#principal #feed #topNav #btnTopNav button#upgrade {
+  background-color: rgba(10, 10, 10, 0.1);
+  color: #fff;
+  padding: 2px 10px;
+  margin: 1px;
+  border-radius: 20px;
+  border: 1px solid #fff;
+  opacity: 0.8;
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+#principal #feed #topNav #btnTopNav button#upgrade:hover {
+  background-color: #0a0a0a;
+  padding: 2px 11px;
+}
+
+#principal #feed #topNav #btnTopNav #user_bttn button {
+  background-color: rgba(99, 99, 99, 0.594);
+  border: none;
+  border-radius: 50px;
+  padding: 3px;
+  padding-right: 10px;
+}
+
+#principal #feed #topNav #btnTopNav #user_bttn button .imgUsuario {
+  border-radius: 14px;
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+}
+
+#principal #feed #topNav #btnTopNav #user_bttn button:focus {
+  box-shadow: 0 0 0 0;
+  border: 0 none;
+  outline: 0;
+}
+
+#principal #feed #main {
+  background: linear-gradient(
+    180deg,
+    rgba(39, 39, 39, 0.925) 0%,
+    #373737 50%,
+    #121212 100%
+  );
+   border-radius: 40px 12px 0 0; /* arredondado só em cima */
+}
+
+#principal #feed #main #feedHeader {
+  max-width: 1920px;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 0;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes li {
+  list-style-type: none;
+  width: 32%;
+  border-radius: 5px;
+  margin: 7px 0;
   cursor: pointer;
+  transition: background-color 0.3s ease;
+  background-color: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
 }
 
-.checkbox-container .link-tidal {
-  color: #fff; /* Cor dos links */
-  text-decoration: none; /* Remove sublinhado padrão */
-  font-weight: bold; /* Deixa o texto dos links em negrito */
+#principal #feed #main #feedHeader #playlistsRecentes li:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
-.checkbox-container .link-tidal:hover {
-  text-decoration: underline; /* Adiciona sublinhado ao passar o mouse */
+#principal #feed #main #feedHeader #playlistsRecentes li:hover button.btn {
+  opacity: 1;
+  cursor: default;
 }
 
-/* ============================= */
-/* TOASTS */
-/* ============================= */
-#toast-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
+#principal #feed #main #feedHeader #playlistsRecentes li img {
+  width: 80px;
+  height: 80px;
+  border-radius: 5px 0 0 5px;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes li button.btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  background-color: #1ed760;
+  transition: opacity 0.3s ease;
+  opacity: 0;
+  box-shadow: 0px 15px 40px 0px rgba(0, 0, 0, 0.9);
+  transition: all ease-in-out 0.2s;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes li button.btn:hover {
+  padding: 1px;
+  border: 0;
+  transform: scale(1.05);
+}
+
+#botomIcon {
+  display: none !important;
+}
+
+@media only screen and (max-width: 1186px) {
+  #principal #feed #main #feedHeader #playlistsRecentes li {
+    width: 49%;
+  }
+
+  #principal #feed #main #feedHeader #playlistsRecentes li img {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+#principal #feed #main .feedPlaylist {
+  max-width: 1920px;
+}
+
+#principal #feed #main .feedPlaylist h4 {
+  display: inline;
+}
+#principal #feed #main .feedPlaylist h4 > a {
+  text-decoration: none;
+  color: #fff;
+}
+
+#principal #feed #main .feedPlaylist h4 > a:hover {
+  text-decoration: underline;
+}
+#principal #feed #main .feedPlaylist .see-all {
+  text-decoration: none;
+  color: #b3b3b3;
+  float: right;
+  font-size: 9pt;
+  font-weight: bold;
+}
+
+#principal #feed #main .feedPlaylist .see-all:hover {
+  text-decoration: underline;
+}
+
+#principal #feed #main .feedPlaylist .playlists {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+  justify-content: space-between;
+  overflow-y: hidden;
+  height: 380px;
+}
+
+#principal #feed #main .feedPlaylist .playlists li {
+  width: 15%;
+  list-style-type: none;
+  background-color: rgba(255, 255, 255, 0);
+  padding: 15px 15px 0 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  position: relative;
+  margin-bottom: 100px;
+}
+
+#principal #feed #main .feedPlaylist .playlists li img {
+  width: 100%;
+  border-radius: 5px;
+  margin-bottom: 17px;
+}
+
+#principal #feed #main .feedPlaylist .playlists li span {
+  font-weight: 700;
+}
+
+#principal #feed #main .feedPlaylist .playlists li p {
+  font-family: 'Nationale Bold', sans-serif;
+  font-size: 0.9em;
+  line-height: 15px;
+  opacity: 0.8;
+}
+
+#principal #feed #main .feedPlaylist .playlists li button.btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  background-color: #1ed760;
+  transition: all 0.3s ease;
+  opacity: 0;
+  position: absolute;
+  right: 8px;
+  bottom: 80px;
+  cursor: default;
+  transition: all ease-in-out 0.2s;
+  box-shadow: 0px 15px 40px 0px rgba(0, 0, 0, 0.9);
+}
+
+#principal #feed #main .feedPlaylist .playlists li button.btn:hover {
+  padding: 1px;
+  border: 0;
+  transform: scale(1.05);
+}
+
+#principal #feed #main .feedPlaylist .playlists li:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+#principal #feed #main .feedPlaylist .playlists li:hover button.btn {
+  bottom: 95px;
+  opacity: 1;
+}
+
+@media only screen and (max-width: 2130px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 360px;
+  }
+}
+
+@media only screen and (max-width: 1920px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 320px;
+  }
+}
+
+@media only screen and (max-width: 1730px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 300px;
+  }
+}
+
+@media only screen and (max-width: 1512px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 295px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 18%;
+  }
+}
+
+@media only screen and (max-width: 1324px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 310px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 23%;
+  }
+}
+
+@media only screen and (max-width: 996px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 295px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 32%;
+  }
+}
+
+@media only screen and (max-width: 796px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 310px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 48%;
+  }
+}
+
+@media only screen and (max-width: 770px) {
+  #latNav {
+    display: none !important;
+  }
+
+  #configAudio {
+    display: none !important;
+  }
+
+  #caixaCentral {
+    display: none !important;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 310px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 23%;
+  }
+
+  #audioBar #musicaPlay {
+    display: none !important;
+  }
+
+  #audioBar {
+    height: 70px !important;
+    width: 100vw !important;
     display: flex;
-    flex-direction: column-reverse;
-    gap: 10px;
-    z-index: 1000;
-}
+    align-items: center;
+    justify-content: center !important;
+  }
 
-.toast {
-    padding: 15px 20px;
-    border-radius: 8px;
-    color: #fff;
-    font-weight: bold;
-    font-size: 0.9rem;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    min-width: 250px;
-    max-width: 350px;
-    word-wrap: break-word;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: fadeIn 0.5s forwards;
-    transition: opacity 0.5s, transform 0.5s;
-}
+  #botomIcon {
+    display: unset !important;
+  }
 
-.toast.success {
-    background-color: #4CAF50; /* Verde para sucesso */
-}
+  #botomIcon a {
+    color: white;
+    font-size: 12px;
+  }
 
-.toast.error {
-    background-color: #f44336; /* Vermelho para erro */
-}
+  #botomIcon a svg {
+    margin: 10px;
+  }
 
-/* Animação para aparecer e desaparecer */
-@keyframes fadeIn {
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
+  #arrowMenu {
+    visibility: hidden;
+  }
 
-.toast.fade-out {
-    animation: fadeOut 0.5s forwards;
-}
+  #app {
+    min-width: 100vw;
+  }
 
-@keyframes fadeOut {
-    from {
-        opacity: 1;
-        transform: translateY(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-}
 
-.profile-frame {
-    position: relative; /* Necessário para posicionar o label absoluto dentro dele */
-    width: 120px; /* Ajuste conforme o tamanho do seu .profile-frame */
-    height: 120px; /* Ajuste conforme o tamanho do seu .profile-frame */
+  #mobiPlay {
+    height: 63px;
+    width: 95%;
+    margin-top: 78vh;
+    margin-left: 2.5%;
+    position: absolute;
+    opacity: 95%;
+    border-radius: 15px;
+    background-color: #000000e4;
+    display: flex !important;
+    align-items: center;
+    padding: 0 5vw;
+    justify-content: end;
+  }
+
+  #mobibtn {
+    width: 35px;
+    height: 35px;
     border-radius: 50%;
-    overflow: hidden;
-    cursor: pointer; /* Indica que é clicável */
-    display: flex; /* Para centralizar a imagem */
+    border-color: white;
+    background-color: #fff;
+    display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #333; /* Cor de fundo se a imagem não carregar ou for transparente */
+  }
 }
 
-.profile-icon {
+@media only screen and (max-width: 520px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 310px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 48%;
+  }
+}
+
+@media only screen and (max-width: 430px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 210px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 48%;
+  }
+
+  #main #feedHeader #playlistsRecentes li {
+    width: 100% !important;
+  }
+
+  #main #feedHeader #playlistsRecentes {
+    height: 240px;
+    overflow: hidden;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li p {
+    display: none;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    padding-bottom: 15px;
+    margin-bottom: 50px;
+  }
+}
+
+@media only screen and (max-width: 370px) {
+  #botomIcon a {
+    font-size: 10px;
+    margin: -9px;
+    padding: 18px;
+  }
+  #principal #feed #main .feedPlaylist .playlists li {
+    margin-bottom: 100px;
+  }
+}
+
+@media only screen and (max-width: 300px) {
+  #botomIcon a {
+    font-size: 8px;
+    margin: -14px;
+    padding: 18px;
+  }
+}
+
+#mobiPlay {
+  display: none;
+}
+
+#audioBar {
+  width: 100%;
+  height: 90px;
+  background-color: #121212;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#audioBar #musicaPlay {
+  width: 20%;
+}
+
+#audioBar button.icones {
+  background-color: rgba(0, 0, 0, 0);
+  fill: #fff;
+  border: none;
+  opacity: 0.7;
+}
+
+#audioBar button.icones:hover {
+  opacity: 1;
+}
+
+#audioBar button.icones.aleatorio {
+  margin: 5px 15px 5px 5px;
+}
+
+#audioBar button.icones.proximo {
+  margin: 5px 5px 5px 15px;
+}
+
+#audioBar button.icones.proximo svg {
+  margin-bottom: 4px;
+}
+
+#audioBar button.icones.anterior {
+  transform: rotate(180deg);
+  margin: 5px 15px 5px 5px;
+}
+
+#audioBar button.icones.anterior svg {
+  margin-bottom: 4px;
+}
+
+#audioBar button.icones.repetir {
+  margin: 5px 5px 5px 15px;
+}
+
+#audioBar button.icones.legenda,
+#audioBar button.icones.lista,
+#audioBar button.icones.outrosDispositivos {
+  padding-right: 15px;
+}
+
+#audioBar #caixaCentral #caixaSetas button.playPause {
+  width: 35px;
+  height: 35px;
+  border-radius: 24px;
+  background-color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+
+#audioBar #caixaCentral #caixaSetas button.playPause:hover {
+  padding: 2px;
+}
+
+#audioBar #caixaCentral #barraDeProgresso small {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9em;
+  margin: 10px;
+}
+
+#audioBar #caixaCentral #barraDeProgresso input[type="range"] {
+  width: 25rem;
+}
+
+#audioBar #configAudio #volume input[type="range"] {
+  width: 5rem;
+}
+
+#audioBar input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 5rem;
+}
+
+#audioBar input[type="range"]:focus {
+  outline: none;
+}
+
+#audioBar input[type="range"]::-webkit-slider-runnable-track {
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  height: 0.25rem;
+}
+
+#audioBar input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -3.2px;
+  background-color: #22c925;
+  border-radius: 0.5rem;
+  height: 0.7rem;
+  width: 0.7rem;
+}
+
+#audioBar input[type="range"]:focus::-webkit-slider-thumb {
+  outline: 3px solid #22c925;
+  outline-offset: 0.125rem;
+}
+
+#audioBar input[type="range"]::-moz-range-track {
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  height: 0.25rem;
+}
+
+#audioBar input[type="range"]::-moz-range-thumb {
+  background-color: #22c925;
+  border: none;
+  border-radius: 0.5rem;
+  height: 0.7rem;
+  width: 0.7rem;
+}
+
+#audioBar input[type="range"]:focus::-moz-range-thumb {
+  outline: 3px solid #22c925;
+  outline-offset: 0.125rem;
+}
+
+#full-screen {
+  background-color: #000000;
+  border: none;
+}
+
+@media only screen and (max-width: 1060px) {
+  #audioBar button.icones svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  #audioBar button.icones.legenda,
+  #audioBar button.icones.lista,
+  #audioBar button.icones.outrosDispositivos {
+    padding-right: 8px;
+  }
+
+  #audioBar #caixaCentral #caixaSetas button.playPause {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+  }
+
+  #audioBar #caixaCentral #caixaSetas button.playPause svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  #audioBar #caixaCentral #barraDeProgresso small {
+    font-size: 0.8em;
+  }
+
+  #audioBar #caixaCentral #barraDeProgresso input[type="range"] {
+    width: 15rem;
+  }
+}
+
+.dropdownMenuButton1-dropContent {
+  display: none;
+  padding:10px;
+  padding-left:15px;
+  background-color: rgba(10, 10, 10, 0.4);
+  margin-top:10px;
+  border-radius: 5px;
+  width:254px;
+  align-self: flex-end;
+  position: absolute;
+  top:30px
+}
+
+.show {
+  display: block;
+}
+
+.dropdownMenuButton1-dropContent > a {
+  text-decoration: none;
+  color:white;
+
+}
+#user_bttn {
+  display: flex;
+  flex-direction: column;
+}
+
+/* From Uiverse.io by AlimurtuzaCodes */ 
+.btn {
+  border: none;
+  width: 10em;
+  height: 3em;
+  border-radius: 3em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  background: #212121;
+  cursor: pointer;
+  transition: all 450ms ease-in-out;
+}
+
+.sparkle {
+  fill: #AAAAAA;
+  transition: all 800ms ease;
+}
+
+.text {
+  font-weight: 600;
+  color: #ffffff;
+  font-size: medium;
+}
+
+.btn:hover {
+  background: #a4a4a4;
+  transform: translateY(-2px);
+}
+
+.btn:hover .text {
+  color: white;
+}
+
+.btn:hover .sparkle {
+  fill: white;
+  transform: scale(1.2);
+} 
+
+.heart-icon {
+    width: 80px;        /* tamanho compatível com os ícones da sidebar */
+    height: 80px;
+    transition: transform 0.3s ease;
+}
+
+.heart-icon:hover {
+    transform: scale(1.2); /* aumenta ao passar o mouse */
+}
+
+.cursor-grabbing {
+  cursor: grabbing !important;
+}
+
+.carousel-container {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding-left: 1.5rem;  /* margem esquerda */
+  padding-right: 1.5rem; /* margem direita */
+  scroll-padding-left: 1.5rem; /* evita corte no início */
+  scroll-padding-right: 1.5rem;
+}
+
+.carousel-container::-webkit-scrollbar {
+  display: none; /* opcional para esconder scrollbar */
+}
+
+body {
+  background: #000;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  margin: 0;
+}
+
+.section {
+  margin: 24px auto;
+  padding: 0 16px;
+    padding-left: 1.5rem; /* Alinhamento do Título (padrão do feed) */
+  padding-right: 0;    /* Remova o padding direito para permitir que o card-row vá até o fim */
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+    margin-bottom: 16px; 
+}
+
+.section-scroll {
+  position: relative;
+}
+
+.card-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  margin-top: 20px;
+}
+
+.loading-text {
+  color: #aaa;
+}
+
+.scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.6);
+  border: none;
+  border-radius: 50%;
+  padding: 8px;
+  cursor: pointer;
+  z-index: 10;
+  transition: opacity 0.3s ease; /* Adiciona transição suave */
+}
+
+/* REGRA ESSENCIAL: Esconde o botão ao adicionar a classe 'hidden' */
+.scroll-btn.hidden {
+    opacity: 0;
+    pointer-events: none; /* Impede que seja clicável quando invisível */
+}
+
+.scroll-btn.left { left: 4px; }
+.scroll-btn.right { right: 4px; }
+.scroll-btn img { width: 24px; height: 24px; }
+
+/* CARD */
+.card {
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px;
+  width: 180px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.card:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.card-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: scroll;
+  padding-bottom: 20px;
+  scrollbar-width: none;
+  
+  /* MANTER ESSAS TRÊS LINHAS DA SOLUÇÃO ANTERIOR: */
+  margin-left: -1.5rem; /* Puxa todo o contêiner de cards para a esquerda */
+  padding-right: 3rem; /* Cria o espaço em branco após o último card */
+}
+
+/* MANTER ESTA LINHA TAMBÉM: */
+.card-row > :first-child {
+    /* Isso garante que o PRIMEIRO CARD comece 1.5rem da esquerda, alinhado com o título. */
+    margin-left: 1.5rem; 
+}
+/* Esconder o scroll bar para Webkit (Chrome, Safari) */
+.card-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Estilo geral para o contêiner do card */
+.card {
+  font-family: 'Nationale Bold';
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    background-color: #181818;
+    border-radius: 8px;
+    padding: 16px;
+    transition: background-color 0.3s ease;
+}
+
+/* Efeito de hover no card */
+.card:hover {
+    background-color: #282828;
+}
+
+/* Contêiner da imagem e do botão de play */
+.card-image {
+    position: relative; /* ESSENCIAL para o botão de play */
+    width: 100%;
+    aspect-ratio: 1/1; /* Garante que a imagem seja um quadrado */
+    overflow: hidden;
+    border-radius: 6px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.card-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Garante que a imagem cubra o frame sem distorcer */
+    object-fit: cover;
+    display: block;
+    border-radius: 6px;
+}
+
+/* Efeito de hover: exibe o botão de play */
+.card:hover .play-button {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Estilo das informações do card */
+.card-info {
+   font-family: 'Nationale Bold';
+    margin-top: 16px;
+    width: 100%;
+    text-align: left;
+}
+
+.section-title {
+   font-family: 'Nationale Bold', sans-serif;
+    font-size: 1,1rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card-subtitle {
+  font-family: 'Nationale Bold';
+    font-size: 0.85rem;
+    color: #b3b3b3;
+    margin: 4px 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* style.css */
+   /* * --------------------------------------------------------
+         * --- NAVBAR MOBILE FIXA --- 
+         * --------------------------------------------------------
+         */
+        #mobile-nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 65px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: env(safe-area-inset-bottom);
+
+            background: rgb(0, 0, 0);
+            overflow: hidden;
+            z-index: 100;
+        }
+
+
+
+        /* LINKS ACIMA DA CAMADA */
+        .nav-link {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #b3b3b3; /* Cor padrão para ícones inativos */
+            transition: color 0.2s;
+            flex-grow: 1;
+            height: 60%;
+        }
+
+        .nav-link img {
+            width: 25px;
+            height: 25px;
+            /* Garante que o ícone fique centralizado e não estique */
+            object-fit: contain; 
+        }
+
+        .nav-link.active {
+            color: white; /* Cor para o texto ativo (se houver) */
+        }
+
+        /* Dark mode (mantido por consistência) */
+        @media (prefers-color-scheme: dark) {
+            #mobile-nav-bar::before {
+                background: rgba(0,0,0,0.25);
+                box-shadow: inset 1px 1px 1px rgba(255,255,255,0.15);
+            }
+        }
+
+
+/* 1. Contêiner Principal do Cabeçalho da Playlist */
+.playlist-header {
+    /* Degradê de cor no topo, com o preto do fundo. Ajuste a cor #50140A para a cor predominante da capa. */
+    background: linear-gradient(to bottom, #3f8a70 0%, #121212 70%); 
+    padding: 30px 40px; /* Espaçamento interno */
+    display: flex;
+    align-items: flex-end; /* Alinha a capa e os detalhes na parte inferior */
+    gap: 30px; /* Espaçamento entre a capa e os detalhes */
+    width: 100%;
+    max-width: 1000px; /* Limita a largura do card para não ocupar a tela inteira */
+    border-radius: 8px; /* Borda arredondada suave para o card */
+    box-sizing: border-box; /* Garante que padding e borda não aumentem o tamanho */
+}
+
+/* 2. Contêiner da Capa da Playlist */
+.playlist-cover-container {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); /* Sombra da capa */
+    border-radius: 4px; /* Mantém o arredondamento da imagem dentro do container */
+    flex-shrink: 0; /* Impede que a capa encolha */
+}
+
+.playlist-cover {
+    width: 232px; /* Largura fixa da capa */
+    height: 232px; /* Altura fixa da capa */
+    object-fit: cover; /* Garante que a imagem preencha o espaço sem distorcer */
+    border-radius: 4px; /* Levemente arredondada como no Spotify */
     display: block; /* Remove espaço extra abaixo da imagem */
 }
 
-.add-photo-label {
+/* 3. Detalhes da Playlist (Textos e Botões) */
+.playlist-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* Espaçamento entre os elementos de texto */
+    flex-grow: 1; /* Permite que os detalhes ocupem o espaço restante */
+    padding-bottom: 5px; /* Pequeno ajuste para alinhar com a capa */
+}
+
+.playlist-type {
+    font-size: 0.875rem; /* Tamanho do texto "Playlist" */
+    color: #b3b3b3; /* Cor cinza padrão */
+    font-weight: bold;
+    text-transform: uppercase; /* Maiúsculas */
+    margin-bottom: 5px; /* Mais espaço antes do título */
+}
+
+.playlist-title {
+   font-family: 'Nationale Bold', sans-serif;
+    font-size: 3rem; /* Título grande */
+    font-weight: 900; /* Negrito bem forte */
+    line-height: 1.1; /* Espaçamento entre linhas */
+    color: white;
+    margin: 0;
+    word-break: break-word; /* Permite quebrar palavras longas */
+}
+
+.playlist-subtitle {
+    font-size: 0.95rem; /* Tamanho do nome do artista/descrição */
+    color: #b3b3b3; /* Cor cinza */
+    margin-top: 5px;
+}
+
+/* 4. Contêiner dos Botões */
+.playlist-actions {
+    display: flex;
+    align-items: center;
+    margin-top: 25px; /* Espaçamento do subtítulo para os botões */
+    gap: 20px; /* Espaçamento entre os botões */
+}
+
+.play-button {
+    background-color: #ffffff; /* Verde brilhante (Spotify) */
+    color: black;
+    padding: 14px 35px;
+    border-radius: 9999px; /* Botão completamente arredondado */
+    font-weight: bold;
+    font-size: 1rem;
+    text-decoration: none; /* Remove sublinhado do link */
+    transition: transform 0.1s ease, background-color 0.1s ease; /* Transição suave */
+    border: none;
+    cursor: pointer;
+}
+.play-button:hover {
+    transform: scale(1.04); /* Efeito de "zoom" ao passar o mouse */
+    background-color: #1ed760; /* Verde um pouco mais claro no hover */
+}
+
+.follow-button {
+    color: white;
+    border: 2px solid #b3b3b3; /* Borda cinza */
+    padding: 12px 28px; /* Um pouco menor que o botão Play */
+    border-radius: 9999px; /* Arredondado */
+    font-weight: bold;
+    background-color: transparent;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.1s ease;
+}
+.follow-button:hover {
+    border-color: #ffffff; /* Borda branca no hover */
+    transform: scale(1.04);
+}
+
+.more-options {
+    color: #b3b3b3;
+    font-size: 2.2rem; /* Tamanho grande para os três pontos */
+    line-height: 0; /* Ajusta o alinhamento vertical dos pontos */
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+.more-options:hover {
+    color: #ffffff; /* Fica branco no hover */
+}
+
+/* --- Fila de Reprodução Lateral (Pop-up) --- */
+
+.queue-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 400px; /* Largura padrão */
+    max-width: 90vw;
+    height: 100vh;
+    background-color: var(--secondary-bg);
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
+    transform: translateX(100%); /* Esconde inicialmente */
+    transition: transform 0.3s ease-in-out;
+    z-index: 1050; 
+    display: flex;
+    flex-direction: column;
+    padding: 20px 15px 100px 15px; /* Padding inferior para não cobrir pelo player */
+}
+
+.queue-panel.open {
+    transform: translateX(0); /* Abre a fila */
+}
+
+.queue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #303030;
+    padding-bottom: 10px;
+}
+
+#close-queue-btn {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+#close-queue-btn:hover {
+    opacity: 1;
+}
+
+.queue-list {
+    list-style: none;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.queue-empty-message {
+    text-align: center;
+    color: #b3b3b3;
+    padding-top: 50px;
+}
+
+/* Item da Fila */
+.queue-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    cursor: grab; /* Indica que é arrastável */
+    transition: background-color 0.2s ease;
+}
+
+/* ========================================================== */
+/* SEÇÃO: MINHAS CURTIDAS (LAYOUT DA PÁGINA/HOME)             */
+/* ========================================================== */
+
+/* Estilo do Título Principal da Seção */
+.page-title {
+    color: white;
+    font-size: 32px; /* Tamanho aproximado para um H1/H2 */
+    font-weight: 700; /* Negrito */
+    margin-bottom: 24px; /* Espaço abaixo do título */
+    /* Garante que o título esteja alinhado com o conteúdo do grid */
+    padding: 0 16px; 
+}
+
+/* Container de Grid para os Cards */
+#my-liked-items-list {
+    display: grid;
+    /* Define o número de colunas: 4 colunas fixas em telas maiores, adaptável em menores */
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+    gap: 24px; /* Espaçamento entre os cards (gap-6) */
+    padding: 0 16px 48px 16px; /* Padding na área de conteúdo */
+    background-color: transparent; /* A cor de fundo principal deve ser no body ou container pai */
+}
+
+
+/* ========================================================== */
+/* SEÇÃO: MINHAS CURTIDAS (LAYOUT DA PÁGINA)                  */
+/* ========================================================== */
+
+/* Estilo do Título Principal da Seção */
+.page-title {
+    color: white;
+    font-size: 32px; 
+    font-weight: 700; 
+    margin-bottom: 24px; 
+    padding: 0 16px; 
+}
+
+/* Container de Grid para os Cards */
+#my-liked-items-list {
+    display: grid;
+    /* Grid de 5 colunas em telas grandes, 3 em médias, 2 em pequenas */
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+    gap: 24px; 
+    padding: 0 16px 48px 16px; 
+}
+
+/* ========================================================== */
+/* LAYOUT DA PÁGINA E GRID (BIBLIOTECA) */
+/* ========================================================== */
+
+/* Estilo do Título Principal (Inalterado) */
+.page-title {
+    color: white;
+    font-size: 32px; 
+    font-weight: 700; 
+    margin-bottom: 24px; 
+    padding: 0 16px; 
+}
+
+/* Container de Grid para os Cards Retangulares (Layout da Biblioteca/Mixes) */
+.library-grid-container {
+    display: grid;
+    
+    /* ⭐️ CORREÇÃO: Define o grid com 2 colunas fixas para dispositivos móveis 
+       e usa 'auto-fit' para telas maiores (como o PC).
+       
+       Em telas pequenas (< 500px), ele vai tentar criar 2 colunas que se ajustam
+       igualmente (1fr 1fr), garantindo 2 itens lado a lado.
+    */
+    grid-template-columns: 1fr; /* Padrão: 1 coluna */
+    
+    /* Media Query para forçar 2 colunas em telas menores (> 300px) */
+    @media (min-width: 300px) {
+        grid-template-columns: 1fr 1fr; 
+    }
+    
+    /* Media Query para usar 2 colunas flexíveis em telas médias/grandes */
+    @media (min-width: 600px) {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    gap: 16px; /* Espaçamento entre os cards */
+    padding: 0 16px 48px 16px; 
+}
+
+/* ========================================================== */
+/* CARD RETANGULAR INDIVIDUAL (BIBLIOTECA) */
+/* ========================================================== */
+
+/* 1. Estilo Base do Card Retangular */
+.library-item-card {
+    /* ⭐️ CORREÇÃO: Layout Flex Horizontal */
+    display: flex;
+    align-items: center; /* Centraliza verticalmente o texto */
+    
+    /* Tamanho e Padding */
+    height: 70px; /* Altura fixa ou mínima, como nos exemplos */
+    padding-right: 16px; 
+    
+    /* Cor e Interação */
+    background-color: #2e2e2e5e; /* Fundo do card na biblioteca */
+    border-radius: 4px; /* Arredondamento sutil */
+    transition: background-color 0.3s ease;
+    text-decoration: none; 
+    color: inherit;
+    position: relative;
+    overflow: hidden; /* Garante que a imagem se encaixe */
+    cursor: pointer;
+}
+
+.library-item-card:hover {
+    background-color: #00000052; /* Fundo do hover */
+}
+
+
+/* 2. Capa (Fixo à Esquerda) */
+.card-cover-library-wrapper {
+    /* ⭐️ CORREÇÃO: Tamanho fixo da capa */
+    width: 70px; 
+    height: 70px; 
+    flex-shrink: 0; /* Impede que a capa encolha */
+    position: relative;
+    overflow: hidden;
+}
+
+.card-cover-library-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* ⭐️ CORREÇÃO: Sem arredondamento ou sombra, exceto no card Músicas Curtidas */
+    border-radius: 4px 0 0 4px; /* Arredonda só o canto esquerdo da imagem */
+}
+
+/* 3. Informações (Texto à Direita) */
+.card-info-library {
+  font-family: 'Nationale Regular';
+    padding-left: 16px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.card-title-library {
+  font-family: 'Nationale Bold';
+    color: white;
+    font-weight: 700; 
+    font-size: 16px; 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+}
+
+.card-subtitle-library {
+    /* ⭐️ CORREÇÃO: Subtítulo não é visível neste layout de Mix/Playlist da Home */
+    display: none; 
+    color: #A7A7A7; 
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+}
+
+/* Estilos Especiais (Músicas Curtidas - Coração Roxo) */
+.purple-overlay-library {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    cursor: pointer; /* O cursor de ponteiro é importante */
-    z-index: 10; /* Garante que o label esteja acima da imagem */
-}
-
-/* Se você quiser que o texto "ADICIONAR FOTO" também seja clicável, pode deixar assim */
-.profile-section {
-    text-align: center;
-    margin-bottom: 20px;
-}
-.add-photo-text {
-    margin-top: 10px;
-    font-size: 0.9rem;
-    color: #ccc;
-}
-
-.input-group-user {
-    display: flex; /* Ou grid */
-    align-items: center; /* Para alinhar o @, input e ícone na mesma linha */
-    /* ... outros estilos ... */
-}
-
-/* Este é o container que precisa empilhar VERTICALMENTE */
-/* Pode ser o próprio .card, ou um div específico em volta de .input-group-user e o feedback */
-.card { /* Ou outro seletor mais específico */
+    background-color: #5038A5; 
     display: flex;
-    flex-direction: column; /* Garante que os elementos (incluindo o feedback) fiquem um embaixo do outro */
-    gap: 16px; /* Exemplo de espaçamento */
+    align-items: center;
+    justify-content: center;
 }
-.username-feedback {
-    display: block;
-    margin-top: 8px;
-    margin-bottom:2x; /* Adiciona espaçamento apenas quando o parágrafo estiver visível */
-    font-size: 0.85rem;
-    width: 100%;
+.heart-icon-library {
+    width: 40%;
+    height: 40%;
+    fill: white;
 }
 
-/* Adicione esta regra ao seu CSS */
-.username-input-container {
-    align-self: flex-start; /* Alinha o item à esquerda */
+/* ========================================================== */
+/* ESTILO DA SAUDAÇÃO (BOM DIA/BOA TARDE/BOA NOITE) */
+/* ========================================================== */
+
+.greeting-style {
+  margin-left: 15px;
+  font-family: 'Nationale Bold';
+ 
+    /* Cor do texto branca (text-white) */
+    color: #FFFFFF; 
+    
+    /* Peso da fonte: Extrabold (font-extrabold) */
+    font-weight: 800; 
+    
+    /* Margem na parte inferior (mb-8, que é 2rem) */
+    margin-bottom: 2rem; 
+    
+    /* Tamanho da fonte padrão (mobile) - text-3xl */
+    font-size: 1.875rem; 
+    
+    /* Evita quebra de linha se o título for muito longo (embora raro aqui) */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ajuste do tamanho da fonte para telas maiores (md:text-5xl) */
+@media (min-width: 768px) { /* Ponto de quebra 'md' */
+    .greeting-style {
+        font-size: 2.5em;
+         display: none;
+    }
+}
+
+/* ============================================ */
+/* ESTILOS DA LISTA DE MÚSICAS EM ALTA (TRENDING) */
+/* Aplicados via tunearts.js e dashboard.html */
+/* ============================================ */
+
+/* Container de cada item da lista (Trending Song Item) */
+.trending-song-item {
+    font-family: 'Nationale Bold', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px; /* py-2 px-3 */
+    border-radius: 10px; /* rounded-lg */
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+}
+
+.trending-song-item:hover {
+    background-color: #272727; /* gray-100 */
+}
+
+/* Container do Rank, Capa e Info (tudo alinhado à esquerda) */
+.trending-song-content {
+   font-family: 'Nationale Black';
+    display: flex;
+    align-items: center;
+    gap: 16px; /* space-x-4 */
+    flex-grow: 1; /* Ocupa o máximo de espaço possível */
+    min-width: 0;
+}
+
+/* Estilo do Número da Posição */
+.song-rank {
+    /* Usando a sua fonte personalizada e dando peso (bold) */
+    font-family: 'Nationale Black';
+    font-size: 1.130rem; /* text-lg */
+    color: #c2c2c2; /* Preto */
+    width: 24px; /* w-6 */
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Estilo da Imagem/Capa */
+.song-cover-trending {
+    width: 56px; /* w-14 */
+    height: 56px; /* h-14 */
+    object-fit: cover;
+    border-radius: 8px; /* rounded */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* shadow-sm */
+    flex-shrink: 0;
+}
+
+/* Container do Título e Artista */
+.song-info {
     display: flex;
     flex-direction: column;
+    overflow: hidden; /* Garante que o truncate funcione */
 }
 
-/* Avatar container */
-#AvatarFileUpload {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  background: #f9f9f9; /* Pode manter um fundo padrão para casos de erro */
-  border: 2px solid #575757;
-  border-radius: 50%;
-  margin: auto;
-  overflow: hidden; /* ESSENCIAL para cortar o que excede o círculo */
-  cursor: pointer;
+/* Estilo do Título da Música */
+.song-title {
+    /* Usando a sua fonte personalizada e dando peso (semibold) */
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 1rem; /* text-base */
+    color: #ffffff; /* Preto */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-#AvatarFileUpload .selected-image-holder {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%; /* Garante que o holder também seja circular */
-  overflow: hidden; /* ESSENCIAL para cortar o que excede o círculo dentro do holder */
+/* Estilo do Nome do Artista */
+.song-artist {
+    /* Usando a sua fonte personalizada (Regular) */
+    font-family: 'Nationale Regular', sans-serif;
+    font-size: 0.875rem; /* text-sm */
+    color: #ffffffad; /* gray-600 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-#AvatarFileUpload .selected-image-holder img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* MUDEI PARA 'COVER'! Isso fará a imagem preencher todo o espaço, cortando as partes que excedem */
-  object-position: center center; /* MUDEI PARA 'CENTER CENTER'! Isso vai centralizar a imagem dentro do contêiner, garantindo que o foco principal fique no meio */
-  /* Removi border-radius aqui, pois o pai já tem e o overflow está cuidando do corte */
-  background: #f9f9f9; /* Fundo para garantir que não apareça preto se a imagem tiver transparência */
-  transition: 0.3s;
+
+
+.song-options-icon:hover {
+    color: #000000; /* Preto */
+    background-color: #e5e7eb; /* gray-200 */
 }
 
-/* Hover opcional: escurece levemente e mostra efeito */
-#AvatarFileUpload:hover .selected-image-holder img {
-  filter: brightness(0.8);
+
+.container {
+    width: 100%;
+    max-width: 600px; /* Limite a largura para melhor visualização */
+    margin: 0 auto;
+    padding-top: 0px;
 }
 
-/* Input invisível cobrindo toda a área */
-#AvatarFileUpload input[type="file"] {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 1; /* Garante que o input esteja acima da imagem para ser clicável */
-}
-/* Centralizar tela de manutenção */
-.maintenance-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  min-height: 80vh;
-  padding: 20px;
-  text-align: center;
-}
-
-.maintenance-icon {
-  width: 100px;
-  max-width: 80%;
-  height: auto;
-}
-
-.headline {
-    font-family: 'Nationale Black';
-    text-transform: uppercase;
-    font-size: 2rem;
-  color: hsl(0, 0%, 100%);
-  margin-bottom: 10px;
-}
-
-p {
-  font-size: 1rem;
-  color: #ccccccaf;
-  padding: 2% 20% 2% 20%;
-  max-width: 400px;
-}
-
-/* Container do input com posição relativa */
-.input-wrapper {
-  position: relative;
-  display: inline-block;
-  width: 100%;
-}
-/* Container do input */
-.input-group-user {
-    position: relative; /* essencial para o ícone absoluto */
+.profile-header {
     display: flex;
+    align-items: center;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.profile-pic {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 15px;
+}
+
+.profile-name {
+  font-family: 'Nationale Black';
+    font-size: 1.6em;
+    font-weight: 700;
+    margin: 0;
+}
+
+
+
+.account-details, .your-plan {
+  font-family: 'Nationale Bold';
+    margin-bottom: 30px;
+}
+
+.detail-item {
+  font-family: 'Nationale Regular';
+    display: flex;
+    flex-direction: column;
+    padding: 12px 20px;
+    }
+
+.detail-item:last-of-type {
+    border-bottom: none; /* Remover a borda do último item */
+}
+
+.detail-label {
+  font-family: 'Nationale Regular';
+    font-size: 0.85em;
+    color: #9c9c9c; 
+    margin-bottom: 3px;
+    font-weight: 500;
+}
+
+.detail-value {
+  font-family: 'Nationale Regular';
+    font-size: 1em;
+    font-weight: 400;
+    color: #ffffff;
+    white-space: nowrap; /* Evita quebra de linha para o nome de usuário */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.email-item {
+    flex-direction: row;
+    justify-content: space-between;
     align-items: center;
 }
 
-/* Símbolo @ */
-.at-symbol {
-    margin-right: 4px;
-    font-weight: bold;
+.email-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Permite que o e-mail ocupe o espaço */
+    margin-right: 10px;
 }
 
-/* Input */
-.input-field {
-    flex: 1;
-    padding-right: 30px; /* espaço para o ícone */
-}
-
-.input-group-user {
-    position: relative;
+.external-link {
+    color: #b3b3b3;
+    text-decoration: none;
     display: flex;
     align-items: center;
+    padding-left: 10px; /* Espaço entre o e-mail e o ícone */
 }
 
-.status-icon {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
+.external-link svg {
     width: 20px;
     height: 20px;
-    opacity: 0;
-    transition: opacity 0.2s ease, filter 0.2s ease;
+    color: #b3b3b3;
+    stroke-width: 1.5; /* Deixar o ícone um pouco mais fino */
 }
 
-.status-icon.visible {
-    opacity: 1;
+.your-plan h2 {
+  font-size: 1.6em;
+    /* Ajusta o espaçamento do "Seu Plano" para alinhar com o card */
+    padding: 0 20px;
+    margin-bottom: 30px; 
+    margin-top: 30px;
+  }
+
+/* NOVO ESTILO PARA O PLAN CARD */
+.plan-card {
+    display: flex;
+    align-items: center;
+    background-color: #bade55; /* Fundo do card mais escuro, como na imagem */
+    padding: 15px 20px; /* Padding interno */
+    margin: 0 20px; /* Margem lateral */
+    border-radius: 8px; /* Borda arredondada */
+    box-shadow: none; /* Remove qualquer sombra, se houver */
 }
 
-/* Filtro para colorir o SVG */
-.status-icon.error {
-    filter: invert(27%) sepia(94%) saturate(7151%) hue-rotate(356deg) brightness(91%) contrast(114%);
+.plan-logo {
+    width: 35px; /* Tamanho da imagem do logo */
+    height: 35px;
+    border-radius: 50%; /* Faz a imagem ser redonda */
+    object-fit: cover; /* Garante que a imagem preencha o espaço sem distorcer */
+    margin-right: 15px; /* Espaço à direita do logo */
+    background-color: transparent; /* Certifica-se de que não tem fundo extra */
 }
 
-.status-icon.success {
-    filter: brightness(100%) contrast(100%);
+
+.plan-text {
+    display: flex;
+    flex-direction: column;
+    /* Alinhamento dos textos do plano */
 }
 
+.plan-name {
+    font-size: 1.1em;
+    font-weight: 500;
+    margin-bottom: 2px;
+    color: #27361d;
+}
+
+.plan-description {
+    font-size: 0.85em; /* Ajustado para parecer mais com a imagem */
+    color: #27361d; /* Cor mais clara para a descrição */
+}
+
+/* ... (Manter estilos do body, container, profile-header, etc.) ... */
+
+
+
+/* NOVO ESTILO PARA O PLAN LOGO (Para replicar a imagem do plano) */
+.plan-logo-container {
+    width: 35px;
+    height: 35px;
+    background-color: #b9a11d; /* Verde do Spotify */
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 15px;
+    padding: 2px; /* Espaço para o ícone */
+}
+
+.plan-logo-icon {
+    width: 100%;
+    height: 100%;
+    fill: #000000;
+    /* Ajuste o SVG dentro do container para simular o ícone */
+}
+
+/* --- ESTILOS PARA AS NOVAS SEÇÕES (Pagamento / Segurança) --- */
+
+.menu-block-container {
+    margin: 25px 0; /* Espaçamento entre os blocos */
+}
+
+.block-title {
+  font-size: 1.6em;
+    /* Ajusta o espaçamento do "Seu Plano" para alinhar com o card */
+    padding: 0 20px;
+    margin-bottom: 30px; 
+    margin-top: 30px;
+}
+
+.menu-block {
+    background-color: #282828; /* Fundo mais escuro do bloco */
+    margin: 0 20px;
+    border-radius: 8px; /* Cantos arredondados do bloco */
+    overflow: hidden; /* Garante que a borda arredondada se aplique aos itens internos */
+}
+
+.menu-item {
+  
+    display: flex;
+    align-items: center;
+    text-decoration: none; /* Remover sublinhado do link */
+    padding: 15px 20px;
+
+    color: #FFFFFF; /* Cor do texto padrão */
+    transition: background-color 0.1s;
+}
+
+.menu-item:hover {
+    background-color: #353535; /* Efeito de hover */
+}
+
+.menu-item.last-item {
+    border-bottom: none; /* Remove a borda do último item de cada bloco */
+}
+
+.item-icon-left {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    margin-right: 15px;
+    /* Filtrar para ícones escuros ficarem claros, se necessário */
+    filter: invert(40%); 
+}
+
+.item-text {
+  font-family: 'Nationale Regular';
+    flex-grow: 1; 
+    font-size: 1em;
+    font-weight: 400;
+    color: #FFFFFF;
+}
+
+.item-arrow-right {
+    width: 20px;
+    height: 20px;
+    color: #b3b3b3; 
+    stroke-width: 1.5;
+}
+
+/* --- Barra de Pesquisa --- */
+.search-bar {
+    display: flex;
+    align-items: center;
+    background-color: #242424; /* Fundo do campo de pesquisa */
+    border-radius: 4px; /* Bordas levemente arredondadas */
+    padding: 8px 12px;
+    margin-bottom: 20px;
+}
+
+.search-icon {
+    /* Cor do ícone de busca */
+    color: #b3b3b3;
+    margin-right: 8px;
+}
+
+.search-bar input[type="text"] {
+    flex-grow: 1;
+    background-color: transparent; /* Fundo transparente */
+    border: none;
+    outline: none; /* Remove o foco padrão ao clicar */
+    color: #ffffff; /* Cor do texto digitado */
+    font-size: 1rem;
+    padding: 0;
+}
+
+/* Estilo do placeholder */
+.search-bar input::placeholder {
+    color: #b3b3b3; /* Cor do texto do placeholder */
+}
+
+
+/* --- Estrutura dos Cards (Gêneros, Humores, Décadas) --- */
+
+/* Contêiner que agrupa os cards em cada seção (Grid/Flex) */
+.category-grid {
+    display: flex;
+    /* Permite que os cards quebrem a linha se não couberem */
+    flex-wrap: wrap; 
+    gap: 10px; /* Espaço entre os cards */
+}
+
+/* Estilo para os botões/cards de categoria */
+.category-card {
+    /* Estilo de botão arredondado com fundo escuro */
+    background-color: #242424; 
+    color: #ffffff;
+    padding: 10px 20px;
+    border-radius: 9999px; /* Extremamente arredondado (pílula) */
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    /* Sombra interna sutil para profundidade (opcional) */
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1); 
+    /* Efeito de transição ao passar o mouse */
+    transition: background-color 0.2s ease;
+    /* Para replicar o card que está semi-oculto no lado direito */
+    white-space: nowrap; 
+}
+
+/* Cor ligeiramente mais clara ao passar o mouse */
+.category-card:hover {
+    background-color: #383838;
+}
+
+/* Estilos específicos para os cards mais proeminentes na imagem */
+/* Você pode adicionar classes específicas no HTML para aplicar esses estilos */
+
+/* Card de Gênero Principal (ex: Hip-hop, Pop, R&B/Soul, Rock) */
+.genre-card {
+    background-color: #404040; /* Fundo mais escuro para destaque na seção */
+    font-weight: 700;
+}
+
+/* Card de Humor/Atividade Principal (ex: Para DJs, Gravadoras, Collabs) */
+.activity-card {
+    background-color: #404040;
+}
+
+/* Card de Década */
+.decade-card {
+    background-color: #404040;
+}
+
+
+/* --- Estilo Adicional para o link "VER TODOS" --- */
+.view-all {
+    /* Alinha o "VER TODOS" com o título */
+    float: right;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #b3b3b3; /* Cor cinza sutil */
+    text-transform: uppercase;
+    text-decoration: none; /* Remove sublinhado */
+    padding-top: 5px; /* Alinhamento visual */
+}
+
+/* Limpa o float após cada seção */
+.categories::after {
+    content: "";
+    display: table;
+    clear: both;
+}

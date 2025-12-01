@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playlist</title>
+    <!-- Inclui o Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* -------------------------------------------------------------------------- */
+        /* ESTILOS GLOBAIS E FONTES                          */
+        /* -------------------------------------------------------------------------- */
+        * {
+            box-sizing: border-box;
+        }
+
+        /* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+        /* Nota: As fontes externas Nationale podem não carregar no preview. */
+        @font-face {
+            font-family: 'Nationale Regular';
+            src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+                 url('./fonts/Nationale-Regular.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Nationale Bold';
+            src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+                 url('./fonts/Nationale-Bold.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Nationale Black';
+            src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+                 url('./fonts/Nationale-Black.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
+        
+        body {
+            font-family: 'Nationale Regular', sans-serif;
+            background-color: black;
+        }
+
+        /* Estilos de Scrollbar */
+        ::-webkit-scrollbar { width: 14px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.658); }
+        ::-webkit-scrollbar-thumb { background: rgba(136, 136, 136, 0.589); }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(85, 85, 85, 0.637); }
+        .custom-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        html, body, #app, #principal {
+            width: 100%;
+            height: 100%;
+            overflow-y: hidden;
+        }
+        #app {
+            min-width: 767px;
+            overflow-x: auto;
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* ESTILOS DO HEADER (Recebendo desfoque e bordas do álbum)                  */
+        /* -------------------------------------------------------------------------- */
+
+        #playlist-cover-bg {
+            filter: blur(50px);
+            transform: scale(1.1);
+            transition: background-image 0.5s ease-in-out, filter 0.5s ease-in-out;
+        }
+
+        #playlist-header {
+            margin: 20px;
+            border-radius: 20px; 
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* ESTILOS DE AÇÃO (BOTÕES) - Botão Play AGORA É BRANCO                     */
+        /* -------------------------------------------------------------------------- */
+        
+        .album-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px; 
+            margin-top: 26px;
+            margin-left: 20px;
+        }
+        
+        .album-actions .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        /* Play button (AGORA É BRANCO, ícone PRETO) */
+        .album-actions .play {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: #ffffff; /* Fundo BRANCO */
+        }
+
+        .album-actions .play:hover {
+            transform: scale(1.1);
+            /* Sem alteração de cor no hover, mas mantém o efeito de escala */
+        }
+        .album-actions .play svg {
+            width: 30px; 
+            height: 30px;
+            fill: #000; /* Ícone PRETO */
+        }
+
+        /* Like e Repeat (Cinza) */
+        .album-actions .like,
+        .album-actions .repeat {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: #9d9d9d23;
+        }
+
+        .album-actions .like:hover,
+        .album-actions .repeat:hover {
+            background-color: #010101; 
+        }
+        .album-actions .like svg,
+        .album-actions .repeat svg {
+            width: 30px;
+            height: 30px;
+            stroke: #fff;
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* ESTILOS DAS MÚSICAS/TRACKS                       */
+        /* -------------------------------------------------------------------------- */
+
+        .track-number-display {
+            width: 20px; 
+            text-align: right; 
+        }
+
+        .track-title {
+            font-size: 1.0rem;
+            font-family: 'Nationale Bold', sans-serif;
+        }
+
+        .explicit-tag {
+            font-family: 'Nationale Regular';
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px; 
+            font-weight: bold;
+            color: #141414; 
+            background-color: #a7a7a7;
+            border: 1px solid #a7a7a7; 
+            border-radius: 2px;
+            padding: 1px 3px;
+            margin-left: 6px;
+            line-height: 1; 
+            vertical-align: middle;
+        }
+        
+        .group:hover .explicit-tag {
+            border-color: white;
+            color: white;
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* ADAPTAÇÃO MOBILE (MEDIA QUERY)                   */
+        /* -------------------------------------------------------------------------- */
+        @media (max-width: 768px) {
+
+            #playlist-title-detail { 
+                word-break: break-word;
+                overflow-wrap: break-word;
+                font-size: 1.6rem;
+            }
+
+            .main-header {
+                padding: 24px !important; 
+            }
+        }
+    </style>
+</head>
+<body class="bg-black">
+
+    <div id="playlist" class="relative min-h-screen bg-[#121212] text-white custom-scrollbar">
+        
+        <!-- Header da Playlist -->
+        <div id="playlist-header" class="relative main-header h-[450px] md:h-[500px] flex items-end p-6 md:p-8 rounded-[0px] overflow-hidden">
+            
+            <!-- Fundo da Capa com Desfoque -->
+            <div id="playlist-cover-bg" 
+                 class="absolute inset-0 bg-cover bg-center"
+                 style="background-image: url('https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png');">
+            </div>
+            
+            <div class="absolute inset-0 album-bg-gradient bg-gradient-to-b from-transparent to-[#121212]"></div>
+            
+            <div class="relative z-10 w-full">
+                <div class="flex items-end space-x-6">
+                    <!-- Detalhes da Capa -->
+                    <img id="playlist-cover-detail" 
+                        src="https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png"
+                        alt="Capa da Playlist"
+                        class="w-32 h-32 md:w-48 md:h-48 rounded-md shadow-lg object-cover flex-shrink-0">
+                    
+                    <div class="flex flex-col">
+                        <p class="uppercase text-sm text-gray-400 font-semibold">Playlist</p>
+                        <!-- Título (ID MANTIDO) -->
+                        <h1 id="playlist-title-detail" class="text-4xl md:text-6xl font-extrabold leading-tight"></h1>
+                        
+                        <div class="flex items-center gap-x-2 text-sm text-gray-300 mt-2">
+                            <span id="playlist-description-detail" class="font-semibold text-gray-400"></span>
+
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botões de Ação (Estilo de Álbum) -->
+                <div class="album-actions">
+                    <!-- Botão Play: BRANCO com ícone PRETO -->
+                    <button class="btn play shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="#000" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </button>
+                    
+                    <button class="btn like">
+                        <!-- Ícone Like/Coração -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3.48.87-4.5 2.5-1.02-1.63-2.74-2.5-4.5-2.5A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                    </button>
+                    
+                    <button class="btn repeat">
+                        <!-- Ícone Repeat -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-repeat-2"><path d="m2 9 3-3 3 3"/><path d="M13 18H7a6 6 0 0 1 0-12h7"/><path d="m22 15-3 3-3-3"/><path d="M11 6h6a6 6 0 0 1 0 12h-6"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Container das Músicas -->
+        <div id="tracks-container" class="w-full p-0 md:p-8 mt-8">
+            <div class="px-6 md:px-0">
+                <div class="grid grid-cols-[30px_4fr_3fr_1fr] text-gray-400 uppercase text-xs font-bold border-b border-gray-800 pb-2 mb-4">
+                    <div class="track-number-display text-left">#</div>
+                    <div>Título</div>
+                    <div class="hidden md:block">Adicionado em</div>
+                    <div class="text-right">Duração</div>
+                </div>
+                
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

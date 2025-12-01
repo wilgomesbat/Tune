@@ -1,5 +1,10 @@
 RewriteEngine On
-RewriteRule ^([^\.]+)$ $1.html [NC,L]
- RewriteCond %{REQUEST_FILENAME} !-f
- RewriteCond %{REQUEST_FILENAME} !-d
- RewriteRule ^(.*)\.html$ /$1 [R=301,L]
+RewriteBase /
+
+# Redireciona URLs amigáveis para menu.html
+# Exemplo: /home vira menu.html?page=home
+RewriteRule ^([a-zA-Z0-9_-]+)$ menu.html?page=$1 [L,QSA]
+
+# Redireciona URLs de álbum para menu.html com o ID
+# Exemplo: /album/123 vira menu.html?page=album&id=123
+RewriteRule ^album/([a-zA-Z0-9_-]+)$ menu.html?page=album&id=$1 [L,QSA]

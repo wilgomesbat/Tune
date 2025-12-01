@@ -1,0 +1,170 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./slide.css">
+</head>
+<body class="bg-black text-white">
+
+<div id="home-content">
+
+  </div>
+
+<h1 id="greeting-title" class="greeting-style"></h1>
+    
+</h1>
+  
+<div class="main-content-area">
+
+    <div id="my-liked-items-list" class="library-grid-container">
+        </div>
+</div>
+
+
+
+
+  
+  <!-- Álbuns Recentes -->
+  <div class="section">
+    <h2 class="section-title">Álbuns Recentes</h2>
+    <div class="section-scroll">
+      <button id="albums-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="albums-list">
+        <div id="albums-loading-message" class="loading-text">Carregando álbuns...</div>
+      </div>
+      <button id="albums-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">Playlists populares</h2>
+    <div class="section-scroll">
+        <button id="top-playlists-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+        <div class="card-row" id="top-playlists-list">
+            <div id="top-playlists-loading-message" class="loading-text">Carregando playlists...</div>
+        </div>
+        <button id="top-playlists-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+    <!-- Artistas -->
+  <div class="section">
+    <h2 class="section-title">Artistas do Tune</h2>
+    <div class="section-scroll">
+      <button id="artists-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="artists-list">
+        <div id="artists-loading-message" class="loading-text">Carregando artistas...</div>
+      </div>
+      <button id="artists-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+<section id="section-title" class="mb-8 p-3">
+    <h2 class="text-2xl font-bold text-white mb-4">Músicas em Alta</h2>
+    
+    <p id="trending-songs-loading-message" class="text-gray-500" style="display: none;">
+
+    </p>
+
+    <div id="trending-songs-list" class="flex flex-col gap-2">
+        </div>
+</section>
+  
+  <!-- Charts -->
+  <div class="section">
+    <h2 class="section-title">Charts</h2>
+    <div class="section-scroll">
+      <button id="charts-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="charts-list">
+        <div id="charts-loading-message" class="loading-text">Carregando charts...</div>
+      </div>
+      <button id="charts-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div id="anitta-header" class="flex items-center mb-4 cursor-pointer hover:underline">
+        <img id="anitta-header-img" src="/assets/default-artist.png" alt="Foto do Artista" class="w-10 h-10 rounded-full object-cover mr-3">
+        <h2 class="section-title text-xl font-bold">Para fãs de <span id="anitta-header-name">Artista</span></h2>
+    </div>
+    <div class="section-scroll">
+      <button id="anitta-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="anitta-list">
+        <div id="anitta-loading-message" class="loading-text">Carregando conteúdo de Anitta...</div>
+      </div>
+      <button id="anitta-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+
+  <!-- Stations -->
+  <div class="section">
+    <h2 class="section-title">Stations</h2>
+    <div class="section-scroll">
+      <button id="stations-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="stations-list">
+        <div id="stations-loading-message" class="loading-text">Carregando estações...</div>
+      </div>
+      <button id="stations-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+
+  <div class="section">
+    <h2 class="section-title">Para fãs da música Pop</h2>
+    <div class="section-scroll">
+        <button id="pop-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+        <div class="card-row" id="pop-list">
+            <div id="pop-loading-message" class="loading-text">Carregando conteúdo Pop...</div>
+        </div>
+        <button id="pop-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+<div class="section">
+    <div id="taylor-swift-header" class="flex items-center mb-4 cursor-pointer hover:underline">
+        <img id="taylor-swift-header-img" src="/assets/default-artist.png" alt="Foto do Artista" class="w-10 h-10 rounded-full object-cover mr-3">
+        <h2 class="section-title text-xl font-bold">Para fãs de <span id="taylor-swift-header-name">Artista</span></h2>
+    </div>
+    <div class="section-scroll">
+      <button id="taylor-swift-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="taylor-swift-list">
+        <div id="taylor-swift-loading-message" class="loading-text">Carregando conteúdo de Taylor Swift...</div>
+      </div>
+      <button id="taylor-swift-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">Forever Latin</h2>
+    <div class="section-scroll">
+      <button id="latin-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="latin-list">
+        <div id="latin-loading-message" class="loading-text">Carregando conteúdo Latino...</div>
+      </div>
+      <button id="latin-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+
+<div class="section">
+    <h2 class="section-title">Potência Sertaneja</h2>
+    <div class="section-scroll">
+      <button id="sertanejo-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
+      
+      <div class="card-row" id="sertanejo-list">
+        <div id="sertanejo-loading-message" class="loading-text">Carregando conteúdo Sertanejo...</div>
+      </div>
+      
+      <button id="sertanejo-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+<script type="module" src="./js/main.js"></script>
+<script type="module" src="./js/iflog.js"></script>
+<script type="module" src="./js/like.js"></script>
+
+</body>
+</html>

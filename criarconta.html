@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Criar Conta - Tune</title>
+  <link rel="icon" href="./assets/favicon.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="login.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+   <link rel="stylesheet" href="rodape.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,0,0&icon_names=gpp_bad" />    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,0,0&icon_names=check_circle" />
+ 
+  <style>
+    body {
+      background-color: #121212;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .login-card {
+      background-color: #242424;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+    .input-field {
+      background-color: #3e3e3e;
+      border: 1px solid #4d4d4d;
+      color: #ffffff;
+      padding: 12px;
+      border-radius: 4px;
+      width: 100%;
+    }
+    .input-field:focus {
+      border-color: #ffffff;
+      outline: none;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen text-gray-200 p-4">
+
+  <div class="mt-12 mb-12">
+    <img src="assets/tunelogocima.png" alt="Logo Tune" class="w-24 md:w-32" />
+  </div>
+
+  <div class="login-card w-full max-w-sm p-8">
+    <h1 class="text-3xl font-bold text-center mb-8">Criar Conta</h1>
+
+    <form id="registerForm">
+      <div class="mb-4">
+        <input type="text" id="nome" class="input-field" placeholder="Apelido" />
+      </div>
+      <div class="mb-4">
+        <input type="email" id="email" class="input-field" placeholder="E-mail" />
+      </div>
+      <div class="mb-4">
+        <input type="password" id="senha" class="input-field" placeholder="Senha" />
+      </div>
+      <div class="mb-4">
+        <input type="password" id="confirmar-senha" class="input-field" placeholder="Confirmar senha" />
+      </div>
+      <button type="submit" class="w-full bg-white text-black font-semibold py-3 rounded-full hover:bg-gray-200 transition-colors mb-4">
+        Criar conta
+      </button>
+    </form>
+  </div>
+
+  <footer>
+                <div class="social-media-icons">
+                    <a href="https://x.com/tunedks" aria-label="X (Twitter)">
+                        <i class="fab fa-x-twitter"></i>
+                    </a>
+                    <a href="https://www.instagram.com/tunedks/" aria-label="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                </div>
+
+                <nav class="footer-links">
+                    <ul>
+                        <li><a href="termos.html">Política de Privacidade</a></li>
+                        <li><a href="termos.html">Termos e Condições</a></li>
+                    </ul>
+                </nav>
+
+                <div class="copyright">
+                    <img src="assets/tuneicon.png" alt="Logo TUNE" class="tune-logo">
+                    © 2025 TUNE DKS
+                </div>
+            </footer>
+
+    <script type="module" src="./js/cc.js"></script>
+</body>
+</html>
