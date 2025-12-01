@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    </head>
+<body>
+
+
+<div class="py-10 px-6 sm:px-8 lg:px-10 bg-white text-black min-h-full">
+    
+    <header class="mb-8 border-b border-gray-200 pb-4">
+        <h1 class="text-3xl sm:text-4xl font-bold text-black">Gerenciamento de Lançamentos</h1>
+        <p class="text-gray-500 mt-5">Visualize, edite e adicione seus álbuns e músicas.</p>
+    </header>
+
+    <div class="flex border-b border-gray-300 mb-8 max-w-4xl mx-auto md:mx-0">
+        <button id="tabReleases" data-tab="releases" class="tab-button active-tab">
+            Meus Lançamentos
+        </button>
+        <button id="tabAddAlbum" data-tab="add-album-placeholder" class="tab-button">
+            Adicionar Álbum
+        </button>
+        <button id="tabAddMusic" data-tab="add-music-placeholder" class="tab-button">
+            Adicionar Musica
+        </button>
+    </div>
+
+    <div id="tabContentReleases" class="tab-content max-w-4xl mx-auto md:mx-0"> 
+
+        <h2 class="text-xl font-semibold mb-4 text-black">Álbuns e Músicas</h2>
+        
+        <div id="releases-list-container" class="bg-gray-50 p-0 rounded-lg shadow-inner">
+            <div id="loading-releases" class="text-center text-gray-500 p-8">
+                Carregando seus lançamentos...
+            </div>
+            
+            <ul id="releasesList" class="space-y-4">
+            </ul>
+            
+            <p id="no-releases-message" class="text-center text-gray-500 p-8 hidden">
+                Você ainda não possui lançamentos cadastrados.
+            </p>
+        </div>
+
+    </div>
+
+    <div id="tabContentAddAlbum" class="p-6 bg-white rounded-lg shadow-xl mb-6 hidden">
+        <div class="text-center p-12">
+            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/><path d="M17 19H7c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2z"/></svg>
+            <h3 class="mt-2 text-xl font-semibold text-gray-900">Novo Lançamento</h3>
+            <p class="mt-1 text-sm text-gray-500">Comece o processo de adicionar seu novo álbum ou single.</p>
+            <div class="mt-6">
+                <button onclick="loadContent('addalbum')" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-black hover:bg-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 transition duration-150">
+                    Adicionar album
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    </div>
+
+<div id="delete-confirm-modal" class="modal-overlay hidden">
+    <div class="modal-content bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm mx-auto text-center border border-red-300">
+        <div class="text-red-500 mb-4 mx-auto w-12 h-12">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle">
+                <path d="m21.73 18-9-15.58L3.27 18Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>
+            </svg>
+        </div>
+        <h3 class="text-xl font-bold text-black mb-2">Confirmar Exclusão</h3>
+        <p class="text-gray-700 mb-6">Tem certeza que deseja excluir o lançamento: <strong id="delete-item-title"></strong>? Esta ação é irreversível.</p>
+        
+        <div class="flex justify-around space-x-4">
+            <button onclick="hideDeleteConfirm()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition">
+                Cancelar
+            </button>
+            <button id="confirmDeleteButton" onclick="deleteRelease()" data-id="" data-collection="" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition">
+                Confirmar Exclusão
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<style>
+.tab-button {
+    padding: 10px 15px;
+    font-weight: 600;
+    color: #4b5563; /* cinza */
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    border-bottom: 3px solid transparent;
+}
+.tab-button:hover {
+    color: #000;
+}
+.active-tab {
+    color: #000 !important;
+    border-bottom-color: #000 !important;
+}
+.tab-content {
+    animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<script src="tunearts.js" type="module"></script>
+</body>
+</html>

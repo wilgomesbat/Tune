@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Músicas - TuneArts</title>
+    <style>
+        /* Estilos básicos para os botões de aba se não estiverem no seu CSS principal */
+        .tab-button {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: #6b7280; /* gray-500 */
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .tab-button:hover {
+            color: #1f2937; /* gray-800 */
+        }
+        .active-tab {
+            color: #1f2937; /* Cor do texto ativo */
+            border-bottom-color: #2563eb; /* blue-600 */
+        }
+        /* Estilos do Modal (Tailwind) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #1f2937; /* bg-gray-800 */
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            max-width: 400px;
+            width: 90%;
+            color: #f3f4f6; /* text-gray-100 */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="py-10 px-6 sm:px-8 lg:px-10 bg-white text-black min-h-full">
+        
+        <header class="mb-8 border-b border-gray-200 pb-4">
+            <h1 class="text-3xl sm:text-4xl font-bold text-black">Gerenciamento de Músicas</h1>
+            <p class="text-gray-500 mt-1">Gerencie suas faixas e adicione-as a álbuns existentes.</p>
+        </header>
+
+        <div class="flex border-b border-gray-300 mb-8 max-w-4xl mx-auto md:mx-0">
+            <button id="tabMusicList" data-tab="music-list" class="tab-button active-tab">
+                Minhas Músicas
+            </button>
+            <button id="tabAddNew" data-tab="add-new-music" class="tab-button">
+                Adicionar Nova
+            </button>
+        </div>
+
+        <div id="tabContentMusicList" class="tab-content max-w-4xl mx-auto md:mx-0" style="display: block;">
+            <div id="music-list-container">
+                <p id="loading-music" class="text-center text-gray-500 p-8">Carregando suas músicas...</p>
+                </div>
+        </div>
+        
+        <div id="tabContentAddNewMusic" class="tab-content max-w-4xl mx-auto md:mx-0" style="display: none;">
+            <form id="addMusicForm" class="space-y-6">
+                
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-500">Título da Música</label>
+                    <input type="text" id="title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-black focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <div>
+                    <label for="artist" class="block text-sm font-medium text-gray-500">Artista (Proprietário do UID)</label>
+                    <input type="text" id="artist" disabled value="Carregando..." class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-100 text-gray-600">
+                </div>
+
+                <div>
+                    <label for="audioFile" class="block text-sm font-medium text-gray-500">Arquivo de Áudio (MP3, WAV)</label>
+                    <input type="file" id="audioFile" accept="audio/*" required class="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white">
+                </div>
+
+                <div>
+                    <label for="coverImage" class="block text-sm font-medium text-gray-500">Capa da Música (Opcional)</label>
+                    <input type="file" id="coverImage" accept="image/*" class="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white">
+                </div>
+
+                <fieldset>
+                    <legend class="text-sm font-medium text-gray-500">Tipo de Lançamento</legend>
+                    <div class="mt-2 space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-10">
+                        <div class="flex items-center">
+                            <input id="isSingle" name="releaseType" type="radio" value="single" checked class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                            <label for="isSingle" class="ml-3 block text-sm font-medium text-gray-700">Single</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="isAlbumTrack" name="releaseType" type="radio" value="albumTrack" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                            <label for="isAlbumTrack" class="ml-3 block text-sm font-medium text-gray-700">Faixa de Álbum</label>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div id="albumSelection" style="display: none;" class="p-4 border border-blue-200 rounded-lg bg-blue-50 space-y-4">
+                    <div>
+                        <label for="album" class="block text-sm font-medium text-gray-700">Selecionar Álbum (Seus álbuns)</label>
+                        <select id="album" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-black focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Carregando seus álbuns...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="trackNumber" class="block text-sm font-medium text-gray-700">Número da Faixa no Álbum</label>
+                        <input type="number" id="trackNumber" min="1" value="1" class="mt-1 block w-1/3 border border-gray-300 rounded-md shadow-sm p-2 text-black focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <label for="genre" class="block text-sm font-medium text-gray-500">Gênero</label>
+                        <input type="text" id="genre" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-black focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex items-end">
+                        <div class="flex items-center h-5">
+                            <input id="explicit" type="checkbox" class="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded">
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="explicit" class="font-medium text-gray-700">Conteúdo Explícito?</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <button type="submit" id="submitButton" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                        Enviar Música
+                    </button>
+                    <p id="message" class="mt-3 text-sm text-center font-medium text-green-600"></p>
+                    <p id="error" class="mt-3 text-sm text-center font-medium text-red-600"></p>
+                </div>
+            </form>
+            </div>
+
+    </div>
+
+    <div id="addToAlbumModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 class="modal-title mb-4 text-xl font-bold">Adicionar Música ao Álbum</h3>
+            <p class="text-gray-400 mb-6">Música: <strong id="modalMusicTitle" class="text-white"></strong></p>
+            
+            <form id="addToAlbumForm">
+                <input type="hidden" id="modalMusicId" name="musicId"> 
+
+                <div class="mb-4">
+                    <label for="modalSelectAlbum" class="block text-sm font-medium text-gray-300 mb-2 text-left">Selecionar Álbum</label>
+                    <select id="modalSelectAlbum" name="albumId" 
+                            class="w-full p-2 border border-gray-600 rounded-lg bg-gray-700 text-white" 
+                            onchange="window.updateModalTrackNumberOptions()">
+                        <option value="">Carregando...</option>
+                    </select>
+                </div>
+
+                <div class="mb-6">
+                    <label for="modalMusicTrackNumber" class="block text-sm font-medium text-gray-300 mb-2 text-left">Posição da Faixa</label>
+                    <select id="modalMusicTrackNumber" name="trackNumber" 
+                            class="w-full p-2 border border-gray-600 rounded-lg bg-gray-700 text-white">
+                        <option value="">Selecione um Álbum primeiro</option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="window.hideAddToAlbumModal()" class="px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition">
+                        Adicionar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="tunearts.js"></script> 
+</body>
+</html>

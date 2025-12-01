@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tune Team - Adicionar Playlist</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="../team.css">
+    <link rel="stylesheet" href="../admin.css">
+    <link rel="icon" href="./assets/teamlogotune.png">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="app" class="d-flex flex-column">
+        <div id="principal" class="d-flex">
+            <div id="feed" class="w-100">
+                
+                <main id="main" class="p-4">
+                    <form id="playlistForm">
+                        <div class="form-container">
+                            <div class="form-section">
+    
+                                
+                                 <input type="hidden" id="playlistId" name="playlistId" value="">
+                                
+                                <div class="form-grid">
+                                    <div class="form-field">
+                                        <label for="playlistName" class="form-label">Nome da Playlist</label>
+                                        <div class="input-container">
+                                            <input id="playlistName" type="text" name="playlistName" placeholder="Ex: Pop Hits" class="form-input" required />
+                                        </div>
+                                    </div>
+                                </div>
+
+
+
+                                <div class="form-grid">
+                                    <div class="form-field">
+                                        <label for="playlistCover" class="form-label">Url da capa da playlist</label>
+                                        <div class="input-container">
+                                            <input id="playlistCover" type="text" name="playlistCover" placeholder="Link para a imagem" class="form-input" required />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-field-select">
+    <label for="category" class="form-label">Categoria da Playlist</label>
+    <div class="select-container">
+        <select id="category" name="category" class="form-select" required>
+            <option value="">Selecione uma categoria</option>
+            <option value="Stations">Stations</option>
+            <option value="Charts">Charts</option>
+            <option value="New Releases">New Releases</option>
+        </select>
+    </div>
+</div>
+
+<div id="artistStationSearchSection" class="form-field-full hidden">
+    <div class="form-field">
+        <label for="artistSearch" class="form-label">Artista Associado (Station)</label>
+        <div class="input-container relative">
+            <input id="artistSearch" type="text" name="artistSearch" placeholder="Busque pelo nome artístico" class="form-input" autocomplete="off" />
+            <input type="hidden" id="selectedArtistUid" name="selectedArtistUid" value="" />
+        </div>
+    </div>
+    
+    <div id="artistSearchResults" class="absolute z-10 w-full mt-1 bg-gray-800 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
+        </div>
+
+    <p id="selectedArtistDisplay" class="form-hint mt-2 text-gray-400">Artista Selecionado: Nenhum</p>
+</div>
+
+                                
+                                <div class="form-field-full">
+                                    <label for="genres" class="form-label">Gêneros musicais</label>
+                                    <div class="input-container">
+                                        <input id="genres" type="text" name="genres" placeholder="Ex: Pop, Eletrônica, Rock" class="form-input" />
+                                    </div>
+                                    <p class="form-hint">Separe os gêneros por vírgula (ex: Pop, Rock).</p>
+                                </div>
+
+ 
+
+                                <div class="form-actions">
+                                    <button type="button" class="btn btn-secondary">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary">Salvar Playlist</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </main>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="../js/tt.js"></script>
+
+</body>
+</html>
