@@ -18,7 +18,7 @@
    <style>
         body {
             font-family: 'Nationale Regular';
-            background-color: #212121;
+            background-color: #ffffff;
             color: #ffffff;
             display: flex;
             height: 100vh;
@@ -40,6 +40,19 @@
             position: relative;
             overflow-y: auto;
             padding-bottom: 120px;
+        }
+
+        #nav-top {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
         }
 
         .custom-scrollbar::-webkit-scrollbar {
@@ -203,61 +216,42 @@
         <div id="principal" class="d-flex">
 
 
-<nav id="latNav" class="w-100 pt-4 d-flex flex-column">
-    <a href="#" class="d-flex px-4">
-        <img src="./assets/tuneicon.png" alt="TUNE" width="40" height="40">
-    </a>
-    <div class="sidebar-content">
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="dashboard">
-                    <svg role="img" viewBox="0 0 24 24">
-                        <path fill="white"
-                            d="M13.5 1.515a3 3 0 00-3 0L3 5.845a2 2 0 00-1 1.732V21a1 1 0 001 1h6a1 1 0 001-1v-6h4v6a1 1 0 001 1h6a1 1 0 001-1V7.577a2 2 0 00-1-1.732l-7.5-4.33z">
-                        </path>
-                    </svg>
+            <nav id="latNav" class="w-100 pt-4 d-flex flex-column">
+                <a href="#" class="d-flex px-4">
+                    <img src="./assets/tuneicon.png" alt="TUNE" width="40" height="40">
                 </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="ttaddalbum">
-                    <img src="assets/books_movies_and_music_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png" alt="Adicionar álbum" class="w-6 h-6">
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="addplaylist">
-                    <img src="assets/library_music_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png" alt="Adicionar playlists" class="w-6 h-6">
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="addmusic">
-                    <img src="assets/music_note_add_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png" alt="Adicionar musica" class="w-6 h-6">
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="editalbums">
-                    <img src="assets/app_registration_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg" alt="Adicionar playlists" class="w-6 h-6">
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="settings">
-                    <img src="assets/handyman_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg" alt="Artistas" class="w-6 h-6">
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="listartists">
-                    <img src="assets/person_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg" alt="Artistas" class="w-6 h-6">
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="listartists">
-                    <img src="assets/artist_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png" alt="Artistas" class="w-6 h-6">
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="editplaylist">
-                    <img src="assets/Queue.svg" alt="Fila" class="w-6 h-6">
-                </a>
-            </li>
+                <div class="sidebar-content">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a href="./index.html" class="nav-link" data-page="home">
+                                <svg role="img" viewBox="0 0 24 24">
+                                    <path fill="white"
+                                        d="M13.5 1.515a3 3 0 00-3 0L3 5.845a2 2 0 00-1 1.732V21a1 1 0 001 1h6a1 1 0 001-1v-6h4v6a1 1 0 001 1h6a1 1 0 001-1V7.577a2 2 0 00-1-1.732l-7.5-4.33z">
+                                    </path>
+                                </svg>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="./ttaddalbum.html" class="nav-link" data-page="add_albums">
+                                <img src="assets/books_movies_and_music_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png" alt="Adicionar álbum" class="w-6 h-6">
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="./addplaylist.html" class="nav-link" data-page="add_playlists">
+                                <img src="assets/library_music_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png" alt="Adicionar playlists" class="w-6 h-6">
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="./ttaddarts.html" class="nav-link" data-page="artists">
+                                <img src="assets/handyman_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg" alt="Artistas" class="w-6 h-6">
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="./ttaddarts.html" class="nav-link" data-page="artists">
+                                <img src="assets/artist_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png" alt="Artistas" class="w-6 h-6">
+                            </a>
+                        </li>
+                        
                         <div class="flex items-center gap-2 text-white p-1 rounded-md hover:bg-gray-800 transition-colors cursor-pointer">
  
 <div id="admin-list" class="flex flex-col gap-1">
@@ -274,18 +268,62 @@
 
             <div id="feed" class="w-100">
 
-                <nav id="topNav">
-  <div class="top-left-content">
-  </div>
-  <div class="top-right-content">
-    <div class="user-profile">
-      <div class="relative w-10 h-10 rounded-full overflow-hidden">
-        <img id="adminPhoto" src="./assets/default-profile.png" alt="Foto do Admin" class="w-full h-full object-cover cursor-pointer">
-        <div id="onlineIndicator"></div>
-      </div>
+                <nav id="topNav" class="d-flex justify-content-between align-items-center px-4 py-2">
+                    <div id="btnTopNav" class="d-flex">
+                    </div>
+                </nav>
+
+               <main id="main" class="p-4 bg-[#121212] min-h-screen">
+    <div class="container mx-auto">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="minha-classe-com-cor p-6 rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl">
+            <p class="text-black text-sm text-left">Álbuns Ativos</p>
+            <div class="flex items-center justify-between mt-2">
+                <h2 id="total-albums" class="text-3xl font-bold text-black">0</h2>
+                <dotlottie-wc
+    src="https://lottie.host/cfd5b217-624b-478f-9b3a-f988a01ed552/pZOSV7ZLwD.lottie"
+  style="width: 40px;height: 40px"
+  speed="1"
+  loop
+  autoplay
+></dotlottie-wc>            </div>
+        </div>
+
+        <div class="bg-black p-6 rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl">
+            <p class="text-gray-400 text-sm text-left">Total Users</p>
+            <div class="flex items-center justify-between mt-2">
+                <h2 id="total-artists" class="text-3xl font-bold text-white">0</h2>
+                <dotlottie-wc
+  src="https://lottie.host/231b7610-e8ad-41c2-862f-eadcfec5e0be/FBm5yLNzGO.lottie"
+  style="width: 40px;height: 40px"
+  speed="1"
+  autoplay
+></dotlottie-wc>            </div>
+        </div>
+
+        <div class="bg-black p-6 rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl">
+            <p class="text-gray-400 text-sm text-left">Acessos</p>
+            <div class="flex items-center justify-between mt-2">
+                <h2 id="total-accesses" class="text-3xl font-bold text-white">0</h2>
+                <img src="./assets/area_chart_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg" alt="Ícone de Acessos" class="w-10 h-10 filter brightness-200 saturate-200 hue-rotate-[50deg] sepia">
+            </div>
+        </div>
+        
+        <div class="bg-black p-6 rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl">
+            <p class="text-gray-400 text-sm text-left">Total de Músicas</p>
+            <div class="flex items-center justify-between mt-2">
+                <h2 id="total-musics" class="text-3xl font-bold text-white">0</h2>
+                <img src="./assets/ssid_chart_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg" alt="Ícone de Músicas" class="w-10 h-10 filter brightness-200 saturate-200 hue-rotate-[200deg] sepia">
+            </div>
+        </div>
     </div>
-  </div>
-</nav>
+</div>
+
+<div class="bg-black p-6 rounded-xl shadow-lg">
+    <h3 class="text-xl font-semibold mb-4 text-white">Artistas Recentes</h3>
+    <div id="recent-artists-container" class="space-y-4">
+        </div>
+</div>
 
 
 
