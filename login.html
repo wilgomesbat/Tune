@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Entrar - Tune</title>
+  <link rel="icon" href="./assets/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="login.css">
+  <style>
+    body {
+      background-color: #121212;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .login-card {
+      background-color: #242424;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+    .input-field {
+      background-color: #3e3e3e;
+      border: 1px solid #4d4d4d;
+      color: #ffffff;
+      padding: 12px;
+      border-radius: 4px;
+      width: 100%;
+    }
+    .input-field:focus {
+      border-color: #ffffff;
+      outline: none;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen text-gray-200 p-4">
+
+  <div class="mt-12 mb-12">
+    <img src="assets/tunelogocima.png" alt="Logo Tune" class="w-24 md:w-32">
+  </div>
+
+  <div class="login-card w-full max-w-sm p-8">
+    <h1 class="text-3xl font-bold text-center mb-8">Entrar</h1>
+
+    <form id="loginForm">
+      <div class="mb-4">
+        <input type="email" id="email" class="input-field" placeholder="E-mail" required>
+      </div>
+      <div class="mb-6">
+        <input type="password" id="password" class="input-field" placeholder="Senha" required>
+      </div>
+      <button type="submit" class="w-full bg-white text-black font-semibold py-3 rounded-full hover:bg-gray-200 transition-colors mb-4">
+        Entrar com E-mail
+      </button>
+    </form>
+
+
+  <footer class="flex flex-col items-center justify-center text-xs text-gray-400 mt-16 p-4">
+    <div class="flex flex-col items-center space-y-2 mb-4 md:flex-row md:space-x-4 md:space-y-0">
+      <a href="#" class="hover:text-gray-200">Política de Privacidade</a>
+      <a href="#" class="hover:text-gray-200">Termos e Condições</a>
+    </div>
+    <div class="flex items-center mb-2">
+      <img src="assets/Novo_projeto_696_Copy_6A8B929.png" alt="Logo Tune" class="w-4 h-4 mr-2">
+      <span>© 2025 TUNE DKS</span>
+    </div>
+  </footer>
+
+  <!-- Firebase + seu script -->
+  <script type="module" src="./js/login.js"></script>
+</body>
+</html>

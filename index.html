@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tune</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+ <script src="https://cdn.tailwindcss.com"></script>
+<script type="module" src="./js/cc.js"></script>
+    <!-- Open Graph (Facebook, WhatsApp, LinkedIn, etc.) -->
+    <meta property="og:title" content="TUNE">
+    <meta property="og:description" content="O stream de musica do metaverso.">
+    <meta property="og:image" content="https://i.ibb.co/kg1DRMPd/b7fe2c8b-6321-4161-a70f-980b17a7afa9-copied-media-2.png">
+    <meta property="og:url" content="https://tunedks.com">
+    <meta property="og:type" content="website">
+
+  <!-- Favicon / ícone -->
+  <link rel="icon" type="image/png" href="./assets/favicon.png" />
+
+  <!-- Seu CSS existente -->
+  <link rel="stylesheet" href="./login.css" />
+    <link rel="stylesheet" href="./rodape.css" />
+
+  <!-- Pequenos complementos específicos desta página -->
+
+
+  <style>
+    @font-face {
+  font-family: 'Nationale Regular';
+  src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+       url('./fonts/Nationale-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Nationale Bold'; /* Corrigido para evitar conflito com a anterior */
+  src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+       url('./fonts/Nationale-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+    .page {
+      min-height: 100svh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: #fff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    .container {
+      margin-inline: auto;
+    }
+    .brand {
+      display: grid;
+      place-items: center;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+    .tag {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #000000;
+      color: #bdbdbd;
+      font-size: .85rem;
+      margin-bottom: 16px;
+    }
+    .headline {
+      font-family: 'Nationale Black';
+        font-size: 2.2rem; /* Tamanho base para mobile */
+  line-height: 1.2;
+  margin-bottom: 20px;
+  font-weight: 900;
+  text-align: center;
+}
+
+@media (min-width: 600px) {
+  .headline {
+    font-size: 3rem; /* Aumenta o tamanho em telas maiores, como tablets e desktops */
+  }
+    }
+    body {
+  background: linear-gradient(-45deg, #121212, #000000, #101010);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+  height: 100vh;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+    .sub {
+      color: #bdbdbd;
+      font-size: .95rem;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .cta {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .cta input[type="email"] {
+      background: #0e0e12;
+      border: 1px solid #2a2a2a;
+      border-radius: 80px;
+      padding: 12px 14px;
+      color: #fff;
+      outline: none;
+    }
+    .mini {
+      font-size: .8rem;
+      color: #888;
+      margin-top: 8px;
+      text-align: left;
+    }
+    .cards {
+      margin-top: 22px;
+      border-radius: 12px;
+      padding: 16px;
+      background-color: #4158D0;
+  background-image: linear-gradient(43deg, #000000 0%, #000000 46%, #000000 100%);
+  box-shadow: rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset, rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset, rgba(0, 0, 0, 0.1) 0px -79px 40px 0px inset, rgba(0, 0, 0, 0.06) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px;
+    }
+    .countdown {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 6px;
+    }
+    .time {
+      font-family: 'Nationale Black';
+      background: #0e0e1200;
+      border-radius: 10px;
+      padding: 10px 14px;
+      min-width: 70px;
+      text-align: center;
+    }
+    .time strong {
+      display: block;
+      font-size: 2.2rem;
+    }
+    footer {
+      opacity: .9;
+      margin-top: 26px;
+    }
+    .socials {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-social {
+      width: auto;
+      padding: 10px 14px;
+    }
+    /* imagens */
+    .icon-logo { width: 90px; }
+    .text-logo { width: 140px; }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <div class="container animate-fade">
+      <div class="brand">
+        <!-- ícone + logo -->
+                <img class="text-logo" src="./assets/tunelogo.png" alt="Tune" />
+      </div>
+
+<div class="brand">
+    <div id="user-info" class="flex flex-col items-center gap-2 hidden"></div>
+</div>
+
+<div class="countdown-container">
+                    <div class="countdown" id="launch-countdown">
+              <div class="time">
+                  <strong id="countdown-days">00</strong>
+                  <small>Dias</small>
+              </div>
+              <div class="time">
+                  <strong id="countdown-hours">00</strong>
+                  <small>Horas</small>
+              </div>
+              <div class="time">
+                  <strong id="countdown-minutes">00</strong>
+                  <small>Minutos</small>
+              </div>
+              
+          </div>
+
+<div class="brand">
+    <div id="user-info" class="flex flex-col items-center gap-2 hidden"></div>
+</div>
+
+
+
+
+      <div class="buttons">
+  <button class="btn" id="btnCadastro">CADASTRO ARTISTA</button>
+
+</div>
+
+
+
+
+<script>
+const btn = document.getElementById('btnCadastro');
+btn.addEventListener('click', () => {
+  window.location.href = 'cadastro.html'; 
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Data alvo: 3 de Janeiro de 2026
+    const launchDate = new Date("Jan 3, 2026 00:00:00").getTime();
+
+    // Elementos do DOM
+    const daysEl = document.getElementById('countdown-days');
+    const hoursEl = document.getElementById('countdown-hours');
+    const minutesEl = document.getElementById('countdown-minutes');
+    const secondsEl = document.getElementById('countdown-seconds');
+    const countdownContainer = document.getElementById('launch-countdown');
+
+    function formatNumber(num) {
+        return num < 10 ? '0' + num : num;
+    }
+
+    function updateCountdown() {
+        const now = new Date().getTime();
+        const distance = launchDate - now;
+
+        if (distance < 0) {
+            // Se a data já passou
+            clearInterval(countdownInterval);
+            if (countdownContainer) {
+                countdownContainer.innerHTML = '<p class="headline" style="font-size: 1.5rem; margin: 0;">JÁ LANÇOU!</p>';
+            }
+            return;
+        }
+
+        // Cálculos de tempo
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        // Atualiza o DOM
+        if (daysEl) daysEl.textContent = formatNumber(days);
+        if (hoursEl) hoursEl.textContent = formatNumber(hours);
+        if (minutesEl) minutesEl.textContent = formatNumber(minutes);
+        if (secondsEl) secondsEl.textContent = formatNumber(seconds);
+    }
+
+    // Chama a função imediatamente para evitar um segundo de "00"
+    updateCountdown();
+
+    // Atualiza a cada segundo
+    const countdownInterval = setInterval(updateCountdown, 1000);
+});
+</script>
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+// ... (seu código Firebase e de Autenticação) ...
+const firebaseConfig = {
+  apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
+  authDomain: "tune-8cafb.firebaseapp.com",
+  projectId: "tune-8cafb",
+  storageBucket: "tune-8cafb.firebasestorage.app",
+  messagingSenderId: "599729070480",
+  appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+document.addEventListener('DOMContentLoaded', () => {
+  const userInfo = document.getElementById('user-info');
+  const btnCadastro = document.getElementById('btnCadastro');
+  const btnLicenca = document.getElementById('btnLicenca');
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // Esconde botões
+      if (btnCadastro) btnCadastro.style.display = 'none';
+      if (btnLicenca) btnLicenca.style.display = 'none';
+
+      // Mostra div do usuário
+      userInfo.classList.remove('hidden');
+
+      // Busca dados do usuário
+      const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+
+        // Limpa div antes de criar elementos
+        userInfo.innerHTML = '';
+
+        // Cria imagem
+        const img = document.createElement('img');
+        img.src = data.foto;
+        img.alt = 'Foto do artista';
+        img.className = 'w-28 h-28 rounded-full border-2 border-fff shadow-md';
+        userInfo.appendChild(img);
+
+        // Cria nome
+const p = document.createElement('p');
+p.textContent = data.nomeArtistico;
+p.className = 'text-lg mt-2'; // Mantém classes utilitárias do Tailwind
+p.style.fontFamily = "'Nationale Bold', sans-serif"; // Aplica fonte específica
+p.style.fontWeight = "bold"; // Garante que fique em negrito
+         userInfo.appendChild(p);
+
+      }
+
+      // Botão de logout opcional
+      if (!document.getElementById('btnLogout')) {
+        const btnLogout = document.createElement('button');
+        btnLogout.id = 'btnLogout';
+        btnLogout.textContent = 'SAIR';
+        btnLogout.className = 'btn mt-4 bg-red-600 hover:bg-red-700';
+        btnLogout.addEventListener('click', async () => {
+          await signOut(auth);
+          window.location.reload();
+        });
+        btnLicenca.insertAdjacentElement('afterend', btnLogout);
+      }
+
+    } else {
+      // Mostra botões quando não logado
+      if (btnCadastro) btnCadastro.style.display = 'inline-block';
+      if (btnLicenca) btnLicenca.style.display = 'inline-block';
+
+      // Esconde div do usuário
+      userInfo.classList.add('hidden');
+      userInfo.innerHTML = '';
+    }
+  });
+});
+</script>
+
+  
+
+</p>
+
+
+  </div>  
+    </div>
+    
+  </main>
+
+    <footer>
+        <div class="social-media-icons">
+            <a href="https://x.com/tunedks" aria-label="X (Twitter)"><i class="fab fa-x-twitter"></i></a>
+            <a href="https://www.instagram.com/tunedks/" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+        </div>
+
+            <nav class="footer-links">
+                <ul>
+    <li><a href="termos.html">Política de Privacidade</a></li>
+    <li><a href="termos.html">Termos e Condições</a></li>
+</ul>
+            </nav>
+
+        </div>
+
+<div class="copyright">
+            <img src="assets/tuneicon.png" alt="Logo TUNE" class="tune-logo"> © 2025 TUNE DKS 
+        </div>
+    </footer>
+
+   <script type="module" src="./js/cc.js"></script>]
+   <script type="module" src="./js/art.js"></script>
+  
+</body>
+</html>

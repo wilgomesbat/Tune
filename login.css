@@ -1,0 +1,255 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Nationale Regular';
+    /* Define a cor de fundo padrão para navegadores que não suportam gradientes */
+    background-color: #000000;
+
+    /* Gradiente linear do topo para a base */
+    background: linear-gradient(to bottom, #000000 0%, #000000 100%);
+}
+
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+.container {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.icon-logo {
+  width: 30px;
+  margin-bottom: 10px;
+}
+
+@keyframes fade {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade {
+  animation: fade 0.3s ease-out;
+  transition: opacity 0.3s ease;
+}
+
+
+.text-logo {
+  width: 100px;
+  margin-bottom: 30px;
+}
+
+h1 {
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+}
+
+.login-box {
+  background-color: #1a1a1f;
+  padding: 25px;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.login-box label {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  color: #ccc;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 10px;
+  background-color: #0e0e12;
+  border: none;
+  border-bottom: 1px solid #444;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.btn-main {
+  width: 100%;
+  padding: 12px;
+  background-color: #666;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.separator {
+  text-align: center;
+  color: #aaa;
+  margin: 20px 0;
+}
+
+.btn-social {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #555;
+  background: transparent;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+footer {
+  margin-top: 30px;
+  font-size: 0.8rem;
+  color: #888;
+  text-align: center;
+}
+
+footer a {
+  display: block;
+  color: #888;
+  margin: 3px 0;
+  text-decoration: none;
+}
+
+.lang-select {
+  margin-top: 10px;
+  background-color: #1e1e24;
+  padding: 6px 12px;
+  display: inline-block;
+  border-radius: 20px;
+  margin-bottom: 10px;
+}
+
+footer p {
+  margin-top: 10px;
+}
+
+/* Container que esconde o que está fora da tela */
+.carousel-container-auto-scroll {
+  overflow: hidden;
+}
+
+/* Onde a animação acontece */
+.artists-scroll-area {
+  display: flex;
+  gap: 20px;
+  padding: 10px 0;
+  white-space: nowrap; /* Evita quebra de linha dos itens */
+  animation: scroll 30s linear infinite; /* Aplica a animação de rolagem automática */
+  animation-play-state: running; /* Garante que a animação está rodando */
+}
+
+/* Pausa a rolagem ao passar o mouse por cima */
+.artists-scroll-area:hover {
+  animation-play-state: paused;
+}
+
+/* A keyframe da animação que faz a rolagem */
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%); /* Rola 50% da largura do contêiner */
+  }
+}
+
+/* Os estilos dos itens do artista (iguais ao exemplo anterior) */
+.carousel-wrapper {
+  max-width: 100%;
+  margin: 20px auto;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  padding: 0 10px;
+}
+
+.carousel-title {
+  text-align: center;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+}
+
+.artist-item {
+  flex: 0 0 auto;
+  text-align: center;
+  width: 150px;
+}
+
+.artist-image-wrapper {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto 10px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.artist-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.artist-name {
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+/* ========================================================== */
+/* ESTILO PARA O VÍDEO (GIF-LIKE) - AGORA CENTRALIZADO */
+/* ========================================================== */
+
+.video-container {
+    /* Define o tamanho da div que contém o vídeo */
+    width: 100%;
+    
+    /* Limita a largura do container */
+    max-width: 400px; 
+    
+    /* ⭐ CENTRALIZA O BLOCO ⭐ */
+    margin-left: auto;
+    margin-right: auto;
+    
+    /* Espaço após o vídeo */
+    margin-bottom: 30px; 
+    
+    /* Estilo de card */
+    border-radius: 12px;
+    overflow: hidden; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); 
+}
+
+#background-video {
+    /* Ocupa 100% do container */
+    width: 100%;
+    height: 100%;
+    
+    /* Crucial: Faz o vídeo preencher e cortar, como um background-size: cover */
+    object-fit: cover; 
+    
+    /* Garante que o vídeo se comporte como um bloco */
+    display: block; 
+}
