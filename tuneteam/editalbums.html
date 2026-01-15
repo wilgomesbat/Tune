@@ -1,0 +1,115 @@
+<main id="main" class="p-4">
+    <h1 class="text-black text-3xl font-bold mb-9">Editar e Gerenciar Álbuns</h1>
+
+ <div class="mb-6 relative">
+        <input 
+            type="text" 
+            id="albumSearchInput" 
+            placeholder="Buscar álbum por nome..." 
+            class="w-full p-3 pl-10 bg-black text-white rounded-lg"
+        />
+        <i class='bx bx-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'></i>
+    </div>
+
+    <div id="albumsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+        <p id="loadingAlbums" class="text-gray-400 col-span-full">Carregando álbuns...</p>
+    </div>
+
+
+
+
+    <div class="flex justify-center items-center mt-8 space-x-4">
+        <button id="prevPageButton" class="btn btn-secondary disabled:opacity-50" disabled>Anterior</button>
+        <span id="currentPageDisplay" class="text-white">Página 1</span>
+        <button id="nextPageButton" class="btn btn-primary disabled:opacity-50">Próxima</button>
+    </div>
+
+    <div id="editAlbumModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center p-4">
+        <div class="bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
+                <h2 id="modalTitle" class="text-2xl font-semibold text-white">Editar Álbum: [Nome]</h2>
+                <button id="closeModalButton" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+            </div>
+
+            <form id="editAlbumForm">
+                <div class="form-container">
+                    <div class="form-section bg-gray-900 p-6 rounded-lg shadow-xl">
+                        
+                        <input type="hidden" id="albumDocId" name="albumDocId" value="">
+
+                        <h3 class="text-xl font-semibold text-white mb-4">Informações Básicas</h3>
+
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label for="modalItemName" class="form-label">Nome do Album</label>
+                                <div class="input-container">
+                                    <input id="modalItemName" type="text" name="itemName" class="form-input" required />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label for="modalItemCover" class="form-label">URL da Capa</label>
+                                <div class="input-container">
+                                    <input id="modalItemCover" type="text" name="itemCover" class="form-input" required />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label for="modalReleaseDate" class="form-label">Data de Lançamento</label>
+                                <div class="input-container">
+                                    <input type="date" id="modalReleaseDate" name="releaseDate" class="form-input" />
+                                </div>
+                            </div>
+                            <div class="form-field">
+                                <label for="modalDuration" class="form-label">Duração Total</label>
+                                <div class="input-container">
+                                    <input type="text" id="modalDuration" name="duration" class="form-input" placeholder="Ex: 14h / 45:32" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label for="modalArtistName" class="form-label">Nome do Artista</label>
+                                <div class="input-container">
+                                    <input id="modalArtistName" type="text" name="artistName" class="form-input" required />
+                                </div>
+                            </div>
+                            <div class="form-field">
+                                <label for="modalArtistUid" class="form-label">UID do Artista</label>
+                                <div class="input-container">
+                                    <input id="modalArtistUid" type="text" name="artistUid" class="form-input" placeholder="SEXegbaVKk..." /> 
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label for="modalCountry" class="form-label">País</label>
+                                <div class="input-container">
+                                    <input id="modalCountry" type="text" name="country" class="form-input" placeholder="Ex: Brasil" />
+                                </div>
+                            </div>
+                            <div class="form-field">
+                                <label for="modalLabel" class="form-label">Gravadora</label>
+                                <div class="input-container">
+                                    <input id="modalLabel" type="text" name="label" class="form-input" placeholder="Ex: Parkwood" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions mt-6 flex justify-end space-x-4">
+                            <button type="button" id="modalCancelButton" class="btn btn-secondary">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Salvar Edição</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+        </div>
+    </div>
+    </main>

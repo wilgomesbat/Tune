@@ -110,6 +110,8 @@
             from { opacity: 1; transform: translateY(0); }
             to { opacity: 0; transform: translateY(20px); }
         }
+
+        
     </style>
 </head>
 <body>
@@ -119,12 +121,30 @@
     <img src="assets/tunelogocima.png" alt="Logo Tune" class="main-logo-tidal">
   </div>
             <section class="card">
-
+<div class="profile-section">
+  <div id="AvatarFileUpload">
+    <div class="selected-image-holder">
+      <img src="assets/artistpfp.png" alt="AvatarInput" id="profile-preview">
+    </div>
+    <input type="file" accept="image/*" name="avatar" id="profile-image-input">
+  </div>
+</div>
                 <form id="registerForm">
                     <div class="form-group">
                         <label for="nome" class="input-label">Nome</label>
                         <input type="text" id="nome" class="input-field" placeholder="Nome da conta" required />
                     </div>
+
+                   <div class="form-group">
+  <label for="user" class="input-label">Nome de usuário</label>
+  <div class="input-group-user">
+    <span class="at-symbol">@</span>
+    <input type="text" id="user" class="input-field" placeholder="nome de usuário" required />
+    
+    <!-- Ícone de status como imagem -->
+    <img id="username-status-icon" class="status-icon" src="assets/check_circle_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg" alt="status" />
+  </div>
+</div>
 
 
 
@@ -134,27 +154,49 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="senha" class="input-label">Crie uma senha</label>
-                        <input type="password" id="senha" class="input-field" placeholder="Senha" required />
-                        <p class="password-note">
-                            *Use uma senha forte com letras maiúsculas e minúsculas, números e caracteres especiais
-                        </p>
-                    </div>
-
-<div class="checkbox-container">
-    <input type="checkbox" id="termos-uso">
-    <label for="termos-uso">
-        Ao clicar em criar conta, você confirma que leu e concorda com os 
-        <a href="termos.html" class="link-tidal">Termos de Uso</a> do TUNE e concorda com o mesmo.
-    </label>
+    <label for="senha" class="input-label">Crie uma senha</label>
+    <input type="password" id="senha" class="input-field" placeholder="Senha" required />
+    <p class="password-note">
+        *Use uma senha forte com letras maiúsculas e minúsculas, números e caracteres especiais
+    </p>
 </div>
-    <button type="submit" id="submitBtn" class="main-button">
-        <span>Criar</span>
-    </button>
+
+<div class="social-inputs-container" style="margin-top: 20px;">
+    <label class="input-label">Redes Sociais (Opcional)</label>
+    
+    <div class="input-group-user" style="margin-bottom: 10px;">
+        <span class="at-symbol"><i class="fab fa-instagram"></i></span>
+        <input type="text" id="insta-user" class="input-field" placeholder="Usuário do Instagram" />
+    </div>
+
+    <div class="input-group-user" style="margin-bottom: 10px;">
+        <span class="at-symbol"><i class="fab fa-x-twitter"></i></span>
+        <input type="text" id="twitter-user" class="input-field" placeholder="Usuário do X / Twitter" />
+    </div>
+
+    <div class="input-group-user" style="margin-bottom: 40px;">
+        <span class="at-symbol"><i class="fab fa-youtube"></i></span>
+        <input type="text" id="youtube-user" class="input-field" placeholder="Link do YouTube" />
+    </div>
+</div>
+
+
+
+
+
+<button type="submit" id="submitBtn" class="main-button">
+    <span>Criar</span>
+</button>
 </form>
 
 
             </section>
+
+            <p class="approval-note">
+    <i class="fas fa-info-circle"></i> 
+    Ao solicitar a criação da sua conta, os seus dados passarão por uma análise. 
+    <strong>Por favor, aguarde a aprovação do nosso sistema.</strong>
+</p>
 
             <footer>
                 <div class="social-media-icons">
@@ -185,6 +227,6 @@
 
  
 
-    <script type="module" src="./js/cc.js"></script>
+    <script type="module" src="./js/ccart.js"></script>
 </body>
 </html>

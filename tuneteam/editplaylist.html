@@ -1,0 +1,99 @@
+<div class="py-10 px-6 sm:px-8 lg:px-10 bg-white text-black min-h-full">
+
+    <header class="mb-8 border-b border-gray-200 pb-4">
+        <h1 class="text-3xl sm:text-4xl font-bold text-black">Gerenciamento de Playlists</h1>
+        <p class="text-gray-500 mt-1">Gerencie suas playlists e adicione músicas nelas.</p>
+    </header>
+
+    <div class="flex border-b border-gray-300 mb-8 max-w-4xl mx-auto md:mx-0">
+        <button id="tabPlaylists" class="tab-button active-tab">Todas as Playlists</button>
+        </div>
+
+    <div id="tabContentPlaylistList" class="tab-content max-w-4xl mx-auto md:mx-0">
+        <input type="text" id="playlistSearch" placeholder="Buscar playlists..." 
+               class="w-full p-2 border border-gray-300 rounded-lg mb-4 text-black">
+
+        <div id="playlist-list-container" class="space-y-4">
+            <p class="text-center text-gray-500 p-8">Carregando playlists...</p>
+        </div>
+    </div>
+
+    <div id="playlistEditor" class="tab-content hidden max-w-4xl mx-auto md:mx-0 p-6 bg-white border rounded-lg shadow">
+        
+        <div class="mb-8 p-6 border rounded-lg bg-gray-50">
+            <h2 id="editorTitle" class="text-2xl font-bold text-black mb-1"></h2>
+            <p id="editorMeta" class="text-gray-500 mb-4"></p>
+            
+            <hr class="my-4">
+
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Editar Informações</h3>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Nome da Playlist</label>
+                <input type="text" id="editorPlaylistNameInput" required
+                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-black">
+            </div>
+
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700">Categoria</label>
+                <input type="text" id="editorPlaylistCategoryInput"
+                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-black">
+            </div>
+
+            <div class="flex justify-end mt-6 space-x-3">
+                <button id="btnBackToPlaylists"
+                        class="px-4 py-2 border border-gray-400 text-gray-600 rounded hover:bg-gray-100 font-medium">
+                    ← Voltar
+                </button>
+                <button id="btnSavePlaylist" 
+                        class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold">
+                    Salvar Alterações
+                </button>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">Músicas da Playlist</h3>
+            <button id="btnOpenAddMusic"
+                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                + Adicionar Música
+            </button>
+        </div>
+
+        <div id="playlistMusicList" class="space-y-2">
+            <p class="text-center text-gray-500 p-8">Carregando músicas...</p>
+        </div>
+    </div>
+
+</div>
+
+<div id="addMusicModal" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 hidden">
+    <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-sm mx-4" onclick="event.stopPropagation()">
+        
+        <h3 class="text-xl font-bold mb-4">Adicionar Música à Playlist</h3>
+
+        <label for="modalMusicSelect" class="block text-sm">Selecionar Música</label>
+        <select id="modalMusicSelect" class="w-full p-2 border border-gray-300 rounded mb-4 text-black"></select>
+
+        <label for="modalMusicTrack" class="block text-sm">Número da Faixa</label>
+        <input id="modalMusicTrack" type="number" min="1" value="1"
+               class="w-full p-2 border border-gray-300 rounded mb-6 text-black">
+
+        <div class="flex justify-end space-x-3">
+            <button id="modalCancelAddMusic"
+                    class="px-4 py-2 border border-gray-600 text-gray-700 rounded hover:bg-gray-100">
+                Cancelar
+            </button>
+            <button id="modalConfirmAddMusic"
+                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Adicionar
+            </button>
+        </div>
+        
+    </div>
+</div>
+
+<div id="addMusicModal" class="modal-overlay hidden">
+    </div>
+
+<div id="toastContainer" class="fixed bottom-4 right-4 space-y-2 z-50"></div>

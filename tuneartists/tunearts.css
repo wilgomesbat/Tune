@@ -1,0 +1,747 @@
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.658);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(136, 136, 136, 0.589);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(85, 85, 85, 0.637);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.custom-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+body {
+ 
+    font-family: 'Nationale Regular';
+
+    }
+
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'cy-grotesk-grand';
+    src: url('./fonts/cy-grotesk-grand-medium.ttf') format('truetype');
+    font-weight: 500; /* Médio */
+    font-style: normal;
+}
+
+
+
+html,
+body,
+#app,
+#principal {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden !important;
+}
+
+#app {
+  min-width: 767px;
+  overflow-x: auto;
+}
+
+.card {
+  font-family: 'Nationale Bold';
+  background-color: rgb(19, 19, 19);
+  color: #ffffff;
+  margin: 20px 20px 0 20px;
+  padding: 10px 18px;
+  border-radius: 20px;
+  /* border: 1px solid #fff; */  /* removi a borda para tirar o tracado */
+  opacity: 0.8;
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+.card h3 {
+  margin-top: 0;
+  font-size: 16px;
+}
+
+.card p {
+  font-size: 14px;
+  color: #ffffff;
+  margin: 10px 0 20px;
+}
+
+.bootn {
+  display: inline-block;
+  padding: 10px 18px;
+  background-color: #fff;   /* fundo branco */
+  color: #000;              /* texto preto */
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: bold;
+  -webkit-text-fill-color: #000;
+  font-size: 14px;
+  border: none;
+  box-shadow: none;
+  line-height: 1;           /* para o texto não ficar com altura maior */
+  text-align: center;       /* garante alinhamento horizontal */
+  vertical-align: middle;   /* ajuda no alinhamento vertical */
+}
+
+/* Adicione estas regras para o fundo desfocado e as bordas */
+#album-cover-bg {
+  filter: blur(50px); /* Ajusta o nível de desfoque */
+  transform: scale(1.1); /* Evita bordas visíveis após o desfoque */
+  transition: background-image 0.5s ease-in-out, filter 0.5s ease-in-out;
+}
+
+#album-header {
+  border-radius: 10px; /* Adiciona a borda arredondada */
+}
+
+    .left, .center, .right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Overall Container */
+.navbar-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 60px;
+  padding: 0 16px;
+  background-color: #00000000;
+  box-sizing: border-box;
+}
+
+/* Left and Right Sections */
+.nav-left,
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* Spacing between items */
+}
+
+
+
+
+
+.icon-circle {
+  /* Propriedades existentes (tamanho, cor, borda) */
+  width: 48px;
+  height: 48px;
+  background-color: #121212;
+  border: 1px solid #282828;
+  border-radius: 50%;
+
+  /* Propriedades para centralizar o ícone */
+  display: flex; /* Define o contêiner como um Flexbox */
+  justify-content: center; /* Centraliza horizontalmente */
+  align-items: center; /* Centraliza verticalmente */
+}
+
+.nav-icon {
+
+  width: 30px;
+  height: 30px;
+}
+
+/* Common Styles for Links/Buttons */
+.nav-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s ease-in-out;
+}
+
+.nav-link:hover {
+  color: #a7a7a7;
+}
+
+/* Specific Link/Button Styles */
+.install-app .link-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+}
+
+.login-button {
+  height: 48px;
+  padding: 0 24px;
+  background-color: #fff;
+  color: #000;
+  font-weight: 700;
+  border-radius: 24px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.login-button:hover {
+  background-color: #f6f6f6;
+  color: #000;
+}
+
+.btn-login {
+  background: #fff;
+  color: #000 !important;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+/* Restante do seu CSS (se houver) */
+
+/*playlists */
+
+ul.playlists {
+  list-style: none;
+  padding: 0;
+}
+
+ul.playlists li.serie-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 10px;
+}
+
+
+ul.playlists li.serie-item a {
+  display: flex;
+  text-decoration: none;
+  color: inherit;
+}
+
+.serie-capa {
+  width: 100px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-right: 12px;
+}
+
+.serie-info h5 {
+  margin: 0 0 5px 0;
+  font-size: 1.1em;
+}
+
+.serie-info p {
+  margin: 0;
+  font-size: 0.9em;
+  color: #555;
+}
+
+
+
+#principal {
+  background-color: #fffffffb;;;
+  transition: background-color 1s ease;
+  color: #fff;
+}
+
+#principal #latNav {
+  max-width: 24px;
+  background-color: #0a0a0afb;;
+}
+
+#principal #latNav a {
+  text-decoration: none;
+  color: #fff;
+}
+
+#principal #latNav .nav .nav-item .nav-link {
+  color: #fff;
+  fill: #fff;
+  font-size: 0.9em;
+  font-weight: bold;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+#principal #latNav .nav .nav-item .nav-link svg {
+  margin-right: 13px;
+}
+
+#principal #latNav .nav .nav-item .nav-link.ativo,
+#principal #latNav .nav .nav-item .nav-link:hover {
+  opacity: 1;
+}
+
+#principal #latNav #underList button {
+  background-color: rgba(0, 0, 0, 0);
+  border: 0;
+  display: flex;
+  color: #fff;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+  padding: 8px 24px;
+  width: 100%;
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+#principal #latNav #underList button .plus_bttn,
+#principal #latNav #underList button .heart_bttn {
+  width: 24px;
+  height: 24px;
+  margin-right: 16px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#principal #latNav #underList button .plus_bttn {
+  background-color: #fff;
+}
+
+#principal #latNav #underList button .heart_bttn {
+  background: linear-gradient(125deg, #773de3 41%, #cffff1 100%);
+  fill: #fff;
+}
+
+#principal #latNav #underList button:hover {
+  opacity: 1;
+}
+
+#principal #latNav #playlistSidebar {
+  width: 100%;
+  overflow-y: auto;
+  box-shadow: inset 0 30px 15px rgba(10, 10, 10, 0.2);
+}
+
+#principal #latNav #playlistSidebar li {
+  width: 100%;
+  list-style-type: none;
+}
+
+#principal #latNav #playlistSidebar li a {
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+#principal #latNav #installApp {
+  fill: #fff;
+  font-size: 0.9em;
+  font-weight: 500;
+  opacity: 0.8;
+  transition: opacity 0.3s;
+}
+
+#principal #latNav #installApp svg {
+  margin-right: 15px;
+}
+
+#principal #latNav #installApp:hover {
+  opacity: 1;
+}
+
+#principal #feed {
+  background: #ffffff;
+  overflow-y: auto;
+}
+
+#principal #feed #main {
+  background: #ffffff;
+   border-radius: 40px 12px 0 0; /* arredondado só em cima */
+}
+
+#principal #feed #main #feedHeader {
+  max-width: 1920px;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 0;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes li {
+  list-style-type: none;
+  width: 32%;
+  border-radius: 5px;
+  margin: 7px 0;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  background-color: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes li:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes li:hover button.btn {
+  opacity: 1;
+  cursor: default;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes li img {
+  width: 80px;
+  height: 80px;
+  border-radius: 5px 0 0 5px;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes li button.btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  background-color: #1ed760;
+  transition: opacity 0.3s ease;
+  opacity: 0;
+  box-shadow: 0px 15px 40px 0px rgba(0, 0, 0, 0.9);
+  transition: all ease-in-out 0.2s;
+}
+
+#principal #feed #main #feedHeader #playlistsRecentes li button.btn:hover {
+  padding: 1px;
+  border: 0;
+  transform: scale(1.05);
+}
+
+#botomIcon {
+  display: none !important;
+}
+
+@media only screen and (max-width: 1186px) {
+  #principal #feed #main #feedHeader #playlistsRecentes li {
+    width: 49%;
+  }
+
+  #principal #feed #main #feedHeader #playlistsRecentes li img {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+#principal #feed #main .feedPlaylist {
+  max-width: 1920px;
+}
+
+#principal #feed #main .feedPlaylist h4 {
+  display: inline;
+}
+#principal #feed #main .feedPlaylist h4 > a {
+  text-decoration: none;
+  color: #fff;
+}
+
+#principal #feed #main .feedPlaylist h4 > a:hover {
+  text-decoration: underline;
+}
+#principal #feed #main .feedPlaylist .see-all {
+  text-decoration: none;
+  color: #b3b3b3;
+  float: right;
+  font-size: 9pt;
+  font-weight: bold;
+}
+
+#principal #feed #main .feedPlaylist .see-all:hover {
+  text-decoration: underline;
+}
+
+#principal #feed #main .feedPlaylist .playlists {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+  justify-content: space-between;
+  overflow-y: hidden;
+  height: 380px;
+}
+
+#principal #feed #main .feedPlaylist .playlists li {
+  width: 15%;
+  list-style-type: none;
+  background-color: rgb(255, 248, 248);
+  padding: 15px 15px 0 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  position: relative;
+  margin-bottom: 100px;
+}
+
+#principal #feed #main .feedPlaylist .playlists li img {
+  width: 100%;
+  border-radius: 5px;
+  margin-bottom: 17px;
+}
+
+#principal #feed #main .feedPlaylist .playlists li span {
+  font-weight: 700;
+}
+
+#principal #feed #main .feedPlaylist .playlists li p {
+  font-size: 0.9em;
+  line-height: 15px;
+  opacity: 0.8;
+}
+
+#principal #feed #main .feedPlaylist .playlists li button.btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  background-color: #1ed760;
+  transition: all 0.3s ease;
+  opacity: 0;
+  position: absolute;
+  right: 8px;
+  bottom: 80px;
+  cursor: default;
+  transition: all ease-in-out 0.2s;
+  box-shadow: 0px 15px 40px 0px rgba(0, 0, 0, 0.9);
+}
+
+#principal #feed #main .feedPlaylist .playlists li button.btn:hover {
+  padding: 1px;
+  border: 0;
+  transform: scale(1.05);
+}
+
+#principal #feed #main .feedPlaylist .playlists li:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+#principal #feed #main .feedPlaylist .playlists li:hover button.btn {
+  bottom: 95px;
+  opacity: 1;
+}
+
+@media only screen and (max-width: 2130px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 360px;
+  }
+}
+
+@media only screen and (max-width: 1920px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 320px;
+  }
+}
+
+@media only screen and (max-width: 1730px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 300px;
+  }
+}
+
+@media only screen and (max-width: 1512px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 295px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 18%;
+  }
+}
+
+@media only screen and (max-width: 1324px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 310px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 23%;
+  }
+}
+
+@media only screen and (max-width: 996px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 295px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 32%;
+  }
+}
+
+@media only screen and (max-width: 796px) {
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 310px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 48%;
+  }
+}
+
+@media only screen and (max-width: 770px) {
+
+  #configAudio {
+    display: none !important;
+  }
+
+  #caixaCentral {
+    display: none !important;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists {
+    height: 310px;
+  }
+
+  #principal #feed #main .feedPlaylist .playlists li {
+    width: 23%;
+  }
+
+  #botomIcon {
+    display: unset !important;
+  }
+
+  #botomIcon a {
+    color: white;
+    font-size: 12px;
+  }
+
+  #botomIcon a svg {
+    margin: 10px;
+  }
+
+  #arrowMenu {
+    visibility: hidden;
+  }
+
+  #app {
+    min-width: 100vw;
+  }
+}
+
+        /* Novo estilo para o botão de sair, se necessário (logout) */
+        .logout-link {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+            background-color: transparent;
+            color: #f87171; /* Cor vermelha suave para destacar a ação */
+            text-decoration: none;
+            padding: 10px 16px; 
+            border-radius: 8px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            margin-top: auto; /* Empurra para o final da nav */
+            margin-bottom: 10px;
+        }
+        .logout-link:hover {
+            background-color: #f871711a;
+        }
+        .logout-link img {
+            width: 22px;
+            height: 22px;
+            filter: invert(47%) sepia(21%) saturate(5412%) hue-rotate(338deg) brightness(101%) contrast(97%); /* Deixa o ícone vermelho */
+        }
+
+        /* --- CSS Para Modal de Aviso (Adicionado/Corrigido) --- */
+.modal-overlay {
+    position: fixed; /* Fixa na tela */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9); /* Fundo escuro semi-transparente */
+    display: flex;
+    justify-content: center; /* Centraliza horizontalmente */
+    align-items: center; /* Centraliza verticalmente */
+    z-index: 2000; /* Garante que fique acima de todo o resto */
+    backdrop-filter: blur(5px); /* Efeito de desfoque sutil (opcional) */
+}
+
+.modal-overlay.hidden {
+    display: none !important;
+}
+
+.modal-content {
+    background-color: #121212; /* Fundo escuro do Spotify */
+    color: #aeaeae;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px; /* Limita o tamanho */
+    text-align: center;
+}
+
+.modal-title {
+  
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #deb1ad; /* Cor de destaque (verde Spotify) */
+}
+
+.login-button {
+    background-color: #ffffff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+    margin-top: 15px;
+}
+
+.login-button:hover {
+    background-color: #7c7c7c;
+}
+
+/* tunearts.css (Adicione ou verifique este bloco) */
+
+/* Garante que o ícone é exibido e tem tamanho fixo */
+.trash-icon {
+    display: inline-block !important; /* Força a exibição */
+    width: 18px !important; /* Garante o tamanho */
+    height: 18px !important;
+    /* Transição de filtro para o hover */
+    transition: filter 0.15s ease-in-out;
+}
+
+/* O filtro para colorir o SVG de preto/cinza para vermelho no hover */
+.delete-button:hover .trash-icon {
+    /* Este filtro converte o preto para uma cor próxima ao vermelho #ff0000 */
+    filter: invert(34%) sepia(87%) saturate(5438%) hue-rotate(349deg) brightness(85%) contrast(100%); 
+}
+
+/* Garante que o botão que contém o ícone não esteja oculto em mobile */
+.delete-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
