@@ -1,0 +1,189 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./slide.css">
+</head>
+<body class="bg-black text-white">
+
+<div id="home-content">
+
+  </div>
+
+<h1 id="greeting-title" class="greeting-style"></h1>
+    
+</h1>
+  
+<div class="main-content-area">
+
+
+
+
+
+  
+  <!-- Álbuns Recentes -->
+  <div class="section">
+    <h2 class="section-title">Álbuns do Tune</h2>
+    <div class="section-scroll">
+      <button id="albums-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="albums-list">
+        <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+        <div id="albums-loading-message" class="loading-text"></div>
+      </div>
+      <button id="albums-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+    <!-- Artistas -->
+  <div class="section">
+    <h2 class="section-title">Artistas do Tune</h2>
+    <div class="section-scroll">
+      <button id="artists-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="artists-list">
+        <div id="artists-loading-message" class="loading-text"></div>
+      </div>
+      <button id="artists-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+
+  
+  <!-- Charts -->
+  <div class="section">
+    <h2 class="section-title">Charts</h2>
+    <div class="section-scroll">
+      <button id="charts-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="charts-list">
+        <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+        <div id="charts-loading-message" class="loading-text"></div>
+      </div>
+      <button id="charts-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div id="anitta-header" class="flex items-center mb-4 cursor-pointer hover:underline">
+        <img id="anitta-header-img" src="/assets/default-artist.png" alt="Foto do Artista" class="w-10 h-10 rounded-full object-cover mr-3">
+        <h2 class="section-title text-xl font-bold">Para fãs de <span id="anitta-header-name">Artista</span></h2>
+    </div>
+    <div class="section-scroll">
+      <button id="anitta-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="anitta-list">
+        <div id="anitta-loading-message" class="loading-text"></div>
+      </div>
+      <button id="anitta-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+  <div class="section">
+    <h2 class="section-title">Gêneros</h2>
+    <div class="section-scroll">
+        <button id="playlist-genres-scroll-left" class="scroll-btn left">
+            <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+        <div class="card-row" id="playlist-genres-list">
+          <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div id="playlist-genres-loading-message" class="loading-text">Carregando gêneros...</div>
+        </div>
+        <button id="playlist-genres-scroll-right" class="scroll-btn right">
+            <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+    </div>
+</div>
+
+  <!-- Stations -->
+  <div class="section">
+    <h2 class="section-title">This Is</h2>
+    <div class="section-scroll">
+      <button id="stations-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="stations-list">
+        <div id="stations-loading-message" class="loading-text"></div>
+      </div>
+      <button id="stations-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+
+<div class="section" style="margin-bottom: 30px;">
+    <h2 class="section-title mb-2 text-xl font-bold">Para fãs da música Pop</h2>
+    
+    <div class="section-scroll" style="margin-top: 0;">
+        <button id="pop-scroll-left" class="scroll-btn left">
+            <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+        
+        <div class="card-row" id="pop-list">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            
+            <div id="pop-loading-message" class="loading-text" style="display: none;"></div>
+        </div>
+        
+        <button id="pop-scroll-right" class="scroll-btn right">
+            <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+    </div>
+</div>
+
+<div class="section">
+    <div id="taylor-swift-header" class="flex items-center mb-4 cursor-pointer hover:underline">
+        <img id="taylor-swift-header-img" src="/assets/default-artist.png" alt="Foto do Artista" class="w-10 h-10 rounded-full object-cover mr-3">
+        <h2 class="section-title text-xl font-bold">Para fãs de <span id="taylor-swift-header-name">Artista</span></h2>
+    </div>
+    <div class="section-scroll">
+      <button id="taylor-swift-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="taylor-swift-list">
+        <div id="taylor-swift-loading-message" class="loading-text"></div>
+      </div>
+      <button id="taylor-swift-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">Forever Latin</h2>
+    <div class="section-scroll">
+      <button id="latin-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="latin-list">
+        <div id="latin-loading-message" class="loading-text"></div>
+      </div>
+      <button id="latin-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+
+<div class="section">
+    <h2 class="section-title">Potência Sertaneja</h2>
+    <div class="section-scroll">
+      <button id="sertanejo-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
+      
+      <div class="card-row" id="sertanejo-list">
+        <div id="sertanejo-loading-message" class="loading-text"></div>
+      </div>
+      
+      <button id="sertanejo-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+<script type="module" src="./js/main.js"></script>
+<script type="module" src="./js/iflog.js"></script>
+<script type="module" src="./js/like.js"></script>
+
+</body>
+</html>

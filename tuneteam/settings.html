@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    
+    <style>
+        /* Estilização para o toggle */
+        .maintenance-toggle-switch input:checked + .block {
+            background-color: #b82929; /* Verde Spotify */
+        }
+        .maintenance-toggle-switch input:checked ~ .dot {
+            transform: translateX(100%);
+        }
+        .maintenance-toggle-switch .dot {
+            background-color: #fff;
+            left: 2px;
+            top: 2px;
+            width: 20px;
+            height: 20px;
+            transition: transform 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-black text-white min-h-screen font-sans">
+
+    <div class="max-w-xl mx-auto p-4 sm:p-6">
+        <header class="mb-8">
+            <h1 class="text-4xl font-extrabold">Configurações</h1>
+            <button class="absolute top-4 right-4 p-2">
+                <svg class="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </button>
+        </header>
+
+        <section class="mb-8">
+            <h2 class="text-xl font-bold mb-4 text-black">ADMINISTRAÇÃO</h2>
+            
+            <div class="flex items-center justify-between py-3 border-b border-gray-800">
+                <div>
+                    <p class="text-lg font-medium">Modo de Manutenção (Status)</p>
+                    <p class="text-black text-sm">Ativa o modo de manutenção global para todo o sistema.</p>
+                </div>
+                
+                <label for="maintenanceToggle" class="maintenance-toggle-switch flex items-center cursor-pointer">
+                    <div class="relative">
+                        <input type="checkbox" id="maintenanceToggle" class="sr-only">
+                        <div class="block bg-gray-600 w-11 h-6 rounded-full"></div>
+                        <div class="dot absolute rounded-full transition"></div>
+                    </div>
+                </label>
+            </div>
+            
+            <p id="maintenanceStatusMessage" class="mt-2 text-sm text-gray-500">Carregando status...</p>
+        </section>
+
+        
+    </div>
+
+    <script type="module" src="firebase-config.js"></script> 
+    <script type="module" src="tt.js"></script> 
+</body>
+</html>

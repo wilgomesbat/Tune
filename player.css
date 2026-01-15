@@ -1,0 +1,939 @@
+/* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+
+
+#music-player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+    font-family: 'Nationale Regular';
+    z-index: 1000;
+    color: white;
+    
+    /* REMOVIDO: background-color sólido */
+    background: transparent; 
+    overflow: hidden; /* Garante que a distorção não vaze */
+    
+    /* Configurações do Glass */
+    --glass-bg: rgba(255, 255, 255, 0.08);
+    --glass-shimmer: rgba(255, 255, 255, 0.15);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+/* Camadas Compartilhadas */
+#music-player .glass-filter, 
+#music-player .glass-overlay, 
+#music-player .glass-specular {
+    position: absolute;
+    inset: 0;
+    pointer-events: none; /* Deixa os cliques passarem para os botões */
+}
+
+#music-player .glass-filter {
+    z-index: 1;
+    backdrop-filter: blur(20px) saturate(180%);
+    filter: url(#glass-distortion); /* Usa o filtro SVG que você já tem */
+}
+
+#music-player .glass-overlay {
+    z-index: 2;
+    background: var(--glass-bg);
+}
+
+#music-player .glass-specular {
+    z-index: 3;
+    box-shadow: inset 0 1px 1px var(--glass-shimmer);
+    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+}
+
+/* Garante que o conteúdo fique acima do vidro */
+.player-main-content, 
+.progress-bar-bottom {
+    position: relative;
+    z-index: 5;
+}
+
+/* Ajuste Mobile para manter o efeito glass flutuante */
+@media (max-width: 768px) {
+    #music-player {
+        width: calc(100% - 30px);
+        margin: 0 15px;
+        bottom: 85px; /* Sobe um pouco para não colar na nav-bar */
+        border-radius: 16px; /* Bordas mais arredondadas combinam melhor com glass */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* Dark Mode Adaptation */
+@media (prefers-color-scheme: dark) {
+    #music-player {
+        --glass-bg: rgba(0, 0, 0, 0.4);
+        --glass-shimmer: rgba(255, 255, 255, 0.05);
+    }
+}
+
+body.fs-active #full-screen-player {
+    opacity: 1; 
+    /* ⭐️ POSIÇÃO FINAL: 0 significa no topo da tela */
+    transform: translateY(0); 
+}
+
+/* Mini Player */
+body.fs-active #music-player {
+    opacity: 0; 
+    transform: translateY(100%); 
+}
+
+/* Container para a primeira linha (Capa, Controles, Volume) */
+.player-main-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    height: 70px; /* Espaço para o conteúdo principal */
+}
+
+/* LADO ESQUERDO: Capa e Info */
+.player-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+    width: 25%;
+    margin-top: 1%;
+}
+.player-left img {
+    width: 50px;
+    height: 50px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+.player-info {
+
+    overflow: hidden;
+    white-space: nowrap; /* Impede a quebra de linha do texto */
+}
+
+/* Garante que o texto rolável esteja no mesmo nível */
+#player-title, #player-artist {
+    display: block; /* Para garantir que o span ocupe a largura total */
+}
+
+.player-info {
+    /* MANTENHA estas três regras CRUCIAIS: */
+    max-width: 150px; /* <--- GARANTA ESTE VALOR FIXO OU AJUSTE */
+    overflow: hidden;
+    white-space: nowrap; 
+
+    /* 🛑 REMOVIDO: O mask-image PADRÃO FOI REMOVIDO DAQUI */
+    /* Ele será aplicado através da nova classe .fade-active */
+}
+
+/* NOVO: Classe que aplica o Efeito Fade SOMENTE quando o texto rola */
+.player-info.fade-active {
+    /* O gradiente que cria o efeito de fade nas laterais */
+    -webkit-mask-image: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0) 0%,      /* Início (Fade esquerdo) */
+        rgba(0, 0, 0, 1) 10%,     /* Transição para visível */
+        rgba(0, 0, 0, 1) 90%,     /* Transição para invisível */
+        rgba(0, 0, 0, 0) 100%     /* Fim (Fade direito) */
+    );
+    mask-image: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 1) 10%,
+        rgba(0, 0, 0, 1) 90%,
+        rgba(0, 0, 0, 0) 100%
+    );
+}
+
+/* 2. TEXTO e ANIMAÇÃO (mantido, mas com a correção de calc) */
+#player-title, #player-artist {
+    display: block; 
+    white-space: nowrap;
+}
+
+/* ANIMAÇÃO: Ativa o scroll quando a classe 'scrolling' é adicionada pelo JS */
+#player-title.scrolling,
+#player-artist.scrolling {
+    animation: text-scroll 8s linear infinite alternate; 
+}
+
+/* Define a animação de scroll (baseado no max-width de 150px) */
+@keyframes text-scroll {
+    0% { transform: translateX(0); }
+    100% { 
+        /* AJUSTE ESTE VALOR (150px) para ser IGUAL ao max-width do .player-info */
+        transform: translateX(calc(-100% + 150px)); 
+    }
+}
+
+.player-info span {
+    font-family: 'Nationale Regular';
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9rem;
+}
+.player-info #player-title {
+    font-weight: bold;
+    font-family: 'Nationale Bold';
+    font-size: 1rem;
+    color: white;
+}
+#player-artist {
+    font-family: 'Nationale Regular';
+    color: #b3b3b3;
+    font-size: 0.8rem;
+}
+
+/* CENTRO: Controles */
+.player-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1; /* Ocupa o espaço central restante */
+}
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.controls button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    transition: background 0.2s, opacity 0.2s;
+}
+.controls button img {
+    width: 28px;
+    height: 28px;
+    /* CORREÇÃO: Removido filter: invert(1); para ícones já brancos */
+    filter: none;
+}
+.controls button:hover {
+    background: rgba(255, 255, 255, 0.117);
+    opacity: 1;
+}
+
+.play-btn {
+    background: white;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    transition: transform 0.1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.play-btn:hover {
+    transform: scale(1.1);
+}
+.play-btn img {
+    width: 40px;
+    height: 40px;
+    /* ICONE PRETO: O botão de play é branco, então o ícone deve ser preto para contraste */
+    filter: none;
+}
+
+/* DIREITA: Volume e Fila */
+.player-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 25%;
+    margin-top: 1%;
+    min-width: 150px;
+    gap: 10px;
+}
+.player-right button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+.player-right button:hover {
+    opacity: 1;
+}
+.player-right button img {
+    width: 20px;
+    height: 20px;
+    /* CORREÇÃO: Removido filter: invert(1); para ícones já brancos */
+    filter: none;
+}
+#volume-slider {
+    width: 90px;
+    accent-color: #ffffff;
+}
+
+/* BARRA DE PROGRESSO (NOVA POSIÇÃO INFERIOR) */
+.progress-bar-bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 90%; /* Ocupa a maior parte da largura no PC */
+    max-width: 900px;
+    margin-bottom: 5px;
+}
+.progress-bar {
+    flex: 1;
+    height: 5px;
+    background: #ffffff6d;
+    border-radius: 3px;
+    overflow: hidden;
+    cursor: pointer;
+}
+#progress-fill {
+    width: 0%;
+    height: 100%;
+    background: #ffffff;
+    transition: width 0.1s linear;
+}
+#current-time, #total-time {
+    font-size: 12px;
+    color: #ccc;
+    white-space: nowrap;
+}
+
+/* IFRAME INVISÍVEL */
+#yt-player {
+    display: none;
+}
+/* * --------------------------------------------------------
+ * --- MEDIA QUERY: ADAPTAÇÃO PARA MOBILE (MAX 768px) ---
+ * --------------------------------------------------------
+ */
+@media (max-width: 768px) {
+    #music-player {
+        /* Ocupa a largura total com margens laterais de 15px */
+        width: calc(100% - 30px);
+        margin: 0 15px;
+        bottom: 80px;
+        z-index: 1025;
+        border-radius: 8px;
+        position: fixed;
+        transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        /* CORREÇÃO: Remove o padding vertical para compactar */
+        padding: 0 12px;
+        height: auto; /* Deixa a altura ser definida pelo conteúdo */
+    }
+
+    /* ----------------------------------------------------------------- */
+    /* CONTEÚDO PRINCIPAL (Capa, Título, Controles) */
+    /* ----------------------------------------------------------------- */
+    .player-main-content {
+        /* CORREÇÃO: Remove altura fixa e usa padding para respiro. */
+        height: auto;
+        padding: 9px 0; /* Adiciona respiro vertical (topo e base) de 8px */
+
+        /* O alinhamento central vertical (align-items: center) deve ser herdado
+           do seu CSS base e garante que a capa e os botões fiquem alinhados. */
+    }
+
+    /* OCULTA VOLUME E SLIDER NO MOBILE */
+    .player-right {
+        /* O botão de Fila está no .player-right, então precisamos alinhá-lo */
+        justify-content: flex-end; /* Garante que fique no canto direito */
+        width: auto; /* Deixa a largura ser definida pelo conteúdo */
+        min-width: 0;
+        margin-top: 1%;
+        gap: 0; /* Não há gap necessário se tiver apenas 1 botão visível */
+        /* Ajuste a margem para criar o espaço entre o Play/Pause e o Fila */
+        margin-left: 8px; 
+    }
+    .desktop-only-icon,
+    .desktop-only-slider {
+        display: none !important;
+    }
+
+    /* NOVO: OCULTA O BOTÃO 'PULAR ANTERIOR' */
+    #prev-btn {
+        display: none !important;
+    }
+
+    .player-left {
+        /* Aumenta a largura para compensar a remoção do botão 'Previous' */
+        width: 70%; /* Aumentado de 65% para dar mais espaço */
+    }
+    .player-left img {
+        margin-bottom: 2%; /* Pode ser ajustado para 0 se o padding no .player-main-content for suficiente */
+        width: 40px;
+        height: 40px;
+    }
+
+    .player-info #player-title {
+        margin-bottom: 2%; /* Pode ser ajustado para 0 */
+        font-size: 0.85rem;
+    }
+    #player-artist {
+        font-size: 0.7rem;
+    }
+
+    /* Player Centro (Controles de Skip e Play/Pause) */
+    .player-center {
+        /* Garante que o centro não ocupe espaço desnecessário */
+        flex-grow: 0;
+        /* Remove o padding-right para que os botões de controle fiquem na direita do player central */
+        padding-right: 0; 
+    }
+
+    .controls {
+        gap: 8px; /* Espaço entre os botões */
+        /* Novo: Adicionado flex-grow para empurrar o botão de Fila no .player-right para o canto */
+        flex-grow: 1;
+        /* NOVO: Mova os botões para o final (Play/Pause e Skip Next) */
+        justify-content: flex-end;
+    }
+
+    /* Botões Pequenos (Skip Next) - AUMENTADOS */
+    .controls button {
+        width: 36px; /* AUMENTADO */
+        height: 36px; /* AUMENTADO */
+    }
+    .controls button img {
+        width: 24px; /* AUMENTADO */
+        height: 24px; /* AUMENTADO */
+        filter: none;
+    }
+
+    /* Botão Play/Pause - AUMENTADO */
+    .play-btn {
+        width: 48px; /* AUMENTADO */
+        height: 48px; /* AUMENTADO */
+    }
+    .play-btn img {
+        width: 34px; /* AUMENTADO */
+        height: 34px; /* AUMENTADO */
+        /* ICONE PRETO: O botão de play é branco, então o ícone deve ser preto para contraste */
+        filter: none;
+    }
+    .play-btn:hover {
+        transform: scale(1.05);
+    }
+
+    /* ----------------------------------------------------------------- */
+    /* BARRA DE PROGRESSO NO MOBILE */
+    /* ----------------------------------------------------------------- */
+    .progress-bar-bottom {
+        width: 100%;
+        max-width: none;
+        height: 5px; /* Altura do container para a barra */
+        margin-bottom: 0;
+
+        /* CORREÇÃO: Puxa a barra para cima, colando no .player-main-content */
+        margin-top: -3px;
+    }
+
+    #current-time, #total-time {
+        display: none;
+    }
+    .progress-bar {
+        height: 3px;
+    }
+}
+
+/* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+
+/* * --- PLAYER DE TELA CHEIA (FULL-SCREEN) ---
+ * Mobile-First: Estilos base para mobile, ajustados para a imagem de referência.
+ */
+#full-screen-player {
+    /* **REGRAS DE ANIMAÇÃO CRÍTICAS** */
+    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out; 
+    
+    /* POSIÇÃO E TAMANHO CORRIGIDOS */
+    position: fixed;
+    top: 0; 
+    left: 0;
+    width: 100%;
+    /* ⭐️ USAR 100VH É CRUCIAL PARA COBRIR A TELA INTEIRA E GARANTIR O DESLIZAMENTO */
+    height: 100vh; 
+    z-index: 1500;
+    background-color: #000;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end; 
+    padding: 0 30px 100px 30px; 
+    box-sizing: border-box;
+    overflow: hidden;
+
+    /* **ESTADO INICIAL: Fora da tela e invisível** */
+    opacity: 0;
+    transform: translateY(100vh); /* ⭐️ USAR 100VH AQUI TAMBÉM */
+}
+
+/* 1. Fundo (Blur da Imagem ou Video/GIF) */
+/* Este ID é para um <img> ou <video> inserido pelo JS */
+#fs-player-canvas-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    /* FILTRO IOS: Blur e Escurecimento */
+    backdrop-filter: blur(2px);
+    transition: filter 0.5s ease;
+}
+
+/* 2. Overlay com Gradiente */
+#fs-player-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Gradiente sutil para escurecer o topo e a base */
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 40%, rgba(0,0,0,0.3) 100%);
+    z-index: 1; 
+    transition: background 0.5s ease;
+}
+
+/* 3. Botão de Voltar (Seta Esquerda) */
+#fs-player-close-btn {
+    position: absolute;
+    top: 15px; 
+    left: 10px;
+    background: rgba(0, 0, 0, 0.17); 
+    border: none;
+    color: white; 
+    cursor: pointer;
+    border-radius: 50%;
+    margin-top: 10px;
+    margin-left: 8px;
+    width: 32px;
+    height: 32px;
+    z-index: 1600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+}
+#fs-player-close-btn svg {
+    width: 12px; 
+    height: 12px;
+
+    fill: none; 
+    transform: none; 
+}
+
+
+/* 4. Container Principal do Conteúdo */
+.fs-player-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 400px; 
+    flex-grow: 0; /* Não cresce, fica embaixo */
+    padding-top: 0;
+    z-index: 10;
+}
+.fs-player-details-column {
+    width: 100%;
+    max-width: none; 
+}
+#fs-player-cover {
+         width: 40px;
+        height: 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.317);
+    margin-bottom: 2px; 
+}
+
+/* 5. Coluna de Detalhes (Info, Progresso, Controles) */
+.fs-player-details-column {
+    width: 100%;
+    max-width: 360px;
+}
+
+/* 6. Informações da Música */
+.fs-player-info {
+    width: 100%;
+    text-align: left;
+    margin-bottom: 25px;
+}
+.fs-player-info-top {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 8px; /* Espaço entre o título e o ícone de opções/explícito */
+    margin-bottom: 4px;
+}
+#fs-player-title {
+    font-size: 1.5rem;
+    font-family: 'Nationale Bold', sans-serif; 
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+    flex-grow: 1; 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#fs-player-artist {
+    font-size: 1.2rem;
+    color: #fff; 
+    margin: 0;
+    opacity: 0.8;
+}
+
+/* Ícone de Explícito (E) */
+.explicit-tag {
+    font-size: 0.7rem;
+    font-family: 'Nationale Bold', sans-serif;
+    color: #000;
+    background: #fff;
+    padding: 2px 4px;
+    border-radius: 3px;
+    height: fit-content;
+    align-self: center; 
+    line-height: 1;
+}
+
+/* Botão de Mais Opções (Três Pontos) */
+.fs-more-options-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    /* Alinhamento ao topo do título */
+    align-self: flex-start; 
+}
+.fs-more-options-btn img {
+    width: 24px;
+    height: 24px;
+    filter: invert(1); 
+    opacity: 0.7;
+}
+/* Botões ao lado do título (curtir, opções) */
+.fs-player-title-actions {
+    display: flex;
+    gap: 10px;
+}
+.fs-player-title-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+.fs-player-title-actions button:hover {
+    opacity: 1;
+}
+.fs-player-title-actions button img {
+    width: 22px;
+    height: 22px;
+    /* CORREÇÃO: Removido filter: invert(1); para ícones já brancos */
+    filter: none;
+}
+
+
+/* BARRA DE PROGRESSO */
+.fs-player-progress {
+    width: 100%;
+    max-width: 350px;
+    margin-bottom: 30px;
+    display: flex;
+    flex-direction: column;
+}
+#fs-player-bar-container {
+    width: 100%;
+    height: 4px; /* Barra mais fina */
+    background: rgba(255, 255, 255, 0.3); /* Cor mais clara para o fundo da barra */
+    border-radius: 2px;
+    overflow: hidden;
+    cursor: pointer;
+    margin-bottom: 5px; /* Espaço entre barra e tempos */
+}
+#fs-player-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: white; /* Preenchimento branco */
+    transition: width 0.1s linear;
+}
+.fs-player-time {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem; /* Fonte menor */
+    color: rgba(255, 255, 255, 0.7);
+}
+
+
+.fs-player-controls {
+    display: flex;
+    /* justify-content: space-between; */ /* REMOVA ESTA LINHA */
+    justify-content: center; /* ADICIONE ESTA LINHA PARA CENTRALIZAR */
+    align-items: center;
+    width: 100%;
+    margin-bottom: 30px;
+
+    align-self: center; 
+    gap: 40px; /* Mantém o espaçamento entre os botões */
+}
+.fs-player-controls button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s, transform 0.1s;
+    padding: 0; /* Remove padding padrão */
+    display: flex; /* Para centralizar o SVG */
+    align-items: center;
+    justify-content: center;
+}
+.fs-player-controls button:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
+.fs-player-controls button img {
+    width: 38px; /* Ícones de skip maiores */
+    height: 38px;
+    /* CORREÇÃO: Removido filter: invert(1); para ícones já brancos */
+    filter: none;
+}
+.fs-play-btn {
+    width: 76px; /* Botão Play/Pause bem grande */
+    height: 76px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.fs-play-btn img {
+    width: 48px; 
+    height: 48px;
+    filter: none; /* Ícone Play/Pause deve ser preto */
+}
+
+
+/* CONTROLES ADICIONAIS (BOTTOM) */
+.fs-player-actions {
+    width: 100%;
+    max-width: 360px;
+    display: flex;
+    justify-content: space-between; 
+    align-items: center;
+    z-index: 10;
+}
+.fs-player-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+.fs-player-actions button:hover {
+    opacity: 1;
+}
+.fs-player-actions img {
+    width: 28px;
+    height: 28px;
+    /* CORREÇÃO: Removido filter: invert(1); para ícones já brancos */
+    filter: none;
+}
+.fs-player-actions .volume-control {
+    display: none; /* Oculta volume no mobile, como na imagem */
+}
+/* No seu HTML, adicionei botões para curtir e 3 pontos.
+    Você pode replicar os ícones que desejar aqui. */
+.fs-player-bottom-left-actions,
+.fs-player-bottom-right-actions {
+    display: flex;
+    gap: 25px; /* Espaçamento entre os ícones inferiores */
+}
+
+
+/* * --- MEDIA QUERY PARA DESKTOP (MIN 769px) ---
+ * Reverte e otimiza para telas maiores
+ */
+@media (min-width: 769px) {
+    #full-screen-player {
+        justify-content: center; /* Centraliza tudo verticalmente no desktop */
+        padding: 40px;
+        transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+    }
+
+    #fs-player-close-btn {
+        top: 30px;
+        left: 30px;
+        transform: none; /* Remove a rotação */
+    }
+    #fs-player-close-btn svg {
+        transform: none; /* Remove a rotação */
+        fill: white; /* Garante que o SVG esteja branco */
+    }
+
+    .fs-player-content {
+        flex-direction: row; /* Capa ao lado das infos */
+        align-items: center;
+        justify-content: center;
+        max-width: 900px; /* Largura maior para desktop */
+        height: auto; /* Altura flexível */
+        padding-top: 0;
+    }
+
+    #fs-player-cover {
+         width: 40px;
+        height: 40px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.317);
+    margin-bottom: 2px; 
+    }
+
+    /* Informações e Controles à Direita da Capa */
+    .fs-player-details-column {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start; /* Alinha texto à esquerda */
+        max-width: 400px;
+    }
+
+    .fs-player-info {
+    width: 100%;
+    text-align: left;
+    margin-bottom: 25px;
+}
+    #fs-player-title {
+        font-size: 3rem;
+    }
+    #fs-player-artist {
+        font-size: 1.4rem;
+    }
+    .fs-player-title-actions {
+        display: none; /* Oculta esses botões no desktop, se preferir */
+    }
+
+    .fs-player-progress {
+        max-width: 400px;
+        margin-bottom: 40px;
+    }
+    #fs-player-bar-container {
+        height: 8px; /* Barra de progresso um pouco maior */
+    }
+    .fs-player-time {
+        font-size: 0.9rem;
+    }
+
+    .fs-player-controls {
+        gap: 30px;
+        margin-bottom: 40px;
+    }
+    .fs-player-controls button img {
+        width: 42px;
+        height: 42px;
+        /* CORREÇÃO: Removido filter: invert(1); para ícones já brancos */
+        filter: none;
+    }
+    .fs-play-btn {
+        width: 80px;
+        height: 80px;
+    }
+    .fs-play-btn img {
+        width: 55px;
+        height: 55px;
+        /* ICONE PRETO: O botão de play é branco, então o ícone deve ser preto para contraste */
+        filter: none;
+    }
+
+    .fs-player-actions {
+        position: static; /* Volta à posição normal do fluxo */
+        bottom: auto;
+        right: auto;
+        left: auto;
+        transform: none;
+        width: 100%;
+        max-width: 400px;
+        justify-content: flex-start; /* Alinha à esquerda */
+        gap: 20px;
+        padding-bottom: 0;
+    }
+    .fs-player-actions .volume-control {
+        display: flex; /* Mostra o volume no desktop */
+        align-items: center;
+        gap: 10px;
+        margin-left: auto; /* Empurra para a direita */
+    }
+    .fs-player-actions .volume-control button img {
+        /* CORREÇÃO: Removido filter: invert(1); para ícones já brancos */
+        filter: none;
+    }
+    #fs-volume-slider {
+        width: 150px;
+    }
+    .fs-player-bottom-right-actions {
+        display: none; /* Oculta ícones da direita na parte inferior no desktop */
+    }
+
+    .fs-like-btn {  
+        width: 55px;
+        height: 55px;
+}
+}
+
+.hidden {
+    display: none !important;
+}
+
