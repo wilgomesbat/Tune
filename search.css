@@ -1,0 +1,111 @@
+body {
+  background: #000000;
+  margin: 0;
+  padding: 20px;
+  font-family: 'Nationale Regular';
+  color: #fff;
+}
+
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'cy-grotesk-grand';
+    src: url('./fonts/cy-grotesk-grand-medium.ttf') format('truetype');
+    font-weight: 500; /* Médio */
+    font-style: normal;
+}
+
+/* --- Search Bar --- */
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: #181818;
+  border-radius: 100px;
+  padding: 12px;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.search-bar input {
+  font-family: 'Nationale Regular';
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 18px;
+}
+
+.search-icon svg {
+  opacity: 0.65;
+}
+
+
+/* --- Categories --- */
+.categories h2 {
+font-family: 'Nationale Bold';
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.category-card {
+font-family: 'Nationale Black';
+  height: 100px;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 21px;
+  font-weight: bold;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0.9;
+  transition: transform .15s;
+}
+
+.category-card:hover {
+  transform: scale(1.03);
+  opacity: 1;
+}
+
+/* Spotify-style category colors */
+.pop { background: #ff6ec7; }
+.rock { background: #d42f2f; }
+.hiphop { background: #ff9d00; }
+.eletronic { background: #007bff; }
+.indie { background: #7f5fff; }
+.sertanejo { background: #3fbf3f; }
+
+/* Search dropdown (quando tiver resultados) */
+.search-results {
+  background: #181818;
+  padding: 10px;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.hidden { display: none; }

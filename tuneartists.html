@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUNE FOR ARTISTS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css"
+        crossorigin="anonymous">
+    <link rel="stylesheet" href="./tuneartists/tunearts.css">
+    <link rel="icon" href="./assets/tuneartlogo.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script
+        src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.6.2/dist/dotlottie-wc.js"
+        type="module"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.46.0/dist/apexcharts.min.js"></script>
+    
+    <style>
+
+        @font-face {
+    font-family: 'cy-grotesk-grand';
+    /* Prioridade: WOFF2 > WOFF > TTF */
+    src: url('./fonts/cy-grotesk-grand-regular.woff2') format('woff2'), 
+         url('./fonts/cy-grotesk-grand-regular.woff') format('woff'),
+         url('./fonts/cy-grotesk-grand-regular.ttf') format('truetype'); 
+
+    font-weight: 400; 
+    font-style: normal;
+}
+
+        @font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+html, body {
+    overflow-x: hidden !important; 
+    width: 100% !important;
+}
+
+        /* (Seu CSS Existente) */
+        body {
+            font-family: 'Nationale Regular';
+            background-color: #ffffff;
+            color: #ffffff;
+            display: flex;
+            height: 100vh;
+            -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+        }
+
+        /* Adicione este novo bloco para controlar o logo */
+        #latNav a.d-flex img {
+            margin-top: 20px;
+            width: 150px; 
+            height: auto !important; 
+            max-width: 100%; 
+        }
+
+        /* Modifique este bloco para aumentar o padding vertical da nav */
+        #latNav {
+            width: auto; 
+            min-width: 240px;
+            background: #000;
+            padding: 1.5rem 0; /* <-- AQUI */
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        #feed {
+        flex-grow: 1;
+        background-color: #ffffff;
+        position: relative;
+        overflow-y: auto; /* Permite scroll vertical, que é necessário */
+        padding-bottom: 120px;
+        min-width: 0; /* Importante para flexbox, garante que o feed pode encolher */
+    }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #292929;
+            border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #121212;
+            border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a7a7a7;
+        }
+
+        .sidebar-content {
+            background-color: #1717175f;
+            border-radius: 10px;
+            
+            /* Padding interno AJUSTADO para dar mais respiro vertical */
+            padding: 10px 0; /* Padding vertical ajustado */
+
+            /* Adiciona margem vertical E horizontal para "flutuar" dentro do #latNav */
+            margin: 30px 10px 0 10px; /* Top/Right/Bottom/Left. Adiciona margem lateral e superior */
+            
+            /* Width: 100% será 100% do PAI (latNav) MENOS as margens laterais (8px + 8px) */
+            width: calc(100% - 16px); 
+        }
+
+        .sidebar-content ul.nav {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 6px;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+
+
+
+        .sidebar-content .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            
+            gap: 14px; /* Mantido */
+            width: 100%;
+            background-color: transparent;
+            color: #fff;
+            text-decoration: none;
+            
+            /* AJUSTE: Padding horizontal removido. A margem deve ser controlada pela separação Icon/Text */
+            /* Agora o texto estará mais alinhado */
+            padding: 10px 16px; /* Ajuste o padding lateral para 16px. Isso garante o alinhamento */
+            
+            border-radius: 8px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+
+
+
+        .sidebar-content .nav-link svg,
+        .sidebar-content .nav-link img {
+            width: 22px;
+            color: #dedddd;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        .nav-text {
+            /* Adicionado flex-grow para garantir que o texto ocupe o espaço necessário para alinhamento */
+            flex-grow: 1; 
+            
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #dedddd;
+            transition: color 0.3s ease;
+        }
+
+        .sidebar-content .nav-link.active .nav-text {
+            color: #fff;
+        }
+
+        .sidebar-content .nav-link svg,
+        .sidebar-content .nav-link img {
+            width: 26px;
+            height: 26px;
+        }
+
+        .biblioteca {
+            cursor: pointer;
+        }
+
+        .biblioteca_container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .biblioteca_container:hover {
+            background-color: #0c0c0c;
+        }
+
+        .biblioteca h3 {
+            font-size: 1rem;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .biblioteca .arrow {
+            transform: rotate(180deg);
+        }
+
+        .cria_playlist {
+            cursor: pointer;
+        }
+
+        .cria_playlist_container {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+            gap: 12px;
+        }
+
+        .cria_playlist_container:hover {
+            background-color: #2d2d2d;
+        }
+
+        .cria_playlist_icon {
+            background-color: #000;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 4px;
+        }
+
+        .cria_playlist span {
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .album-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .album-item {
+            width: 100%;
+        }
+
+        .album-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: white;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        /* --- CSS Para Menu Mobile (Ajustado) --- */
+        #mobile-nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px; /* Altura da barra */
+            background-color: #121212; /* Cor de fundo */
+            display: none; /* Escondido por padrão, ativado em mobile */
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 10px;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        #mobile-nav-bar .nav-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #ffffff;
+            opacity: 0.6; /* Ícones inativos com opacidade */
+            transition: opacity 0.3s ease;
+        }
+
+        #mobile-nav-bar .nav-link.active {
+            opacity: 1; /* Ícone ativo com opacidade total */
+        }
+
+        #mobile-nav-bar .nav-link img {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 4px;
+        }
+
+        .hidden-desktop {
+            display: none;
+        }
+        
+        /* Media Query para telas menores */
+        @media (max-width: 768px) {
+            /* Mostra o menu mobile e esconde a nav lateral */
+            #mobile-nav-bar.hidden-desktop {
+                display: flex;
+            }
+
+#toast-container {
+        /* Sobrescreve o bottom-5 (20px) padrão do Tailwind */
+        bottom: 80px !important; 
+        right: 16px !important; /* Adicione um pequeno ajuste de margem lateral se quiser */
+    }
+
+            #latNav {
+                display: none !important; /* Esconde a navegação lateral original */
+            }
+
+            /* Garante que o conteúdo não fique escondido sob a nav bar */
+            #feed {
+                padding-bottom: 80px; 
+            }
+
+
+        }
+
+        .icon-input img {
+  margin-left: -15px;        /* leve ajuste interno */
+  margin-right: 10px;       /* espaço entre o ícone e o texto */
+  pointer-events: none;    /* evita clicar no ícone */
+}
+
+.icon-input input {
+  padding-left: 2.8rem;    /* empurra o texto pra direita pra não sobrepor o ícone */
+}
+
+
+        #weekly-streams {
+    /* * O nome que você definiu em 'font-family' no @font-face 
+     * (deve ser 'cy-grotesk-grand') 
+     */
+    font-family: 'Nationale Black'; 
+    
+    /* * Escolha o peso que você quer para o número. 
+     * Ex: Se você quer que o número seja 'Black' (900):
+     */
+    font-weight: 900; 
+    
+    /* Você também pode querer um tamanho maior para o destaque */
+    font-size: 3em; 
+    
+
+}
+
+/* Aplica a fonte personalizada ao número de Ouvintes Mensais */
+#monthly-listeners {
+    /* O nome da fonte que você definiu no @font-face */
+    font-family: 'Nationale Black', sans-serif !important; 
+    
+    /* Garante o peso Black */
+    font-weight: 900 !important;
+    
+    font-size: 3rem;
+}
+
+.metric-label {
+    /* Aplica a fonte que você definiu */
+    font-family: 'Nationale Black'; 
+    
+    /* Você pode usar um peso mais leve para o rótulo, como Regular (400) ou Medium (500) */
+    font-weight: 500; 
+}
+
+    </style>
+</head>
+
+<body class="custom-scrollbar">
+
+    <div id="warning-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2 class="modal-title">Acesso Restrito</h2>
+        <p id="warning-message" class="text-center text-lg mb-6">
+            Você precisa ter permissão de administrador (nível 1) para acessar esta área.
+        </p>
+    </div>
+</div>
+
+    <div id="app" class="d-flex flex-column hidden"> 
+
+        <div id="principal" class="flex w-full min-h-screen">
+
+<nav id="latNav" class="min-w-[230px] w-[230px] h-full sticky top-0 bg-black z-40">
+    
+    <a href="/" class="d-flex px-4"> 
+        <img src="./assets/tnart.png" alt="TUNE"> 
+    </a>
+    
+    <div class="sidebar-content">
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a href="/dashboard" class="nav-link active" data-page="dashboard">
+                    <img src="assets/Home Icon-filled.svg" alt="Dashboard" class="w-6 h-6">
+                    <span class="nav-text">Início</span>
+                </a>
+            </li>
+            
+            
+            
+            <li class="nav-item">
+                <a href="/addmusic" class="nav-link" data-page="releases">
+                    <img src="assets/music.svg" alt="Adicionar música" class="w-6 h-6">
+                    <span class="nav-text">Lançamentos</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="/addmusic" class="nav-link" data-page="addmusic">
+                    <img src="assets/music_note_add_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png" alt="Adicionar música" class="w-6 h-6">
+                    <span class="nav-text">Upload</span>
+                </a>
+            </li>
+
+            
+            
+            <li class="nav-item">
+                <a href="/editalbums" class="nav-link" data-page="editprofile">
+                    <img src="assets/user-round-pen (1).svg" alt="Editar artistas" class="w-6 h-6">
+                    <span class="nav-text">Editar</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+    
+    <hr class="mx-4 mb-0 mt-2">
+    
+    <a href="#" class="logout-link" onclick="handleLogout(event)">
+        <img src="./assets/log-out.svg" alt="Sair">
+        <span class="nav-text">Sair</span>
+        
+    </a>
+    
+</nav>
+
+            <div 
+        id="feed" 
+        class="flex-grow bg-white position: relative; overflow-y: auto; padding-bottom: 120px; min-width: 0; custom-scrollbar"
+
+                <nav id="topNav">
+    <div class="top-left-content">
+    </div>
+    <div class="top-right-content">
+        <div class="user-profile">
+            <div class="relative w-10 h-10 rounded-full overflow-hidden">
+                <img id="adminPhoto" src="./assets/botaovoltarblack.png" alt="Foto do Admin" class="w-full h-full object-cover cursor-pointer">
+                <div id="onlineIndicator"></div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+
+    </div>
+</main>
+            </div>
+        </div>
+
+        
+    </div>
+
+    <div id="mobile-nav-bar" class="hidden-desktop">
+
+    <a href="/dashboard" class="nav-link active" data-page="dashboard"> 
+        <img src="./assets/Home Icon-filled.svg" alt="Início">
+    </a>
+
+    
+
+    <a href="/addmusic" class="nav-link" data-page="releases">
+        <img src="./assets/music.svg" alt="Músicas">
+    </a>
+    
+    <a href="/editalbums" class="nav-link" data-page="editprofile">
+        <img src="./assets/user-round-pen (1).svg" alt="Editar">
+    </a>
+
+</div>
+    
+    <script>
+const FILLED_SUFFIX = '-filled.svg';
+const OUTLINE_SUFFIX = '.svg';
+const ASSETS_PATH = './assets/';
+
+const navLinks = document.querySelectorAll('#mobile-nav-bar .nav-link');
+
+const ACTIVE_OPACITY = '1';
+const INACTIVE_OPACITY = '0.5';
+
+function handleNavigation(event) {
+    event.preventDefault();
+
+    const clickedLink = event.currentTarget;
+    const pageName = clickedLink.getAttribute('data-page');
+
+    if (typeof loadContent === 'function') {
+        loadContent(pageName);
+    }
+    
+    navLinks.forEach(link => {
+        if (link === clickedLink) {
+            link.style.opacity = ACTIVE_OPACITY;
+        } else {
+            link.style.opacity = INACTIVE_OPACITY;
+        }
+    });
+}
+
+navLinks.forEach(link => { link.addEventListener('click', handleNavigation); });
+
+if (navLinks.length > 0) {
+    navLinks.forEach((link, index) => {
+        link.style.opacity = (index === 0) ? ACTIVE_OPACITY : INACTIVE_OPACITY;
+    });
+}
+
+function hideWarningPopup() {
+    const modal = document.getElementById('warning-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function handleLogout(event) {
+    event.preventDefault();
+    if (typeof doLogout === 'function') {
+        doLogout();
+    }
+}
+    </script>
+    
+    <script type="module" src="./js/tunearts.js"></script>
+    </body>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-3 pointer-events-none">
+</div>
+
+<style>
+.toast-close-btn {
+    opacity: 0.8;
+    transition: opacity 0.15s;
+}
+.toast-close-btn:hover {
+    opacity: 1;
+}
+</style>
+</body>
+</html>

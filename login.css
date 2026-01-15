@@ -1,18 +1,17 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* Configurações Globais */
+:root {
+    --bg-puro: #000000;
+    --bg-card: #121212;
+    --bg-input: #1a1a1a;
+    --accent: #ffffff;
+    --text-secondary: #919191;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-body {
-  font-family: 'Nationale Regular';
-    /* Define a cor de fundo padrão para navegadores que não suportam gradientes */
-    background-color: #000000;
 
-    /* Gradiente linear do topo para a base */
-    background: linear-gradient(to bottom, #000000 0%, #000000 100%);
-}
-
+/* ============================= */
+/* FONTS */
+/* ============================= */
 @font-face {
     font-family: 'Nationale Regular';
     src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
@@ -35,221 +34,187 @@ body {
     font-style: normal;
 }
 
-.container {
-  width: 100%;
-  max-width: 420px;
-  text-align: center;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.icon-logo {
-  width: 30px;
-  margin-bottom: 10px;
+body {
+    background-color: var(--bg-puro);
+    color: var(--accent);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Nationale Regular', 'Segoe UI', sans-serif;
+    overflow-x: hidden;
 }
 
-@keyframes fade {
-  0% { opacity: 0; transform: translateY(10px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.animate-fade {
-  animation: fade 0.3s ease-out;
-  transition: opacity 0.3s ease;
+/* Área da Logo com animação suave */
+.logo-area {
+    margin-top: 60px;
+    margin-bottom: 30px;
+    transition: var(--transition);
 }
 
-
-.text-logo {
-  width: 100px;
-  margin-bottom: 30px;
+.main-logo-tidal {
+    width: 100px; /* Reduzi um pouco para ficar mais elegante */
+    height: auto;
+    filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));
 }
 
-h1 {
-  font-size: 1.8rem;
-  margin-bottom: 20px;
-}
-
-.login-box {
-  background-color: #1a1a1f;
-  padding: 25px;
-  border-radius: 10px;
-  text-align: left;
-}
-
-.login-box label {
-  display: block;
-  font-size: 0.9rem;
-  margin-bottom: 8px;
-  color: #ccc;
-}
-
-.login-box input {
-  width: 100%;
-  padding: 10px;
-  background-color: #0e0e12;
-  border: none;
-  border-bottom: 1px solid #444;
-  color: white;
-  margin-bottom: 20px;
-}
-
-.btn-main {
-  width: 100%;
-  padding: 12px;
-  background-color: #666;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.separator {
-  text-align: center;
-  color: #aaa;
-  margin: 20px 0;
-}
-
-.btn-social {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 10px;
-  border: 1px solid #555;
-  background: transparent;
-  color: white;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-footer {
-  margin-top: 30px;
-  font-size: 0.8rem;
-  color: #888;
-  text-align: center;
-}
-
-footer a {
-  display: block;
-  color: #888;
-  margin: 3px 0;
-  text-decoration: none;
-}
-
-.lang-select {
-  margin-top: 10px;
-  background-color: #1e1e24;
-  padding: 6px 12px;
-  display: inline-block;
-  border-radius: 20px;
-  margin-bottom: 10px;
-}
-
-footer p {
-  margin-top: 10px;
-}
-
-/* Container que esconde o que está fora da tela */
-.carousel-container-auto-scroll {
-  overflow: hidden;
-}
-
-/* Onde a animação acontece */
-.artists-scroll-area {
-  display: flex;
-  gap: 20px;
-  padding: 10px 0;
-  white-space: nowrap; /* Evita quebra de linha dos itens */
-  animation: scroll 30s linear infinite; /* Aplica a animação de rolagem automática */
-  animation-play-state: running; /* Garante que a animação está rodando */
-}
-
-/* Pausa a rolagem ao passar o mouse por cima */
-.artists-scroll-area:hover {
-  animation-play-state: paused;
-}
-
-/* A keyframe da animação que faz a rolagem */
-@keyframes scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%); /* Rola 50% da largura do contêiner */
-  }
-}
-
-/* Os estilos dos itens do artista (iguais ao exemplo anterior) */
-.carousel-wrapper {
-  max-width: 100%;
-  margin: 20px auto;
-  color: #fff;
-  font-family: Arial, sans-serif;
-  padding: 0 10px;
-}
-
-.carousel-title {
-  text-align: center;
-  font-size: 1.5rem;
-  margin-bottom: 20px;
-}
-
-.artist-item {
-  flex: 0 0 auto;
-  text-align: center;
-  width: 150px;
-}
-
-.artist-image-wrapper {
-  position: relative;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  overflow: hidden;
-  margin: 0 auto 10px;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-}
-
-.artist-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.artist-name {
-  font-size: 1rem;
-  font-weight: bold;
-}
-
-/* ========================================================== */
-/* ESTILO PARA O VÍDEO (GIF-LIKE) - AGORA CENTRALIZADO */
-/* ========================================================== */
-
-.video-container {
-    /* Define o tamanho da div que contém o vídeo */
+/* Container de Login */
+.login-container {
     width: 100%;
-    
-    /* Limita a largura do container */
-    max-width: 400px; 
-    
-    /* ⭐ CENTRALIZA O BLOCO ⭐ */
-    margin-left: auto;
-    margin-right: auto;
-    
-    /* Espaço após o vídeo */
-    margin-bottom: 30px; 
-    
-    /* Estilo de card */
-    border-radius: 12px;
-    overflow: hidden; 
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); 
+    max-width: 400px;
+    padding: 0 24px;
+    text-align: center;
+    animation: fadeIn 0.8s ease-out;
 }
 
-#background-video {
-    /* Ocupa 100% do container */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.login-title {
+    font-family: 'Nationale Black';
+    font-size: 2rem;
+    letter-spacing: -0.5px;
+    margin-bottom: 32px;
+}
+
+.form-group {
+    margin-bottom: 0px !important; /* Remove qualquer espaço entre os blocos */
+}
+
+
+.input-field-tidal {
+    background-color: var(--bg-input);
+    border: 1px solid transparent;
+    color: var(--accent);
+    padding: 18px 16px;
+    border-radius: 12px; /* Curvatura mais moderna */
     width: 100%;
-    height: 100%;
-    
-    /* Crucial: Faz o vídeo preencher e cortar, como um background-size: cover */
-    object-fit: cover; 
-    
-    /* Garante que o vídeo se comporte como um bloco */
-    display: block; 
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.input-field-tidal:focus {
+    outline: none;
+    border-color: #ffffff;
+}
+
+/* Botão Continuar */
+.btn-continue-tidal {
+    width: 100%;
+    background-color: var(--accent);
+    color: #000;
+    padding: 16px;
+    border-radius: 50px; /* Estilo pílula, bem moderno */
+    font-weight: 700;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: var(--transition);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-continue-tidal:hover {
+    transform: scale(1.02);
+    background-color: #e6e6e6;
+}
+
+/* Separador */
+.separator-area {
+    display: flex;
+    align-items: center;
+    margin: 30px 0;
+}
+
+/* Reduz o espaço entre os campos de entrada */
+.form-group {
+    margin-bottom: 0px !important; /* Estava provavelmente em 12px ou 20px */
+}
+
+/* Reduz o espaço entre o último input e o botão continuar */
+#loginForm button[type="submit"] {
+    margin-top: 12px !important; 
+}
+
+/* Ajusta o espaçamento do título para não empurrar os campos muito para baixo */
+.login-title {
+    margin-bottom: 24px !important;
+    font-size: 1.8rem; /* Um pouco menor ajuda no equilíbrio visual */
+}
+
+/* Reduz o espaçamento da área da logo */
+.logo-area {
+    margin-top: 40px; /* Reduzido de 60px */
+    margin-bottom: 20px; /* Reduzido de 30px */
+}
+
+/* Reduz o espaçamento do separador "ou" */
+.separator-area {
+    margin: 20px 0 !important; /* Reduzido de 32px */
+}
+
+.separator-line {
+    flex-grow: 1;
+    border: 0;
+    border-top: 1px solid #282828;
+}
+
+.separator-text {
+    margin: 0 16px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* Botões Sociais e Criar Conta */
+.btn-social-base {
+    padding: 14px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 12px;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.btn-google-tidal {
+    background-color: transparent;
+    color: var(--accent);
+    border: 1px solid #333;
+}
+
+.btn-google-tidal:hover {
+    border-color: #666;
+    background-color: rgba(255,255,255,0.05);
+}
+
+.btn-artists-tidal {
+    background-color: transparent;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    border: none;
+}
+
+.btn-artists-tidal:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.social-icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
 }
