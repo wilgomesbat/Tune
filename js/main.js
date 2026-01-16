@@ -1557,18 +1557,16 @@ window.addEventListener('popstate', (event) => {
 });
 
 
-/**
- * 3. Função de Inicialização.
- * Lida com a primeira carga da página e links compartilhados.
- */
 function initializeRouting() {
+    const path = window.location.pathname.replace('/', '');
+    const page = path || 'home';
+
     const urlParams = new URLSearchParams(window.location.search);
-    const page = urlParams.get('page') || 'home'; // Padrão: home
     const id = urlParams.get('id');
-    
-    // Chamamos navigateTo com updateHistory=false (replaceState) para o primeiro estado.
-    navigateTo(page, id, false); 
+
+    navigateTo(page, id, false);
 }
+
 
 // --- Função loadContent ---
 
@@ -1585,7 +1583,10 @@ async function loadContent(pageName, id = null) {
         contentArea.innerHTML = html;
         
         // Ajuste no newUrl para ser consistente (usando 'menu.html?page=...')
-        const newUrl = id ? `menu.html?page=${pageName}&id=${id}` : `menu.html?page=${pageName}`;
+        const newUrl = id 
+  ? `/${pageName}?id=${id}` 
+  : `/${pageName}`;
+
         window.history.pushState({ page: pageName, id: id }, '', newUrl);
 
         // Garantimos que o DOM foi atualizado antes de chamar as funções de setup
