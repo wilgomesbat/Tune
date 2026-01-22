@@ -26,29 +26,34 @@ const ALLOWED_UID = "VRxrKRgfz1b2dlNdEQCDlv1C2XV2"; // O UID permitido
 // ⚠️ Declare a variável globalmente
 let currentUserUid = null; 
 
+// ... (seu código de inicialização do Firebase e ALLOWED_UID acima)
+
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // Verifica se o UID do usuário logado é o permitido
+        // Verifica se o UID do usuário logado é o administrador (ALLOWED_UID)
         if (user.uid === ALLOWED_UID) {
-            console.log("Acesso autorizado!");
+            console.log("Acesso Administrativo autorizado!");
             currentUserUid = user.uid;
-            populateUserProfile(user);
             
-            // Só mostra o conteúdo se for o usuário certo
+            // Se houver a função populateUserProfile, ela roda aqui
+            if (typeof populateUserProfile === "function") {
+                populateUserProfile(user);
+            }
+            
             hideLoadingAndShowContent();
         } else {
-            // Se estiver logado mas o UID for diferente, manda para 404
-            console.warn("Acesso negado: UID não autorizado.");
-            window.location.href = "404.html"; // Certifique-se de que este arquivo existe
+            // ✅ USUÁRIO LOGADO, MAS NÃO É O ADMIN: 
+            // Redireciona para a tela de boas-vindas/perfil que criamos
+            console.log("Usuário comum detectado. Redirecionando para Welcome...");
+            window.location.href = "welcome.html"; 
         }
     } else {
-        // Se não houver usuário logado, também redireciona (ou manda para o login)
-        console.log("STATUS: Usuário não está logado. Redirecionando...");
-        window.location.href = "404.html"; 
+        // Se não houver ninguém logado, manda para o login ou welcome
+        console.log("Nenhum usuário logado. Redirecionando para Login...");
+        window.location.href = "login.html"; 
     }
 });
 
-// Modifique sua função de mostrar conteúdo para garantir que ela não rode sozinha
 function hideLoadingAndShowContent() {
     const mainContent = document.getElementById('main-content');
     const loadingOverlay = document.getElementById('loading-overlay');
@@ -1582,10 +1587,12 @@ async function loadContent(pageName, id = null) {
         const html = await response.text();
         contentArea.innerHTML = html;
         
-        // Ajuste no newUrl para ser consistente (usando 'menu.html?page=...')
-        const newUrl = id 
-  ? `/${pageName}?id=${id}` 
-  : `/${pageName}`;
+       const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+
+const newUrl = isDev
+  ? `menu.html?page=${pageName}${id ? `&id=${id}` : ''}`
+  : `/${pageName}${id ? `?id=${id}` : ''}`;
+
 
         window.history.pushState({ page: pageName, id: id }, '', newUrl);
 

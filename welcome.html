@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tune - Perfil</title>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+
+  <style>
+    @font-face {
+      font-family: 'Nationale Regular';
+      src: url('./fonts/Nationale-Regular.woff2') format('woff2');
+      font-weight: normal;
+    }
+    @font-face {
+      font-family: 'Nationale Black';
+      src: url('./fonts/Nationale-Black.woff2') format('woff2');
+      font-weight: 900;
+    }
+
+    body {
+      background: #000000;
+      min-height: 100vh;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Nationale Regular', sans-serif;
+      margin: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* No seu <style> dentro do HTML */
+#dynamic-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: #000000; /* Inicia preto total */
+    opacity: 0; /* Começa invisível para o efeito de fade */
+    transition: background 1.5s ease-in-out, opacity 2s ease-out;
+}
+
+.bg-visible {
+    opacity: 1 !important;
+}
+
+    .brand {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+    }
+
+    .text-logo {
+      width: 50px;
+    }
+
+    .container {
+      text-align: center;
+      padding: 24px;
+      max-width: 500px;
+      z-index: 10;
+    }
+
+    .profile-pic {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 3px solid #ffffff;
+      object-fit: cover;
+      margin-bottom: 20px;
+      box-shadow: 0 0 25px rgba(255,255,255,0.15);
+      background: #111; /* Cor de fundo enquanto a foto não carrega */
+    }
+
+    .user-name {
+      font-family: 'Nationale Black', sans-serif;
+      font-size: 1.8rem;
+      color: #ffffff;
+      margin-bottom: 35px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    #btnEditar {
+      background: #ffffff;
+      color: #000000;
+      font-family: 'Nationale Black', sans-serif;
+      padding: 16px 50px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      letter-spacing: 1.5px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #btnEditar:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(255,255,255,0.2);
+    }
+
+    /* Modal Styles */
+    #editModal.hidden { display: none; }
+    
+    .modal-content {
+      background: #0a0a0a;
+      border: 1px solid #222;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 1);
+    }
+
+    footer {
+        position: fixed;
+        bottom: 30px;
+        width: 100%;
+        text-align: center;
+        z-index: 20;
+    }
+
+    .social-media-icons a {
+        color: white;
+        margin: 0 15px;
+        font-size: 1.2rem;
+        transition: opacity 0.3s;
+    }
+
+    .social-media-icons a:hover { opacity: 0.6; }
+  </style>
+</head>
+
+<body>
+
+  <div id="dynamic-bg"></div>
+
+  <div class="brand">
+    <img class="text-logo" src="./assets/logotunenew.png" alt="Tune" />
+  </div>
+
+  <main class="page">
+    <div class="container">
+      
+      <div id="user-info" class="flex flex-col items-center">
+          <img id="user-profile-img" src="./assets/artistpfp.png" crossorigin="anonymous" alt="Perfil" class="profile-pic">
+          <h1 id="user-display-name" class="user-name"></h1>
+      </div>
+
+      <div class="buttons">
+        <button id="btnEditar">EDITAR PERFIL</button>
+      </div>
+
+    </div>
+  </main>
+
+  <div id="editModal" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-6">
+    <div class="modal-content p-8 rounded-3xl w-full max-w-sm">
+        <h2 class="text-white text-xl mb-6 text-center font-bold">AJUSTAR PERFIL</h2>
+        
+        <div class="space-y-5">
+            <div>
+                <label class="text-gray-500 text-xs uppercase font-bold block mb-2">Seu Nome</label>
+                <input type="text" id="editNameInput" class="w-full bg-[#111] text-white p-4 rounded-xl border border-gray-800 focus:outline-none focus:border-white transition">
+            </div>
+            
+            <div>
+                <label class="text-gray-500 text-xs uppercase font-bold block mb-2">Foto de Perfil</label>
+                <input type="file" id="fileInput" accept="image/*" class="w-full bg-[#111] text-white p-3 rounded-xl border border-gray-800 text-sm">
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-3 mt-8">
+            <button id="btnSalvar" class="w-full bg-white text-black font-black py-4 rounded-xl hover:bg-gray-200 transition">SALVAR ALTERAÇÕES</button>
+            <button id="btnCancelar" class="w-full text-gray-400 font-bold py-2 text-sm hover:text-white transition">CANCELAR</button>
+        </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="social-media-icons">
+      <a href="https://x.com/tunedks" aria-label="X"><i class="fab fa-x-twitter"></i></a>
+      <a href="https://www.instagram.com/tunedks/" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+    </div>
+  </footer>
+
+  <script type="module" src="./js/conta.js"></script>
+</body>
+</html>

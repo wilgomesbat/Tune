@@ -75,20 +75,6 @@ function showToast(message, type = "error") {
     }, 5000);
 }
 
-// ----------------------------------------------------------------------
-// LÓGICA DO BOTÃO ARTISTA (TOGGLE COM INVERSÃO DE ALFA)
-// ----------------------------------------------------------------------
-
-artistToggleButton.addEventListener('click', () => {
-    // Alterna o estado
-    isArtistSelected = !isArtistSelected;
-    
-    // Usa toggle, que é mais limpo: adiciona se for true, remove se for false.
-    artistToggleButton.classList.toggle('selected', isArtistSelected);
-    
-    checkFormReady();
-});
-
 
 
 // ----------------------------------------------------------------------
@@ -169,19 +155,14 @@ debounceTimeout = setTimeout(async () => {
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // 1. Validações Básicas
-    if (!termosCheckbox.checked) {
-        showToast("Você precisa aceitar os Termos de Uso e a Licença.");
-        return;
-    }
+   
 
     const nome = nomeInput.value.trim();
     const user = userInputField.value.trim();
     const email = emailInput.value.trim();
     const senha = senhaInput.value;
     
-    // Obtém o valor do estado do botão
-    const artistaKey = isArtistSelected ? "true" : "false";
+
 
     if (!nome || !user || !email || !senha) {
         showToast("Preencha todos os campos.");
@@ -222,7 +203,7 @@ registerForm.addEventListener('submit', async (e) => {
             email,
             apelido: user,
             nomeArtistico: nome,
-            artista: artistaKey, 
+            artista: "true", 
             admin: "false",
             verificado: "false",
             niveladmin: 0,
@@ -276,9 +257,9 @@ function checkFormReady() {
     const user = userInputField.value.trim();
     const email = emailInput.value.trim();
     const senha = senhaInput.value.trim();
-    const termosAceitos = termosCheckbox.checked;
 
-    if (nome && user && email && senha && profileFile && isUsernameAvailable && termosAceitos) {
+
+    if (nome && user && email && senha && profileFile && isUsernameAvailable) {
         submitBtn.style.opacity = "1";
         submitBtn.style.pointerEvents = "auto";
     } else {

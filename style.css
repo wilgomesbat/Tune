@@ -2129,3 +2129,124 @@ body {
   animation: skeleton-pulse 1.5s infinite ease-in-out;
   display: inline-block;
 }
+
+
+
+/* Estilos para o rodapÃ© */
+footer {
+    background-color: #00000000;
+        color: #a0a0a0b0; /* Cor do texto padrÃ£o do rodapÃ© */
+    padding: 50px 30px; /* EspaÃ§amento interno */
+    display: flex;
+    flex-direction: column; /* Organiza os itens em coluna */
+    align-items: center; /* Centraliza os itens horizontalmente */
+    text-align: center; /* Centraliza o texto */
+    }
+
+
+/* ConteÃºdo principal do rodapÃ© */
+.footer-content {
+    max-width: 800px; /* Largura mÃ¡xima para o conteÃºdo */
+    margin-bottom: 30px; /* EspaÃ§o abaixo do conteÃºdo */
+}
+
+.footer-content p {
+    font-size: 10px;
+    line-height: 1.6;
+    margin-bottom: 25px; /* EspaÃ§o abaixo do parÃ¡grafo */
+    color: #e0e0e0;
+}
+
+/* Links de navegaÃ§Ã£o */
+.footer-links ul {
+    list-style: none; /* Remove os marcadores de lista */
+    padding: 0;
+    margin: 0 0 25px 0; /* EspaÃ§amento abaixo da lista */
+}
+
+.footer-links li {
+    margin-bottom: 10px; /* EspaÃ§o entre os itens da lista */
+}
+
+.footer-links a {
+    color: #a0a0a0; /* Cor do link */
+    text-decoration: none; /* Remove sublinhado */
+    font-size: 13px;
+    transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: #f0f0f0; /* Cor mais clara ao passar o mouse */
+}
+
+/* Direitos autorais */
+.copyright {
+    margin-top: 20px; /* EspaÃ§o acima dos direitos autorais */
+    font-size: 13px;
+    color: #707070;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* EspaÃ§o entre o Ã­cone e o texto */
+}
+
+.copyright i {
+    font-size: 16px;
+}
+
+/* Estilos para o logo personalizado */
+.tune-logo {
+    opacity: 0.5;
+    width: 24px; /* Define a largura do logo (ajuste conforme necessÃ¡rio) */
+    height: 24px; /* Define a altura do logo (ajuste conforme necessÃ¡rio para manter a proporÃ§Ã£o) */
+    margin-right: 10px; /* Adiciona um espaÃ§o Ã  direita do logo */
+    vertical-align: middle; /* Alinha o logo verticalmente com o texto */
+    /* Se o seu logo tiver uma cor que vocÃª quer mudar via CSS, 
+       e ele for SVG, vocÃª pode tentar usar filtros. Exemplo:
+       filter: invert(100%) sepia(0%) saturate(7473%) hue-rotate(180deg) brightness(109%) contrast(100%); 
+       Isso inverteria as cores. Ajuste os valores para obter o efeito desejado. */
+}
+
+/* Responsividade bÃ¡sica para telas menores */
+@media (max-width: 768px) {
+    footer {
+        padding: 40px 20px;
+    }
+
+    .social-media-icons {
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .social-media-icons a {
+        font-size: 24px;
+    }
+
+    .footer-content {
+        margin-bottom: 25px;
+    }
+
+    .footer-content p {
+        font-size: 13px;
+    }
+
+    .footer-links li {
+        margin-bottom: 8px;
+    }
+
+    .footer-links a,
+    .language-selector button {
+        font-size: 14px;
+    }
+
+    .copyright {
+        font-size: 12px;
+        margin-top: 30px;
+    }
+}
+
+
+  .buttons .btn,
+  .buttons .btnlic {
+    width: 80%; /* fica mais largo no mobile */
+    text-align: center;
+  }
