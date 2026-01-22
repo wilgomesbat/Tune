@@ -35,22 +35,20 @@ onAuthStateChanged(auth, (user) => {
             console.log("Acesso Administrativo autorizado!");
             currentUserUid = user.uid;
             
-            // Se houver a função populateUserProfile, ela roda aqui
             if (typeof populateUserProfile === "function") {
                 populateUserProfile(user);
             }
             
             hideLoadingAndShowContent();
         } else {
-            // ✅ USUÁRIO LOGADO, MAS NÃO É O ADMIN: 
-            // Redireciona para a tela de boas-vindas/perfil que criamos
-            console.log("Usuário comum detectado. Redirecionando para Welcome...");
-            window.location.href = "welcome.html"; 
+            // ✅ USUÁRIO COMUM: Redireciona para /welcome (sem .html)
+            console.log("Usuário comum detectado. Redirecionando...");
+            window.location.href = "welcome"; 
         }
     } else {
-        // Se não houver ninguém logado, manda para o login ou welcome
-        console.log("Nenhum usuário logado. Redirecionando para Login...");
-        window.location.href = "login.html"; 
+        // ✅ SEM LOGIN: Redireciona para /login (sem .html)
+        console.log("Nenhum usuário logado. Redirecionando...");
+        window.location.href = "index"; 
     }
 });
 
