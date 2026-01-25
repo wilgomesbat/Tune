@@ -49,11 +49,11 @@ function getPlayerElements() {
     return {
         // Elementos Comuns e Fixo
         musicPlayer: document.getElementById("music-player"),
-        coverImg: document.getElementById("player-cover"),
+        coverImg: document.getElementById("fs-player-cover"),
         playBtn: document.getElementById("playpause-btn"),
         playIcon: document.getElementById("play-icon"),
         pauseIcon: document.getElementById("pause-icon"),
-        
+        miniPlayerCover: document.getElementById('mini-player-cover'), // Novo ID do player pequeno
         // NOVO: Container de informações para verificação de largura
         playerInfoContainer: document.querySelector('.player-info'), 
         playerTitle: document.getElementById("player-title"),
@@ -78,6 +78,11 @@ function getPlayerElements() {
         fsProgressFill: document.getElementById("fs-player-bar-fill"),
         fsVolumeSlider: document.getElementById("fs-volume-slider"),
         fsOverlay: document.getElementById('fs-player-overlay'),
+
+        ytContainer: document.getElementById("youtube-embed-container"),
+        ytIframe: document.getElementById("youtube-iframe"),
+        ytBtn: document.getElementById("btn-show-video")
+
     };
 }
 
@@ -157,75 +162,97 @@ function syncPlayPauseState() {
     }
 }
 
-
-// --- FUNÇÃO DE CARREGAMENTO E SINCRONIZAÇÃO DE MÚSICA (LOAD TRACK) ---
-window.playTrackGlobal = loadTrack; 
 async function loadTrack(track) {
     if (!track || !track.audioURL) {
-        console.error("Dados da faixa inválidos ou URL faltando:", track);
+        console.error("Dados da faixa inválidos:", track);
         return;
     }
 
     const elements = getPlayerElements();
+    const coverUrl = track.cover || "assets/10.png";
 
+    // 1. Reset de interface (Vídeo vs Capa)
+    if (elements.ytContainer) elements.ytContainer.classList.add('hidden');
+    if (elements.fsPlayerCover) elements.fsPlayerCover.classList.remove('hidden');
+    if (elements.ytIframe) elements.ytIframe.src = "";
+
+    // 2. Configuração do Áudio
     currentTrack = track;
     audio.src = track.audioURL;
 
-    // --- SINCRONIZAÇÃO DE DADOS (PLAYER FIXO E TELA CHEIA) ---
-    const coverUrl = track.cover || "assets/10.png";
-    
-    // 1. Player Fixo
-    if (elements.coverImg) {
-        elements.coverImg.crossOrigin = 'Anonymous'; 
-        elements.coverImg.src = coverUrl;
+    // 3. Atualização das Imagens
+    if (elements.miniPlayerCover) {
+        elements.miniPlayerCover.src = coverUrl;
+        elements.miniPlayerCover.crossOrigin = "Anonymous"; // Essencial para ColorThief
+    }
+    if (elements.fsPlayerCover) {
+        elements.fsPlayerCover.src = coverUrl;
     }
 
-    // Buscar o nome do artista usando o UID (LÓGICA MANTIDA)
-    let artistName = "Desconhecido";
+    // --- LÓGICA DA COR DOMINANTE ---
+    if (elements.miniPlayerCover) {
+        elements.miniPlayerCover.onload = function() {
+            try {
+                const colorThief = new ColorThief();
+                const color = colorThief.getColor(elements.miniPlayerCover); // [R, G, B]
+                const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                
+                // Aplicar ao Player Pequeno
+                if (elements.musicPlayer) {
+                    elements.musicPlayer.style.backgroundColor = rgb;
+                    elements.musicPlayer.style.transition = "background-color 0.8s ease";
+                }
+
+                // Aplicar ao Fundo do Full Screen (Gradiente)
+                if (elements.fullScreenPlayer) {
+                    elements.fullScreenPlayer.style.transition = "background 0.8s ease";
+                    // Cria um gradiente da cor dominante para o preto
+                    elements.fullScreenPlayer.style.background = `linear-gradient(180deg, ${rgb} 0%, #000000 100%)`;
+                }
+                
+                // Ajustar o Overlay para não ficar totalmente escuro
+                const fsOverlay = document.getElementById("fs-player-overlay");
+                if (fsOverlay) {
+                    fsOverlay.style.background = "rgba(0, 0, 0, 0.2)";
+                }
+
+            } catch (e) {
+                console.warn("Erro ao extrair cor:", e);
+                // Fallback caso falhe
+                if (elements.musicPlayer) elements.musicPlayer.style.backgroundColor = "#121212";
+                if (elements.fullScreenPlayer) elements.fullScreenPlayer.style.background = "#121212";
+            }
+        };
+
+        // Tratamento de erro caso a imagem não carregue
+        elements.miniPlayerCover.onerror = function() {
+            this.src = "assets/10.png";
+        };
+    }
+
+    // 4. Atualização de Textos (Firebase)
+    let artistName = "Artista";
     let artistUid = track.artist || track.uidars;
 
-    if (artistUid) { 
+    if (artistUid) {
         try {
-            const artistDocRef = doc(db, "usuarios", artistUid); 
-            const artistSnap = await getDoc(artistDocRef);
-
+            const artistSnap = await getDoc(doc(db, "usuarios", artistUid));
             if (artistSnap.exists()) {
-                const artistData = artistSnap.data();
-                if (artistData.nomeArtistico && artistData.nomeArtistico !== "") {
-                    artistName = artistData.nomeArtistico;
-                }
-            } 
-        } catch (err) {
-            console.error("Erro ao buscar artista:", err); 
-        }
+                artistName = artistSnap.data().nomeArtistico || "Artista";
+            }
+        } catch (err) { console.error("Erro ao buscar artista:", err); }
     }
-    
-    // Atualiza info nos players
-    const trackTitle = track.title || "Título Desconhecido";
-    if (elements.playerTitle) elements.playerTitle.textContent = trackTitle;
+
+    if (elements.playerTitle) elements.playerTitle.textContent = track.title || "Sem título";
     if (elements.playerArtist) elements.playerArtist.textContent = artistName;
+    if (elements.fsPlayerTitle) elements.fsPlayerTitle.textContent = track.title || "Sem título";
+    if (elements.fsPlayerArtist) elements.fsPlayerArtist.textContent = artistName;
 
-    // 🚀 CHAMA A FUNÇÃO DE SCROLL AQUI!
-    // Precisa ser chamada após o textContent ser atualizado, mas antes do play para que a largura seja calculada corretamente.
-    setTimeout(updateScrollAnimation, 100); 
-
-    // 2. Player Tela Cheia (Atualiza, se existir)
-    if (elements.fullScreenPlayer) {
-        if (elements.fsPlayerCover) elements.fsPlayerCover.src = coverUrl;
-        if (elements.fsPlayerTitle) elements.fsPlayerTitle.textContent = trackTitle;
-        if (elements.fsPlayerArtist) elements.fsPlayerArtist.textContent = artistName;
-    }
-    
-    // Tenta tocar
-    audio.play().catch(err => console.warn("Autoplay bloqueado, aguarde interação:", err));
-    
-    // Atualiza estado de play/pause imediatamente
-    syncPlayPauseState(); 
-
-    updateFullScreenBackground(track);
-
-    // Salva no localStorage para sincronização entre abas
-    localStorage.setItem("currentTrack", JSON.stringify(track)); 
+    // 5. Finalização
+    setTimeout(updateScrollAnimation, 100);
+    audio.play().catch(err => console.warn("Autoplay bloqueado"));
+    syncPlayPauseState();
+    localStorage.setItem("currentTrack", JSON.stringify(track));
 }
 
 
@@ -240,7 +267,58 @@ function setupPlayerListeners() {
     
     const elements = getPlayerElements();
     const { playBtn, fsPlayPauseBtn, volumeSlider, fsVolumeSlider, musicPlayer, fsCloseButton } = elements;
-    
+const ytBtn = document.getElementById("btn-show-video");
+const coverImg = document.getElementById("fs-player-cover");
+const ytContainer = document.getElementById("youtube-embed-container");
+const ytIframe = document.getElementById("youtube-iframe");
+const fsPauseBtn = document.getElementById("fs-play-pause-btn"); // Botão de pause do Full Screen
+
+// Função para resetar a interface para a Capa
+const backToCover = () => {
+    if (ytContainer && !ytContainer.classList.contains('hidden')) {
+        ytContainer.classList.add('hidden');
+        coverImg.classList.remove('hidden');
+        ytIframe.src = ""; // Para o vídeo e limpa o cache do iframe
+    }
+};
+
+// 1. Evento do Botão YouTube (Abre o vídeo)
+if (ytBtn) {
+    ytBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const stored = localStorage.getItem("currentTrack");
+        if (!stored) return;
+        const track = JSON.parse(stored);
+
+        if (track.audioURL) {
+            let videoId = "";
+            const url = track.audioURL;
+
+            // Extrai ID do YouTube do campo audioURL
+            if (url.includes("v=")) {
+                videoId = url.split("v=")[1].split("&")[0];
+            } else if (url.includes("youtu.be/")) {
+                videoId = url.split("youtu.be/")[1].split("?")[0];
+            } else {
+                videoId = url.split("/").pop();
+            }
+
+            coverImg.classList.add('hidden');
+            ytContainer.classList.remove('hidden');
+            // Origin ajuda a evitar bloqueios no 127.0.0.1
+            ytIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&origin=${window.location.origin}`;
+        }
+    });
+}
+
+// 2. Evento do Botão de Pause (Alterna de volta para a capa)
+if (fsPauseBtn) {
+    fsPauseBtn.addEventListener('click', () => {
+        // Toda vez que clicar no pause/play, se o vídeo estiver aberto, ele volta pra capa
+        backToCover();
+    });
+}
+
     const togglePlayPause = () => {
         if (audio.paused) {
             audio.play();
@@ -283,36 +361,88 @@ function setupPlayerListeners() {
         });
     }
 
-    if (musicPlayer && elements.fullScreenPlayer) {
-    
-    // Abrir ao clicar no Player Fixo (ignora cliques nos botões de controle)
-    musicPlayer.addEventListener('click', (e) => {
-        if (e.target.closest('.player-center') || e.target.closest('.player-right') || e.target.closest('.progress-bar')) {
-             return;
-        }
-        if (currentTrack) {
-            // 1. Remove 'hidden' para permitir que o CSS comece a transição a partir do 'transform: translateY(100%)'
-            elements.fullScreenPlayer.classList.remove('hidden');
+if (musicPlayer && elements.fullScreenPlayer) {
+        
+        // --- ABRIR PLAYER ---
+        musicPlayer.addEventListener('click', (e) => {
+            // Ignora se clicar nos botões da barra pequena
+            if (e.target.closest('.player-center') || e.target.closest('.player-right') || e.target.closest('.progress-bar')) {
+                return;
+            }
             
-            // 2. ADICIONA A CLASSE AO BODY para disparar a animação CSS
-            document.body.classList.add('fs-active'); 
-        }
-    });
+            if (currentTrack) {
+                // 1. Remove hidden primeiro para o elemento existir no DOM
+                elements.fullScreenPlayer.classList.remove('hidden');
+                
+                // 2. Pequeno delay para o navegador processar que o display não é mais 'none'
+                requestAnimationFrame(() => {
+                    document.body.classList.add('fs-active');
+                });
+            }
+        });
 
-    // Fechar ao clicar no botão de fechar
-    if (fsCloseButton) {
-        fsCloseButton.addEventListener('click', () => {
-            // 1. REMOVE A CLASSE DO BODY para iniciar a transição de volta
-            document.body.classList.remove('fs-active');
-            
-            // 2. Adiciona a classe 'hidden' DEPOIS que a animação terminar
-            // (500 milissegundos é o tempo da transição no CSS)
-            setTimeout(() => {
-                elements.fullScreenPlayer.classList.add('hidden');
-            }, 500); 
+// Fechar o Player
+if (fsCloseButton) {
+            fsCloseButton.addEventListener('click', () => {
+                // 1. Remove a classe que anima. O CSS começará o translateY(100%)
+                document.body.classList.remove('fs-active');
+                
+                // 2. ESPERA 500ms (tempo do transition no CSS) antes de aplicar o 'hidden'
+                setTimeout(() => {
+                    // Verificação extra: só esconde se o usuário não abriu de novo
+                    if (!document.body.classList.contains('fs-active')) {
+                        elements.fullScreenPlayer.classList.add('hidden');
+                    }
+                }, 500); 
+            });
+        }
+    }if (musicPlayer && elements.fullScreenPlayer) {
+        
+       musicPlayer.addEventListener('click', (e) => {
+    // ... seus filtros de clique ...
+    if (currentTrack) {
+        const player = elements.fullScreenPlayer;
+        player.classList.remove('hidden');
+        document.body.classList.add('fs-active');
+
+        // Animação de entrada
+        player.animate([
+            { transform: 'translateY(100%)', opacity: 0 },
+            { transform: 'translateY(0)', opacity: 1 }
+        ], {
+            duration: 500,
+            easing: 'cubic-bezier(0.32, 0.72, 0, 1)'
         });
     }
+});
+
+if (fsCloseButton) {
+    fsCloseButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const player = elements.fullScreenPlayer;
+
+        // 1. Remove a classe do body imediatamente para efeitos visuais extras
+        document.body.classList.remove('fs-active');
+
+        // 2. Cria a animação de saída (Slide Down + Fade Out)
+        const animation = player.animate([
+            { transform: 'translateY(0)', opacity: 1 },    // Início (Visível)
+            { transform: 'translateY(100%)', opacity: 0 } // Fim (Escondido embaixo)
+        ], {
+            duration: 500,
+            easing: 'cubic-bezier(0.32, 0.72, 0, 1)',
+            fill: 'forwards' // Mantém o estado final após acabar
+        });
+
+        // 3. Quando a animação TERMINAR, aí sim colocamos o hidden
+        animation.onfinish = () => {
+            player.classList.add('hidden');
+            // Limpa a animação para não bugar a próxima abertura
+            animation.cancel(); 
+        };
+    });
 }
+    }
 }
 
 // ... (Resto das funções formatTime, handleTimeUpdate, handleVolumeChange, handleProgressClick, updateFullScreenBackground) ...
@@ -360,22 +490,19 @@ function handleProgressClick(e, progressBar, progressFill) {
     }
 }
 
-function updateFullScreenBackground(track) {
+async function updateFullScreenBackground(track) {
     const elements = getPlayerElements();
     const fsOverlay = document.getElementById("fs-player-overlay");
     if (!elements.fullScreenPlayer || !fsOverlay) return;
 
-    // Limpa qualquer fundo anterior
+    // Limpa estados anteriores
     elements.fullScreenPlayer.style.backgroundImage = "";
-    elements.fullScreenPlayer.style.backgroundColor = "transparent"; 
     
     // Remove canvas/video se já existir
     const oldBg = document.querySelector("#fs-player-canvas-bg");
     if (oldBg) oldBg.remove();
-    
-    fsOverlay.style.zIndex = "1"; // Garante que o overlay esteja acima do fundo
 
-    // 1️⃣ Se houver um GIF/Canvas (vídeo)
+    // 1️⃣ PRIORIDADE: CANVAS (Vídeo/GIF)
     if (track.canvas) {
         const isGif = track.canvas.toLowerCase().endsWith('.gif');
         const mediaElement = document.createElement(isGif ? "img" : "video");
@@ -384,13 +511,8 @@ function updateFullScreenBackground(track) {
         
         Object.assign(mediaElement.style, {
             position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            zIndex: "0", // Fica por trás do overlay
-            opacity: "1.0",
+            top: 0, left: 0, width: "100%", height: "100%",
+            objectFit: "cover", zIndex: "0", opacity: "1.0",
         });
 
         if (!isGif) {
@@ -401,30 +523,33 @@ function updateFullScreenBackground(track) {
         }
 
         elements.fullScreenPlayer.prepend(mediaElement);
-        
-        // Ajusta o overlay para cobrir um pouco o fundo
-        fsOverlay.style.background = "linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0) 70%, transparent)"; 
+        fsOverlay.style.background = "linear-gradient(to top, rgba(0,0,0,0.8), transparent)";
         return;
     }
 
-    // 2️⃣ Se não houver canvas, USA A CAPA DO ÁLBUM COM BLUR COMO FUNDO
-    // Garanta que track.cover exista para evitar imagem quebrada
-    if (track.cover) {
-        elements.fullScreenPlayer.style.backgroundImage = `url(${track.cover})`;
-        elements.fullScreenPlayer.style.backgroundSize = 'cover'; // Garante que a imagem cubra todo o fundo
-        elements.fullScreenPlayer.style.backgroundPosition = 'center center'; // Centraliza a imagem
-        
-       
-        // Ajusta o overlay para dar um toque extra de escuridão e gradiente
-        fsOverlay.style.background = "linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0,0,0,0.3) 70%, transparent)";
-        return;
-    }
+    // 2️⃣ FUNDO DINÂMICO COM COR DOMINANTE
+    const imgForColor = new Image();
+    imgForColor.crossOrigin = "Anonymous";
+    imgForColor.src = track.cover || "assets/10.png";
 
-    // 3️⃣ Fallback Final: Se não tiver nem canvas nem capa, usa uma cor sólida
-    const fallbackColor = elements.musicPlayer ? elements.musicPlayer.style.backgroundColor : "#121212";
-    elements.fullScreenPlayer.style.backgroundColor = fallbackColor;
-    elements.fullScreenPlayer.style.filter = "none"; // Sem filtro para cor sólida
-    fsOverlay.style.background = `linear-gradient(to top, rgba(0,0,0,0.8), ${fallbackColor} 100%)`;
+    imgForColor.onload = function() {
+        try {
+            const colorThief = new ColorThief();
+            const color = colorThief.getColor(imgForColor); // [R, G, B]
+            const rgb = `${color[0]}, ${color[1]}, ${color[2]}`;
+
+            // Aplica um gradiente que vai da cor dominante (topo) para o preto (base)
+            // Usamos uma versão levemente mais escura da cor para o fundo não ofuscar o texto
+            elements.fullScreenPlayer.style.transition = "background 1s ease";
+            elements.fullScreenPlayer.style.background = `linear-gradient(180deg, rgb(${rgb}) 0%, #000000 100%)`;
+            
+            // Opcional: Adiciona um brilho suave no overlay
+            fsOverlay.style.background = "rgba(0, 0, 0, 0.2)"; 
+        } catch (e) {
+            console.warn("Erro ao extrair cor para o fundo:", e);
+            elements.fullScreenPlayer.style.background = "#121212";
+        }
+    };
 }
 
 

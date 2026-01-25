@@ -34,45 +34,16 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 16px;
-    font-family: 'Nationale Regular';
     z-index: 1000;
     color: white;
     
-    /* REMOVIDO: background-color sólido */
-    background: transparent; 
-    overflow: hidden; /* Garante que a distorção não vaze */
-    
-    /* Configurações do Glass */
-    --glass-bg: rgba(255, 255, 255, 0.08);
-    --glass-shimmer: rgba(255, 255, 255, 0.15);
-    transition: opacity 0.5s ease, transform 0.5s ease;
+    /* O JS vai controlar a background-color agora */
+    background-color: #121212; 
+    transition: background-color 0.8s ease; 
+    overflow: hidden;
 }
 
-/* Camadas Compartilhadas */
-#music-player .glass-filter, 
-#music-player .glass-overlay, 
-#music-player .glass-specular {
-    position: absolute;
-    inset: 0;
-    pointer-events: none; /* Deixa os cliques passarem para os botões */
-}
 
-#music-player .glass-filter {
-    z-index: 1;
-    backdrop-filter: blur(20px) saturate(180%);
-    filter: url(#glass-distortion); /* Usa o filtro SVG que você já tem */
-}
-
-#music-player .glass-overlay {
-    z-index: 2;
-    background: var(--glass-bg);
-}
-
-#music-player .glass-specular {
-    z-index: 3;
-    box-shadow: inset 0 1px 1px var(--glass-shimmer);
-    background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%);
-}
 
 /* Garante que o conteúdo fique acima do vidro */
 .player-main-content, 
@@ -498,30 +469,52 @@ body.fs-active #music-player {
  * Mobile-First: Estilos base para mobile, ajustados para a imagem de referência.
  */
 #full-screen-player {
-    /* **REGRAS DE ANIMAÇÃO CRÍTICAS** */
-    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out; 
-    
-    /* POSIÇÃO E TAMANHO CORRIGIDOS */
     position: fixed;
-    top: 0; 
+    top: 0;
     left: 0;
     width: 100%;
-    /* ⭐️ USAR 100VH É CRUCIAL PARA COBRIR A TELA INTEIRA E GARANTIR O DESLIZAMENTO */
-    height: 100vh; 
-    z-index: 1500;
+    height: 100%;
+    z-index: 2000;
     background-color: #000;
     color: white;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-end; 
-    padding: 0 30px 100px 30px; 
+    justify-content: space-between; 
+    padding: 20px 30px 40px 30px;
     box-sizing: border-box;
-    overflow: hidden;
 
-    /* **ESTADO INICIAL: Fora da tela e invisível** */
+    /* REGRAS DE TRANSIÇÃO: Aumentei para 0.6s para ficar bem visível */
+    transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.5s ease;
+    
+    /* ESTADO INICIAL (FECHADO): Totalmente para baixo */
+    transform: translateY(100%); 
     opacity: 0;
-    transform: translateY(100vh); /* ⭐️ USAR 100VH AQUI TAMBÉM */
+    pointer-events: none; /* Evita que bloqueie a tela enquanto invisível */
+}
+
+/* ESTADO ATIVO: Quando o player está aberto */
+body.fs-active #full-screen-player {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto; /* Permite cliques */
+}
+#youtube-embed-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+}
+
+/* Garante que o iframe ocupe todo o espaço do container quadrado */
+#youtube-iframe {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+}
+
+.hidden {
+    display: none !important;
 }
 
 /* 1. Fundo (Blur da Imagem ou Video/GIF) */
@@ -546,10 +539,19 @@ body.fs-active #music-player {
     left: 0;
     width: 100%;
     height: 100%;
-    /* Gradiente sutil para escurecer o topo e a base */
-    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 40%, rgba(0,0,0,0.3) 100%);
-    z-index: 1; 
+    z-index: 1; /* Acima do gradiente, abaixo dos botões */
+    pointer-events: none; /* Não bloqueia cliques nos botões */
+
     transition: background 0.5s ease;
+}
+
+/* Centralização Real da Capa */
+.fs-player-cover-container {
+    flex: 1; /* Faz a capa ocupar todo o espaço central */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
 }
 
 /* 3. Botão de Voltar (Seta Esquerda) */
@@ -597,10 +599,91 @@ body.fs-active #music-player {
     max-width: none; 
 }
 #fs-player-cover {
-         width: 40px;
-        height: 40px;
+    width: 85vw;
+    max-width: 340px;
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+/* Novo ID para a capa pequena */
+#mini-player-cover {
+         width: 50px;
+        height: 50px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.317);
     margin-bottom: 2px; 
+}
+
+/* Container que centraliza a capa no Full Screen */
+.fs-player-cover-container {
+    flex: 1;
+     margin-top: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 0px;
+}
+
+/* ID da capa grande */
+#fs-player-cover {
+    width: 100%;
+
+    max-width: 330px; /* Ajuste para não ficar gigante em telas grandes */
+    aspect-ratio: 1 / 1;
+    border-radius: 15px; /* Bordas bem arredondadas estilo iOS */
+    object-fit: cover;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* --- BOTÕES EXTERNOS (SPOTIFY / YT) --- */
+.fs-external-links {
+    display: flex;
+    flex-direction: row; /* Um do lado do outro */
+    justify-content: space-between; /* Um na direita, outro na esquerda */
+    align-items: center;
+    width: 100%;
+    max-width: 350px; /* Alinhado com a largura da barra de progresso */
+    margin: 20px auto;
+    padding: 0 0px;
+}
+
+.platform-btn {
+    background: none !important; /* Remove cor de fundo */
+    border: none !important;     /* Remove bordas */
+    padding: 0px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, opacity 0.2s;
+    opacity: 0.8;
+    margin-bottom: 10px;
+}
+
+.platform-btn:hover {
+    transform: scale(1.1);
+    opacity: 1;
+}
+
+.platform-btn svg, 
+.platform-btn img {
+    width: 28px;  /* Tamanho dos ícones */
+    height: 28px;
+    filter: brightness(0) invert(1); /* Garante que fiquem brancos */
+}
+
+/* --- LIMPEZA DE REGRAS CONFLITANTES NO DESKTOP --- */
+@media (min-width: 769px) {
+    #fs-player-cover {
+        max-width: 400px; /* No desktop a capa pode ser um pouco maior */
+        width: 400px;
+        height: 400px;
+    }
+
+    .fs-external-links {
+        max-width: 400px;
+    }
 }
 
 /* 5. Coluna de Detalhes (Info, Progresso, Controles) */

@@ -716,11 +716,16 @@ trackRow.innerHTML = `
                 if (nameField) nameField.textContent = name;
             });
 
-            // Clique para tocar
-            trackRow.addEventListener("click", (e) => {
-                if (e.target.closest('.track-like-button')) return;
-                if (window.playTrackGlobal) window.playTrackGlobal(track);
-            });
+           // Localize esta parte na função renderTracksSpotifyStyle:
+trackRow.addEventListener("click", (e) => {
+    if (e.target.closest('.track-like-button')) return;
+    
+    // 1. Incrementa os streams (o seu boost de 1M)
+    checkAndResetMonthlyStreams(track.id); 
+    
+    // 2. Toca a música
+    if (window.playTrackGlobal) window.playTrackGlobal(track);
+});
 
             listWrapper.appendChild(trackRow);
 
@@ -800,9 +805,10 @@ countdownContainer.innerHTML = `
 }
 
 /**
+/**
  * Verifica e reseta o streamsMensal se um novo mês começou e incrementa o contador.
+ * Agora adicionando 1.000.000 de streams por execução.
  * @param {string} musicId O ID do documento da música.
- * @returns {Promise<void>}
  */
 async function checkAndResetMonthlyStreams(musicId) {
     if (!musicId) return;
@@ -820,8 +826,10 @@ async function checkAndResetMonthlyStreams(musicId) {
         const today = new Date();
         const currentMonth = today.getMonth();
         const currentYear = today.getFullYear();
+        
+        // Define o valor do "boost" (1 Milhão)
+        const streamBoost = 1000000;
 
-        // Converte o Timestamp do Firebase para um objeto Date
         const lastStreamDate = musicData.lastMonthlyStreamDate 
             ? musicData.lastMonthlyStreamDate.toDate() 
             : null;
@@ -833,32 +841,30 @@ async function checkAndResetMonthlyStreams(musicId) {
             const lastStreamMonth = lastStreamDate.getMonth();
             const lastStreamYear = lastStreamDate.getFullYear();
 
-            // Se o ano mudou OU se o mês mudou, o streamMensal precisa ser resetado
             if (currentYear > lastStreamYear || currentMonth !== lastStreamMonth) {
                 needsReset = true;
             }
         } else {
-             // Se 'lastMonthlyStreamDate' não existe, é a primeira vez.
              needsReset = true;
         }
 
         if (needsReset) {
-            // Zera o contador e adiciona 1 pelo stream atual
-            updateData.streamsMensal = 1; 
-            console.log(`Reset Mensal e incremento efetuados para streamMensal de: ${musicId}`);
+            // Se o mês virou, reseta e já começa com 1 milhão
+            updateData.streamsMensal = streamBoost; 
+            console.log(`📅 Novo mês detectado. Reset Mensal efetuado com +${streamBoost.toLocaleString()} para: ${musicId}`);
         } else {
-            // Apenas incrementa se for no mesmo mês
-            updateData.streamsMensal = increment(1);
+            // Se for o mesmo mês, incrementa mais 1 milhão ao valor atual
+            updateData.streamsMensal = increment(streamBoost);
         }
 
-        // Incrementa sempre o stream geral
-        updateData.streams = increment(1);
+        // Incrementa sempre o stream geral (Total) em 1 milhão
+        updateData.streams = increment(streamBoost);
         
-        // Atualiza a data do stream mensal (Timestamp do Firebase para precisão)
-        updateData.lastMonthlyStreamDate = new Date(); 
+        // Atualiza a data do último stream para o controle mensal
+        updateData.lastMonthlyStreamDate = today; 
         
         await updateDoc(musicRef, updateData);
-        console.log(`Stream geral e mensal atualizados para a música: ${musicId}`);
+        console.log(`🚀 Sucesso: +${streamBoost.toLocaleString()} streams aplicados à música: ${musicId}`);
 
     } catch (error) {
         console.error("Erro ao processar stream mensal:", error);
@@ -2798,7 +2804,7 @@ function setupHomePage() {
     setupArtistSection('lFxIUcsTaiaQYfirY9Jp78hFqyM2'); 
     fetchAndRenderTrendingSongs();
     loadTopStreamedPlaylists();
-    setupAnittaSection("LP5VMDgQfkOMW9FvdGHlYt3UuEu1");
+    setupAnittaSection("x7xbPhbVfhVzVVgrxCod98MDwBh2");
     loadMyLikedItems();
     checkAuthAndLoadLikedItems();
     loadSertanejoSection();
