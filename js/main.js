@@ -16,24 +16,55 @@ const firebaseConfig = {
     appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
 };
 
-// Inicializa o Firebase
+// -------------------------------
+// 🔥 Inicialização do Firebase
+// -------------------------------
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export const auth = getAuth(app); // ✅ Inicialize e exporte o Auth
+export const auth = getAuth(app);
 
-// ⚠️ Declare a variável globalmente
-let currentUserUid = null; 
-const ALLOWED_UID = "VRxrKRgfz1b2dlNdEQCDlv1C2XV2"; // O UID permitido // ⚠️ Declare a variável globalmente let currentUserUid = null; // ... (seu código de inicialização do Firebase e ALLOWED_UID acima) onAuthStateChanged(auth, (user) => { if (user) { // Verifica se o UID do usuário logado é o administrador (ALLOWED_UID) if (user.uid === ALLOWED_UID) { console.log("Acesso Administrativo autorizado!"); currentUserUid = user.uid; if (typeof populateUserProfile === "function") { populateUserProfile(user); } hideLoadingAndShowContent(); } else { // ✅ USUÁRIO COMUM: Redireciona para /welcome (sem .html) console.log("Usuário comum detectado. Redirecionando..."); window.location.href = "welcome"; } } else { // ✅ SEM LOGIN: Redireciona para /login (sem .html) console.log("Nenhum usuário logado. Redirecionando..."); window.location.href = "index"; } }); function hideLoadingAndShowContent() { const mainContent = document.getElementById('main-content'); const loadingOverlay = document.getElementById('loading-overlay'); if (mainContent && loadingOverlay) { mainContent.classList.add('loaded'); loadingOverlay.classList.add('hidden'); } }
+// UID do usuário atual (apenas referência, sem bloqueio)
+let currentUserUid = null;
 
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        console.log("Usuário logado com sucesso:", user.uid);
+
+        // Salva UID atual
+        currentUserUid = user.uid;
+
+        // Carrega o perfil do usuário (se existir a função)
+        if (typeof populateUserProfile === "function") {
+            populateUserProfile(user);
+        }
+
+        // Libera a aplicação
+        hideLoadingAndShowContent();
+
+    } else {
+        // ❌ Usuário não logado → redireciona para login
+        console.log("Nenhum usuário logado. Redirecionando para login...");
+        window.location.href = "/index";
+    }
+});
+
+
+// -------------------------------
+// 🎬 Remove loading e mostra app
+// -------------------------------
 function hideLoadingAndShowContent() {
     const mainContent = document.getElementById('main-content');
     const loadingOverlay = document.getElementById('loading-overlay');
-    
-    if (mainContent && loadingOverlay) {
+
+    if (mainContent) {
         mainContent.classList.add('loaded');
+    }
+
+    if (loadingOverlay) {
         loadingOverlay.classList.add('hidden');
     }
 }
+
 
 /**
  * 2. Função para preencher a interface com os dados do usuário.
@@ -1346,6 +1377,120 @@ async function setupArtistPage(artistId) {
         artistNameElement.textContent = "Erro ao Carregar Artista";
     }
 }
+
+async function fetchAndRenderTrendingSongs() {
+    // Referências aos elementos HTML
+    const containerId = 'trending-songs-list';
+    const loadingMessageId = 'trending-songs-loading-message';
+    const listContainer = document.getElementById(containerId);
+    const loadingMessage = document.getElementById(loadingMessageId);
+
+    if (!listContainer) {
+        console.error(`CRÍTICO: Contêiner HTML com ID '${containerId}' não encontrado.`);
+        if (loadingMessage) loadingMessage.style.display = 'none';
+        return;
+    }
+
+    if (loadingMessage) loadingMessage.style.display = 'block';
+    listContainer.innerHTML = `<p class="text-gray-400">A carregar músicas em alta...</p>`;
+
+    try {
+        const musicasRef = collection(db, "musicas");
+        
+        // 1. Busca das Músicas em Alta
+        const q = query(
+            musicasRef, 
+            orderBy("streamsMensal", "desc"), 
+            limit(10)
+        );
+        const querySnapshot = await getDocs(q);
+        
+        const tracks = [];
+        const artistUidsToFetch = new Set();
+        
+        // 2. Coletar UIDs e preparar a lista de tracks
+        querySnapshot.forEach(docSnap => {
+            const trackData = docSnap.data();
+            const track = { 
+                id: docSnap.id, 
+                ...trackData, 
+                cover: trackData.cover || trackData.albumCover 
+            };
+            
+            if (track.artist && !track.artistName) {
+                artistUidsToFetch.add(track.artist);
+            }
+
+            tracks.push(track);
+        });
+        
+        // 3. Batch Fetch (Buscar Nomes de Artistas em paralelo)
+        const artistNameMap = new Map();
+        if (artistUidsToFetch.size > 0) {
+            const artistPromises = Array.from(artistUidsToFetch).map(uid => 
+                getDoc(doc(db, "usuarios", uid)) 
+            );
+            
+            const artistSnapshots = await Promise.all(artistPromises);
+            
+            artistSnapshots.forEach(snap => {
+                if (snap.exists()) {
+                    const artistData = snap.data();
+                    const name = artistData.nomeArtistico || artistData.apelido; 
+                    artistNameMap.set(snap.id, name); 
+                }
+            });
+        }
+
+        // Limpar a mensagem de carregamento
+        listContainer.innerHTML = ''; 
+
+        // 4. Renderizar: Usar o nome resolvido
+       if (tracks.length === 0) {
+     listContainer.innerHTML = `<p class="text-gray-400">Nenhuma música em alta encontrada.</p>`;
+} else {
+    // 👇 MUDANÇA: Usamos o forEach com o índice para obter a posição
+    tracks.forEach((track, index) => {
+        const rank = index + 1; // Posição (1, 2, 3...)
+        let finalArtistName = track.artistName;
+
+        if (!finalArtistName && track.artist && artistNameMap.has(track.artist)) {
+            finalArtistName = artistNameMap.get(track.artist);
+        }
+
+        const trackToRender = { 
+            ...track, 
+            artistName: finalArtistName || track.artist // Fallback para UID
+        };
+        
+        // ⭐ MUDANÇA: Passando o 'rank' (posição) como terceiro argumento
+        const card = createTrendingSongCard(trackToRender, trackToRender.id, rank); 
+        listContainer.appendChild(card);
+    });
+}
+    } catch (error) {
+        console.error("ERRO GRAVE ao buscar Músicas em Alta no Firebase:", error);
+        listContainer.innerHTML = `<p class="text-red-500">Erro ao carregar as músicas em alta. Verifique o console. (Erro: ${error.message})</p>`;
+    } finally {
+        if (loadingMessage) loadingMessage.style.display = 'none';
+    }
+}
+
+function navigateTo(pageName, id = null, updateHistory = true) {
+    // 1. Renderiza o conteúdo
+    loadContent(pageName, id);
+
+    // 2. URL limpa (SEM .html)
+    const newUrl = `/${pageName}${id ? `?id=${id}` : ''}`;
+
+    // 3. Histórico
+    if (updateHistory) {
+        history.pushState({ page: pageName, id }, '', newUrl);
+    } else {
+        history.replaceState({ page: pageName, id }, '', newUrl);
+    }
+}
+
 
 
 /**
@@ -3077,4 +3222,3 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Suas outras chamadas de inicialização (se houver, como setupListeners, etc.)
 });
-
