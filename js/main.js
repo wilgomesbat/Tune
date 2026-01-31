@@ -23,19 +23,7 @@ export const auth = getAuth(app); // ✅ Inicialize e exporte o Auth
 
 // ⚠️ Declare a variável globalmente
 let currentUserUid = null; 
-
-// ... (seu código de inicialização do Firebase e ALLOWED_UID acima)
-
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        // Verifica se o UID do usuário logado é o administrador (ALLOWED_UID)
-       
-    } else {
-        // ✅ SEM LOGIN: Redireciona para /login (sem .html)
-        console.log("Nenhum usuário logado. Redirecionando...");
-        window.location.href = "index"; 
-    }
-});
+const ALLOWED_UID = "VRxrKRgfz1b2dlNdEQCDlv1C2XV2"; // O UID permitido // ⚠️ Declare a variável globalmente let currentUserUid = null; // ... (seu código de inicialização do Firebase e ALLOWED_UID acima) onAuthStateChanged(auth, (user) => { if (user) { // Verifica se o UID do usuário logado é o administrador (ALLOWED_UID) if (user.uid === ALLOWED_UID) { console.log("Acesso Administrativo autorizado!"); currentUserUid = user.uid; if (typeof populateUserProfile === "function") { populateUserProfile(user); } hideLoadingAndShowContent(); } else { // ✅ USUÁRIO COMUM: Redireciona para /welcome (sem .html) console.log("Usuário comum detectado. Redirecionando..."); window.location.href = "welcome"; } } else { // ✅ SEM LOGIN: Redireciona para /login (sem .html) console.log("Nenhum usuário logado. Redirecionando..."); window.location.href = "index"; } }); function hideLoadingAndShowContent() { const mainContent = document.getElementById('main-content'); const loadingOverlay = document.getElementById('loading-overlay'); if (mainContent && loadingOverlay) { mainContent.classList.add('loaded'); loadingOverlay.classList.add('hidden'); } }
 
 function hideLoadingAndShowContent() {
     const mainContent = document.getElementById('main-content');
@@ -3089,3 +3077,4 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Suas outras chamadas de inicialização (se houver, como setupListeners, etc.)
 });
+
