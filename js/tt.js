@@ -1225,6 +1225,67 @@ function setupAddAlbumPage() {
     });
 }
 
+// Adicione ao final do seu tt.js
+async function zerarStreamsGlobais() {
+    const confirmacao = confirm("Deseja realmente ZERAR todos os streams?");
+    if (!confirmacao) return;
+
+    try {
+        // No Firestore, sua coleção se chama "musicas" (visto no seu tt.js)
+        const musicasRef = collection(db, "musicas");
+        const querySnapshot = await getDocs(musicasRef);
+        
+        const batch = writeBatch(db);
+
+        querySnapshot.forEach((docSnap) => {
+            const docRef = doc(db, "musicas", docSnap.id);
+            // O campo no banco deve ser "streams" (minúsculo)
+            batch.update(docRef, { streams: 0 });
+        });
+
+        await batch.commit();
+        alert("Streams zerados com sucesso!");
+        window.location.reload();
+    } catch (error) {
+        console.error("Erro:", error);
+        alert("Erro ao zerar. Verifique o console.");
+    }
+}
+
+// Garante que o HTML encontre a função
+window.zerarStreamsGlobais = zerarStreamsGlobais;
+
+// No final do arquivo, dentro ou fora do onAuthStateChanged
+document.getElementById('btn-zerar-streams')?.addEventListener('click', zerarStreamsGlobais);
+
+// Função para zerar apenas o Mensal
+async function zerarStreamsMensais() {
+    const confirmacao = confirm("Deseja zerar os STREAMS MENSAIS de todas as músicas?");
+    if (!confirmacao) return;
+
+    try {
+        const musicasRef = collection(db, "musicas");
+        const querySnapshot = await getDocs(musicasRef);
+        const batch = writeBatch(db);
+
+        querySnapshot.forEach((docSnap) => {
+            const docRef = doc(db, "musicas", docSnap.id);
+            // Aqui alteramos apenas o campo mensal
+            batch.update(docRef, { streamsMensal: 0 });
+        });
+
+        await batch.commit();
+        alert("Streams Mensais zerados com sucesso!");
+        window.location.reload();
+    } catch (error) {
+        console.error("Erro ao zerar mensal:", error);
+        alert("Erro ao zerar streams mensais.");
+    }
+}
+
+window.zerarStreamsMensais = zerarStreamsMensais;
+
+
 // Constantes de Paginação
 const ALBUMS_PER_PAGE = 20;
 let currentPage = 1;

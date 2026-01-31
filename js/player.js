@@ -171,66 +171,69 @@ async function loadTrack(track) {
     const elements = getPlayerElements();
     const coverUrl = track.cover || "assets/10.png";
 
-    // 1. Reset de interface (Vídeo vs Capa)
+    // --- 1. VISIBILIDADE DOS PLAYERS ---
+    // Remove o hidden do player pequeno
+    if (elements.musicPlayer) {
+        elements.musicPlayer.classList.remove('hidden');
+    }
+
+    // Abre o Full Screen automaticamente
+    if (elements.fullScreenPlayer) {
+        elements.fullScreenPlayer.classList.remove('hidden');
+        // Delay para garantir que o navegador processe a remoção do display:none antes da animação
+        requestAnimationFrame(() => {
+            document.body.classList.add('fs-active');
+            
+            // Animação de subida (Slide Up)
+            elements.fullScreenPlayer.animate([
+                { transform: 'translateY(100%)', opacity: 0 },
+                { transform: 'translateY(0)', opacity: 1 }
+            ], {
+                duration: 600,
+                easing: 'cubic-bezier(0.32, 0.72, 0, 1)'
+            });
+        });
+    }
+
+    // 2. Reset de interface (Vídeo vs Capa)
     if (elements.ytContainer) elements.ytContainer.classList.add('hidden');
     if (elements.fsPlayerCover) elements.fsPlayerCover.classList.remove('hidden');
     if (elements.ytIframe) elements.ytIframe.src = "";
 
-    // 2. Configuração do Áudio
+    // 3. Configuração do Áudio
     currentTrack = track;
     audio.src = track.audioURL;
 
-    // 3. Atualização das Imagens
+    // 4. Atualização das Imagens e Cores
     if (elements.miniPlayerCover) {
         elements.miniPlayerCover.src = coverUrl;
-        elements.miniPlayerCover.crossOrigin = "Anonymous"; // Essencial para ColorThief
+        elements.miniPlayerCover.crossOrigin = "Anonymous";
+        
+        elements.miniPlayerCover.onload = function() {
+            try {
+                const colorThief = new ColorThief();
+                const color = colorThief.getColor(elements.miniPlayerCover);
+                const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                
+                if (elements.musicPlayer) {
+                    elements.musicPlayer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3))`;
+                    elements.musicPlayer.style.backgroundColor = rgb;
+                }
+
+                if (elements.fullScreenPlayer) {
+                    elements.fullScreenPlayer.style.background = `linear-gradient(180deg, ${rgb} 0%, #000000 100%)`;
+                }
+            } catch (e) {
+                console.warn("Erro ao extrair cor:", e);
+            }
+        };
     }
+    
     if (elements.fsPlayerCover) {
         elements.fsPlayerCover.src = coverUrl;
     }
 
-    // --- LÓGICA DA COR DOMINANTE ---
-    if (elements.miniPlayerCover) {
-        elements.miniPlayerCover.onload = function() {
-            try {
-                const colorThief = new ColorThief();
-                const color = colorThief.getColor(elements.miniPlayerCover); // [R, G, B]
-                const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                
-                // Aplicar ao Player Pequeno
-                if (elements.musicPlayer) {
-                    elements.musicPlayer.style.backgroundColor = rgb;
-                    elements.musicPlayer.style.transition = "background-color 0.8s ease";
-                }
-
-                // Aplicar ao Fundo do Full Screen (Gradiente)
-                if (elements.fullScreenPlayer) {
-                    elements.fullScreenPlayer.style.transition = "background 0.8s ease";
-                    // Cria um gradiente da cor dominante para o preto
-                    elements.fullScreenPlayer.style.background = `linear-gradient(180deg, ${rgb} 0%, #000000 100%)`;
-                }
-                
-                // Ajustar o Overlay para não ficar totalmente escuro
-                const fsOverlay = document.getElementById("fs-player-overlay");
-                if (fsOverlay) {
-                    fsOverlay.style.background = "rgba(0, 0, 0, 0.2)";
-                }
-
-            } catch (e) {
-                console.warn("Erro ao extrair cor:", e);
-                // Fallback caso falhe
-                if (elements.musicPlayer) elements.musicPlayer.style.backgroundColor = "#121212";
-                if (elements.fullScreenPlayer) elements.fullScreenPlayer.style.background = "#121212";
-            }
-        };
-
-        // Tratamento de erro caso a imagem não carregue
-        elements.miniPlayerCover.onerror = function() {
-            this.src = "assets/10.png";
-        };
-    }
-
-    // 4. Atualização de Textos (Firebase)
+    // 5. Atualização de Textos (Firebase)
     let artistName = "Artista";
     let artistUid = track.artist || track.uidars;
 
@@ -248,7 +251,7 @@ async function loadTrack(track) {
     if (elements.fsPlayerTitle) elements.fsPlayerTitle.textContent = track.title || "Sem título";
     if (elements.fsPlayerArtist) elements.fsPlayerArtist.textContent = artistName;
 
-    // 5. Finalização
+    // 6. Finalização
     setTimeout(updateScrollAnimation, 100);
     audio.play().catch(err => console.warn("Autoplay bloqueado"));
     syncPlayPauseState();
@@ -260,93 +263,113 @@ async function loadTrack(track) {
 // ... (funções formatTime, handleTimeUpdate, handleVolumeChange, handleProgressClick, setupPlayerListeners, updateFullScreenBackground, checkCurrentTrack e o listener 'storage' permanecem INALTERADOS) ...
 
 
-// --- FUNÇÃO PARA LIGAR TODOS OS EVENT LISTENERS UMA ÚNICA VEZ ---
 function setupPlayerListeners() {
     if (listenersAttached) return; 
     listenersAttached = true;
     
     const elements = getPlayerElements();
-    const { playBtn, fsPlayPauseBtn, volumeSlider, fsVolumeSlider, musicPlayer, fsCloseButton } = elements;
-const ytBtn = document.getElementById("btn-show-video");
-const coverImg = document.getElementById("fs-player-cover");
-const ytContainer = document.getElementById("youtube-embed-container");
-const ytIframe = document.getElementById("youtube-iframe");
-const fsPauseBtn = document.getElementById("fs-play-pause-btn"); // Botão de pause do Full Screen
+    const { 
+        playBtn, 
+        fsPlayPauseBtn, 
+        volumeSlider, 
+        fsVolumeSlider, 
+        musicPlayer, 
+        fsCloseButton,
+        ytContainer,
+        ytIframe,
+        fsPlayerCover 
+    } = elements;
 
-// Função para resetar a interface para a Capa
-const backToCover = () => {
-    if (ytContainer && !ytContainer.classList.contains('hidden')) {
-        ytContainer.classList.add('hidden');
-        coverImg.classList.remove('hidden');
-        ytIframe.src = ""; // Para o vídeo e limpa o cache do iframe
-    }
-};
+    // --- FUNÇÕES AUXILIARES ---
 
-// 1. Evento do Botão YouTube (Abre o vídeo)
-if (ytBtn) {
-    ytBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const stored = localStorage.getItem("currentTrack");
-        if (!stored) return;
-        const track = JSON.parse(stored);
-
-        if (track.audioURL) {
-            let videoId = "";
-            const url = track.audioURL;
-
-            // Extrai ID do YouTube do campo audioURL
-            if (url.includes("v=")) {
-                videoId = url.split("v=")[1].split("&")[0];
-            } else if (url.includes("youtu.be/")) {
-                videoId = url.split("youtu.be/")[1].split("?")[0];
-            } else {
-                videoId = url.split("/").pop();
-            }
-
-            coverImg.classList.add('hidden');
-            ytContainer.classList.remove('hidden');
-            // Origin ajuda a evitar bloqueios no 127.0.0.1
-            ytIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&origin=${window.location.origin}`;
+    // Reseta a interface do Full Screen: Esconde o vídeo e volta a mostrar a capa
+    const backToCover = () => {
+        if (ytContainer && !ytContainer.classList.contains('hidden')) {
+            ytContainer.classList.add('hidden');
+            if (fsPlayerCover) fsPlayerCover.classList.remove('hidden');
+            if (ytIframe) ytIframe.src = ""; // Para o vídeo e limpa o iframe
         }
-    });
-}
+    };
 
-// 2. Evento do Botão de Pause (Alterna de volta para a capa)
-if (fsPauseBtn) {
-    fsPauseBtn.addEventListener('click', () => {
-        // Toda vez que clicar no pause/play, se o vídeo estiver aberto, ele volta pra capa
-        backToCover();
-    });
-}
-
+    // Alterna o estado do Áudio (Play/Pause)
     const togglePlayPause = () => {
+        if (!audio.src || audio.src === window.location.href) return;
+        
         if (audio.paused) {
-            audio.play();
+            audio.play().catch(err => console.warn("Erro ao dar play:", err));
         } else {
             audio.pause();
         }
     };
 
-    // Listeners de Play/Pause
-    if (playBtn) playBtn.addEventListener("click", togglePlayPause);
-    if (fsPlayPauseBtn) fsPlayPauseBtn.addEventListener("click", togglePlayPause);
-    
-    // Listeners de Volume
-    const handleVolumeInput = (e) => audio.volume = e.target.value;
+    // --- 1. LÓGICA DO BOTÃO CENTRAL (YOUTUBE) NO FULL SCREEN ---
+    if (fsPlayPauseBtn) {
+        fsPlayPauseBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Evita que o clique feche o player acidentalmente
+
+            const stored = localStorage.getItem("currentTrack");
+            if (!stored) return;
+            const track = JSON.parse(stored);
+
+            if (track.audioURL) {
+                let videoId = "";
+                const url = track.audioURL;
+
+                // Extração robusta do ID do YouTube
+                if (url.includes("v=")) {
+                    videoId = url.split("v=")[1].split("&")[0];
+                } else if (url.includes("youtu.be/")) {
+                    videoId = url.split("youtu.be/")[1].split("?")[0];
+                } else {
+                    videoId = url.split("/").pop();
+                }
+
+                // Troca visual: Capa sai, Vídeo entra
+                if (fsPlayerCover) fsPlayerCover.classList.add('hidden');
+                if (ytContainer) ytContainer.classList.remove('hidden');
+                
+                // Carrega o vídeo e pausa a música de fundo
+                if (ytIframe) {
+                    ytIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&origin=${window.location.origin}`;
+                }
+                audio.pause(); 
+            }
+        });
+    }
+
+    // --- 2. LÓGICA DE PLAY/PAUSE DO PLAYER PEQUENO ---
+    if (playBtn) {
+        playBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            togglePlayPause();
+        });
+    }
+
+    // --- 3. CONTROLE DE VOLUME ---
+    const handleVolumeInput = (e) => {
+        const val = e.target.value;
+        audio.volume = val;
+        // Sincroniza visualmente ambos os sliders
+        if (volumeSlider) volumeSlider.value = val;
+        if (fsVolumeSlider) fsVolumeSlider.value = val;
+    };
+
     if (volumeSlider) volumeSlider.addEventListener("input", handleVolumeInput);
     if (fsVolumeSlider) fsVolumeSlider.addEventListener("input", handleVolumeInput);
     
-    // Eventos de Áudio
+    // --- 4. EVENTOS NATIVOS DO OBJETO AUDIO ---
     audio.addEventListener("play", syncPlayPauseState);
     audio.addEventListener("pause", syncPlayPauseState);
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("volumechange", handleVolumeChange);
     audio.addEventListener("ended", () => {
-        console.log("Música encerrada, lógica de próxima faixa aqui.");
+        console.log("Música finalizada.");
+        // Aqui você pode chamar uma função de nextTrack() futuramente
     });
     
-    // Barras de Progresso
-    const progressBar = document.querySelector(".progress-bar"); // CORRIGIDO: Usei o seletor de classe .progress-bar do seu HTML
+    // --- 5. BARRAS DE PROGRESSO (CLIQUE PARA AVANÇAR/VOLTAR) ---
+    const progressBar = document.querySelector(".progress-bar"); 
     const fsProgressBar = document.getElementById("fs-player-bar-container"); 
     
     if (progressBar) {
@@ -396,6 +419,7 @@ if (fsCloseButton) {
                 }, 500); 
             });
         }
+        
     }if (musicPlayer && elements.fullScreenPlayer) {
         
        musicPlayer.addEventListener('click', (e) => {
@@ -678,15 +702,51 @@ if (searchInput) {
 // 🚀 EXPORTAÇÃO GLOBAL: Permite que outros scripts (tunearts.js) chamem loadTrack
 window.playTrackGlobal = loadTrack;
 
-// --- INICIALIZAÇÃO ---
 function checkCurrentTrack() {
-    setupPlayerListeners(); // LIGA OS LISTENERS AQUI
+    setupPlayerListeners(); // Mantém os botões funcionando
     
+    const elements = getPlayerElements();
     const stored = localStorage.getItem("currentTrack");
+
     if (stored) {
         const track = JSON.parse(stored);
-        loadTrack(track); // Recarrega os dados e o áudio
+        currentTrack = track;
+        
+        // 1. Configura a origem do áudio mas NÃO inicia o play
+        audio.src = track.audioURL;
+        audio.pause(); // Garante que está pausado ao entrar
+
+        // 2. Oculta o player por padrão ao carregar a página
+        if (elements.musicPlayer) {
+            elements.musicPlayer.classList.add('hidden');
+        }
+
+        // 3. Preenche os dados nos elementos (mesmo oculto)
+        // Isso evita que o texto apareça vazio quando o player for mostrado
+        if (elements.playerTitle) elements.playerTitle.textContent = track.title || "Sem título";
+        
+        // Busca o nome do artista para deixar pronto
+        let artistUid = track.artist || track.uidars;
+        if (artistUid) {
+            getDoc(doc(db, "usuarios", artistUid)).then(artistSnap => {
+                const name = artistSnap.exists() ? artistSnap.data().nomeArtistico : "Artista";
+                if (elements.playerArtist) elements.playerArtist.textContent = name;
+                if (elements.fsPlayerArtist) elements.fsPlayerArtist.textContent = name;
+            });
+        }
+
+        // 4. Prepara a capa e o fundo (em cache)
+        const coverUrl = track.cover || "assets/10.png";
+        if (elements.miniPlayerCover) elements.miniPlayerCover.src = coverUrl;
+        if (elements.fsPlayerCover) elements.fsPlayerCover.src = coverUrl;
+        
         updateFullScreenBackground(track);
+        syncPlayPauseState();
+    } else {
+        // Se não houver música no histórico, garante que está escondido
+        if (elements.musicPlayer) {
+            elements.musicPlayer.classList.add('hidden');
+        }
     }
 }
 

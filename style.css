@@ -53,12 +53,7 @@ body {
     font-weight: bold;
     font-style: normal;
 }
-@font-face {
-    font-family: 'cy-grotesk-grand';
-    src: url('./fonts/cy-grotesk-grand-medium.ttf') format('truetype');
-    font-weight: 500; /* Médio */
-    font-style: normal;
-}
+
 
 
 strong, b, .font-bold, .font-semibold {
@@ -1301,6 +1296,13 @@ body {
     --glass-border: rgba(255, 255, 255, 0.2);
 }
 
+/* Esconde o mobile-nav-bar em telas maiores que 1024px (Tablets e Desktops) */
+@media (min-width: 1025px) {
+    #mobile-nav-bar {
+        display: none !important;
+    }
+}
+
 /* Camadas de fundo */
 .glass-filter, .glass-overlay, .glass-specular {
     position: absolute;
@@ -2151,6 +2153,7 @@ footer {
 }
 
 .footer-content p {
+  font-family: 'Nationale Regular';
     font-size: 10px;
     line-height: 1.6;
     margin-bottom: 25px; /* EspaÃ§o abaixo do parÃ¡grafo */
@@ -2169,6 +2172,7 @@ footer {
 }
 
 .footer-links a {
+  font-family: 'Nationale Regular';
     color: #a0a0a0; /* Cor do link */
     text-decoration: none; /* Remove sublinhado */
     font-size: 13px;
@@ -2181,6 +2185,7 @@ footer {
 
 /* Direitos autorais */
 .copyright {
+  font-family: 'Nationale Regular';
     margin-top: 20px; /* EspaÃ§o acima dos direitos autorais */
     font-size: 13px;
     color: #707070;
@@ -2250,3 +2255,42 @@ footer {
     width: 80%; /* fica mais largo no mobile */
     text-align: center;
   }
+
+.welcome-card {
+    background-image: url('./assets/grdbackdro.png');
+    background-size: cover;
+    animation: gradient 15s ease infinite;
+    border-radius: 12px;
+    padding: 20px;
+    
+    /* A MÁGICA AQUI */
+    width: calc(100% - 60px); /* Garante margem lateral mesmo esticado */
+    max-width: none;        /* Limite para não virar uma linha infinita */
+    margin: 20px auto;        /* Centraliza o bloco */
+    
+    text-align: center;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+
+
+
+.tune-logo-welcome {
+    width: 100px; /* Tamanho do logo */
+    height: auto;
+    filter: brightness(0) saturate(100%);
+    display: inline-block; /* Para centralizar o ícone */
+}
+
+.welcome-message {
+  font-family: 'Nationale Regular';
+    font-size: 16px;
+    margin-bottom: 25px;
+    line-height: 1.4;
+    color: #000000;
+}
+

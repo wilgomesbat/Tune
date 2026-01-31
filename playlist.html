@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Playlist Design Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
     <style>
         @font-face {
     font-family: 'Nationale Regular';
@@ -28,21 +29,62 @@
     font-style: normal;
 }
 
-        body {
-            background-color: #030303;
-            font-family: 'Nationale Regular';
-            color: white;
-            margin: 0;
-            padding-bottom: 100px; /* Espaço para o player fixo se houver */
-        }
+       body {
+        font-family: 'Nationale Regular';
+    background-color: #030303;
+    margin: 0;
+    /* Adicionamos um degradê fixo no topo do body para suavizar o encontro da cor com o preto */
+    background-image: linear-gradient(to bottom, transparent 0%, #030303 900px);
+    background-attachment: fixed;
+}
 
-        /* Fundo dinâmico com blur suave */
-        .bg-dynamic-gradient {
-            background: linear-gradient(to bottom, #2a2a2a 0%, #030303 100%);
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            z-index: -1;
-        }
+        /* Fundo dinâmico que ocupa a página inteira */
+.bg-dynamic-gradient {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200%;
+    height: 100vh; /* O gradiente fixo cria o efeito de profundidade ao scrollar */
+    z-index: -1;
+    background: #030303; /* Cor de fallback */
+    transition: background 0.8s ease; /* Transição suave ao mudar de playlist */
+}
+
+#playlist-bg {
+    position: fixed;
+    top: 0;
+
+    left: 0;
+    width: 100%; /* Corrigido de 200% para 100% */
+    height: 100vh;
+    z-index: -1; /* Fica logo atrás do conteúdo */
+    background-color: #030303; /* Cor base caso a imagem falhe */
+    transition: background 1s ease-in-out;
+}
+
+/* Esse pseudo-elemento cria a suavidade extra no topo */
+#playlist-bg::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, #030303 100%);
+}
+
+/* Opcional: Um overlay escuro para garantir leitura nas músicas */
+body::before {
+    content: "";
+    position: fixed;
+    top: 400px; /* Começa a escurecer após a área da capa */
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, transparent, #030303 300px);
+    z-index: -1;
+    pointer-events: none;
+}
 .track-item {
     display: grid;
     /* Colunas fixas no mobile: ID(35px) | Capa(48px) | Texto(1fr) | Tempo(50px) */

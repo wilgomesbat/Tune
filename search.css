@@ -27,12 +27,7 @@ body {
     font-weight: bold;
     font-style: normal;
 }
-@font-face {
-    font-family: 'cy-grotesk-grand';
-    src: url('./fonts/cy-grotesk-grand-medium.ttf') format('truetype');
-    font-weight: 500; /* Médio */
-    font-style: normal;
-}
+
 
 /* --- Search Bar --- */
 .search-bar {

@@ -267,12 +267,7 @@
                             <div id="user_dropdown_links" class="py-1" role="menu" aria-orientation="vertical"
                                 aria-labelledby="user-profile-button">
             
-                                <a href="#"
-                                    class="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-[#3e3e3e] hover:text-white"
-                                    role="menuitem">
-                                    Perfil <img src="./assets/open_in_new_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg"
-                                        alt="Ícone de Perfil" class="w-10 h-5 mr-3">
-                                </a>
+                               
 
                                 <a id="artist-link" href="#"
                                     class="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-[#3e3e3e] hover:text-white"
@@ -315,11 +310,7 @@
             </div>
         </div>
 
-        <div class="player-right">
-            <button id="lyrics-btn" title="Letras">
-                <img src="./assets/pause_50dp_FFFFFF_FILL1_wght400_GRAD0_opsz48.svg" alt="Letras">
         
-        </div>
     </div>
 
     <div class="progress-bar-bottom">
@@ -467,10 +458,7 @@ window.addEventListener('load', () => {
     <div class="fs-player-content">
         <div id="youtube-player-container" style="display: none;"></div>
 
-<div class="fs-external-links">
-    <button id="btn-show-video" class="platform-btn"><img src="./assets/YouTube_light_icon_(2017).svg"></button>
 
-</div>
         <div class="fs-player-details-column">
             <div class="fs-player-info">
               <h1 id="fs-player-title">Título da Música</h1>
@@ -483,40 +471,30 @@ window.addEventListener('load', () => {
                     <div id="fs-player-bar-fill"></div>
                 </div>
                 <div class="fs-player-time">
-                    <span id="fs-current-time">0:00</span>
-                    <span id="fs-total-time">0:00</span>
+                    <span id="fs-current-time"></span>
+                    <span id="fs-total-time"></span>
                 </div>
             </div>
 
             <div class="fs-player-controls">
-                <button id="fs-prev-btn"><img src="./assets/skip_previous_50dp_FFFFFF_FILL1_wght400_GRAD0_opsz48.svg" alt="Anterior"></button>
-                <button id="fs-playpause-btn" class="fs-play-btn">
-                    <img id="fs-play-icon" src="./assets/play_arrow_50dp_FFFFFF_FILL1_wght400_GRAD0_opsz48.svg" class="play-icon">
-                    <img id="fs-pause-icon" src="./assets/pause_50dp_FFFFFF_FILL1_wght400_GRAD0_opsz48.svg" class="pause-icon hidden">
-                </button>
-                <button id="fs-next-btn"><img src="./assets/skip_next_50dp_FFFFFF_FILL1_wght400_GRAD0_opsz48.svg" alt="Próxima"></button>
-            </div>
+    <button id="fs-prev-btn">
+        <img src="./assets/skip_previous_50dp_FFFFFF_FILL1_wght400_GRAD0_opsz48.svg" alt="Anterior">
+    </button>
+    
+    <button id="fs-playpause-btn" class="fs-play-btn">
+        <img src="./assets/YouTube_light_icon_(2017).svg" alt="Play/YouTube" style="width: 40px;">
+    </button>
+    
+    <button id="fs-next-btn">
+        <img src="./assets/skip_next_50dp_FFFFFF_FILL1_wght400_GRAD0_opsz48.svg" alt="Próxima">
+    </button>
+</div>
 
-            <div class="fs-player-actions">
-                <button id="fs-lyrics-btn" title="Letras">
-                    <img src="./assets/mic-vocal (2).svg" alt="Letras">
-                </button>
-                
-            </div>
+            
         </div>
     </div>
 </div>
 
-    <!-- 🎵 Popup da Fila de Reprodução -->
-    <div id="queue-popup"
-        class="hidden fixed bottom-20 right-6 bg-[#121212] text-white rounded-2xl shadow-2xl w-80 max-h-[60vh] overflow-y-auto border border-white/10 z-50 transition-all">
-        <div class="flex justify-between items-center p-3 border-b border-white/10">
-            <h2 class="text-lg font-semibold">Fila de Reprodução</h2>
-            <button id="close-queue" class="text-gray-400 hover:text-white">✕</button>
-        </div>
-        <ul id="queue-list" class="divide-y divide-white/10"></ul>
-        <button id="close-queue">X</button>
-    </div>
 
 
 

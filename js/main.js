@@ -383,23 +383,25 @@ async function getArtistName(artistUid) {
     }
 }
 
-// --- Setup Página Playlist ---
-// --- Setup Página Playlist ---
-// Lida com playlists normais, a playlist "Top 100" e playlists de "Stations"
+// --- Setup Página Playlist Completo ---
 async function setupPlaylistPage(playlistId) {
-    const playlistCoverDetail = document.getElementById("playlist-cover-detail");
+    // Seletores de Elementos
+    const playlistImgDetail = document.getElementById("playlist-cover-detail");
     const playlistCoverBg = document.getElementById("playlist-cover-bg");
     const playlistTitleDetail = document.getElementById("playlist-title-detail");
     const playlistDescriptionDetail = document.getElementById("playlist-description-detail");
     const tracksContainer = document.getElementById("tracks-container");
+    const playlistBg = document.getElementById("playlist-bg"); // Container do fundo dinâmico
     const detailHeader = document.querySelector('#playlist-header');
-    const fallbackBackground = 'linear-gradient(to bottom, #1a1a1a, #121212)';
-    const playlistImgDetail = document.getElementById("playlist-cover-detail");
-    const fallbackImage = 'caminho/para/imagem/fallback.jpg';
+    
+    // Fallbacks
+    const fallbackBackground = 'linear-gradient(to bottom, #1a1a1a, #030303)';
+    const fallbackImage = 'https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png'; // Sua imagem padrão
 
     if (!playlistId) return;
 
     try {
+        // 1. Busca dados da Playlist no Firestore
         const playlistRef = doc(db, "playlists", playlistId);
         const playlistSnap = await getDoc(playlistRef);
 
@@ -410,70 +412,69 @@ async function setupPlaylistPage(playlistId) {
         }
 
         const playlist = { id: playlistSnap.id, ...playlistSnap.data() };
+        
+        // 2. Define a URL da Capa e Atualiza Textos
+        const coverUrl = playlist.cover || fallbackImage;
         playlistTitleDetail.textContent = playlist.name || "Sem título";
         playlistDescriptionDetail.textContent = playlist.category === "Stations" 
             ? "Baseada nas músicas deste artista." 
             : (playlist.description || "");
 
-        const coverUrl = playlist.cover || fallbackImage;
         if (playlistImgDetail) playlistImgDetail.src = coverUrl;
 
-        // --- Lógica de Background Blur ---
-        if (playlistCoverBg) {
-            const imgToLoad = new Image();
-            imgToLoad.crossOrigin = "Anonymous";
-            imgToLoad.src = coverUrl;
-            imgToLoad.onload = () => {
-                playlistCoverBg.style.backgroundImage = `url('${imgToLoad.src}')`;
-                playlistCoverBg.style.backgroundSize = "cover";
-                playlistCoverBg.style.backgroundPosition = "center";
-            };
+        // 3. Lógica do ColorThief para Gradiente e Glow Dinâmico
+       const colorThief = new ColorThief();
+const imgToLoad = new Image();
+const playlistBg = document.getElementById("playlist-bg");
+
+imgToLoad.crossOrigin = "Anonymous"; 
+imgToLoad.src = coverUrl; // Certifique-se que coverUrl está definida acima
+
+imgToLoad.onload = () => {
+    try {
+        const color = colorThief.getColor(imgToLoad);
+        const rgb = `${color[0]}, ${color[1]}, ${color[2]}`;
+        
+        if (playlistBg) {
+            // Criamos o efeito imersivo:
+            // A cor dominante começa no topo (0%)
+            // Ela vai ficando transparente e escurecendo até os 700px (altura média da capa + título)
+            // Depois disso, o preto do body assume o controle.
+            playlistBg.style.background = `linear-gradient(to bottom, rgb(${rgb}) 0%, rgba(${rgb}, 0.4) 40%, #030303 100%)`;
         }
 
-        let tracks = [];
+        // Aplica o brilho na imagem da capa para combinar
+        if (playlistImgDetail) {
+            playlistImgDetail.style.boxShadow = `0 20px 80px rgba(${rgb}, 0.4)`;
+        }
 
-        // --- 1) PLAYLISTS AUTOMÁTICAS (TOP 100 / DAILY 50) ---
-        // Aqui mantemos a query original com ordenação por streamsMensal
+    } catch (e) {
+        console.error("Erro ao extrair cor:", e);
+        if (playlistBg) playlistBg.style.background = "#030303";
+    }
+};
+
+        // 4. Carregamento das Músicas
+        let tracks = [];
         const automaticTopNames = ["Top 100", "Daily Top 50"];
         const isAutomaticTop = automaticTopNames.includes(playlist.name) && playlist.category === "Charts";
 
+        // A) Playlists Automáticas (Charts)
         if (isAutomaticTop) {
             const limitCount = playlist.name === "Top 100" ? 100 : 50;
             const musicasRef = collection(db, "musicas");
-            const q = query(
-                musicasRef,
-                orderBy("streamsMensal", "desc"),
-                limit(limitCount)
-            );
-
+            const q = query(musicasRef, orderBy("streamsMensal", "desc"), limit(limitCount));
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-            console.log(`Carregou automática ${playlist.name}: ${tracks.length} itens.`);
         } 
-
-        // --- 2) ARTIST STATION (NOVA LÓGICA: 30 MÚSICAS) ---
+        // B) Artist Stations
         else if (playlist.uidars) {
-            const artistId = playlist.uidars;
             const musicasRef = collection(db, "musicas");
-            
-            // Removemos o orderBy para garantir que pegue todas as músicas (mesmo com 0 streams)
-            const q = query(
-                musicasRef,
-                where("artist", "==", artistId),
-                limit(30)
-            );
-
+            const q = query(musicasRef, where("artist", "==", playlist.uidars), limit(30));
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-            
-            console.log(`Station: Carregadas ${tracks.length} músicas do artista.`);
-            
-            if (tracks.length === 0) {
-                tracksContainer.innerHTML = `<p class="text-gray-400 col-span-full">Nenhuma música encontrada para este artista.</p>`;
-            }
-        }
-
-        // --- 3) PLAYLISTS MANUAIS (SUBCOLEÇÃO OU ARRAY) ---
+        } 
+        // C) Playlists Manuais
         else {
             const playlistMusicasRef = collection(db, `playlists/${playlistId}/musicas`);
             const snapshotMusicas = await getDocs(playlistMusicasRef);
@@ -488,43 +489,19 @@ async function setupPlaylistPage(playlistId) {
             }
         }
 
-        // Ordenação por número da faixa apenas para playlists que não são automáticas/stations
+        // 5. Ordenação (apenas para manuais)
         if (!isAutomaticTop && !playlist.uidars) { 
             tracks.sort((a, b) => (a.trackNumber || 99) - (b.trackNumber || 99));
         }
 
+        // 6. Renderiza na Tela
         renderTracksSpotifyStyle(tracks, playlist);
 
-    } catch (error) {
-        console.error("Erro ao carregar playlist:", error);
-        playlistTitleDetail.textContent = "Erro ao Carregar Playlist";
-        tracksContainer.innerHTML = `<p class="text-red-500">Não foi possível carregar as músicas.</p>`;
-        if (detailHeader) detailHeader.style.background = fallbackBackground;
-    }
-const colorThief = new ColorThief();
-const imgToLoad = new Image();
-imgToLoad.crossOrigin = "Anonymous"; 
-imgToLoad.src = coverUrl;
-
-imgToLoad.onload = () => {
-    // 1. Extrai a cor predominante
-    const color = colorThief.getColor(imgToLoad); // Retorna [r, g, b]
-    const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-    const rgbaShadow = `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.5)`;
-
-    // 2. Aplica a cor no fundo do container #playlist (Gradiante)
-    const playlistContainer = document.getElementById("playlist");
-    if (playlistContainer) {
-        playlistContainer.style.background = `linear-gradient(to bottom, ${rgb} -20%, #030303 600px)`;
+    } catch (error) {
+        console.error("Erro ao carregar playlist:", error);
+        playlistTitleDetail.textContent = "Erro ao Carregar";
+        if (playlistBg) playlistBg.style.background = fallbackBackground;
     }
-
-    // 3. Aplica a sombra colorida (Glow) na imagem da capa
-    if (playlistImgDetail) {
-        playlistImgDetail.src = imgToLoad.src;
-        playlistImgDetail.style.boxShadow = `0 20px 80px ${rgbaShadow}`;
-    }
-};
-
 }
 
 
@@ -828,7 +805,7 @@ async function checkAndResetMonthlyStreams(musicId) {
         const currentYear = today.getFullYear();
         
         // Define o valor do "boost" (1 Milhão)
-        const streamBoost = 1000000;
+        const streamBoost = Math.floor(Math.random() * (500000 - 100000 + 1)) + 100000;
 
         const lastStreamDate = musicData.lastMonthlyStreamDate 
             ? musicData.lastMonthlyStreamDate.toDate() 
@@ -1263,11 +1240,6 @@ function renderTop5Tracks(tracks, containerId) {
     });
 }
 
-
-// O restante do seu código JavaScript e imports do Firebase...
-// O restante do seu código JavaScript e imports do Firebase...
-
-// --- Setup Página Artista Completa (Atualizada com Imagem de Banimento) ---
 async function setupArtistPage(artistId) {
     const artistCoverBg = document.getElementById('artist-cover-bg');
     const artistNameElement = document.getElementById('artist-name');
@@ -1278,7 +1250,7 @@ async function setupArtistPage(artistId) {
     const topTracksContainer = document.getElementById('top-tracks-container');
 
     const fallbackBackground = 'linear-gradient(to bottom, #1a1a1a, #121212)';
-    const bannedImageURL = 'https://i.ibb.co/fzqH088Z/Captura-de-tela-2025-10-06-230858.png'; // Sua imagem de banimento
+    const bannedImageURL = 'https://i.ibb.co/fzqH088Z/Captura-de-tela-2025-10-06-230858.png';
 
     if (!artistId) {
         artistNameElement.textContent = "ID do Artista Ausente";
@@ -1299,87 +1271,86 @@ async function setupArtistPage(artistId) {
         const artistData = docSnap.data();
         const artistName = artistData.nomeArtistico || "Nome Desconhecido";
         
-        // ⭐ VERIFICAÇÃO DE BANIMENTO (LÓGICA ATUALIZADA) ⭐
-        const isBanned = artistData.banido === "true"; // Seu campo é string
+        // ⭐ VERIFICAÇÃO DE BANIMENTO ⭐
+        const isBanned = artistData.banido === "true";
 
         if (isBanned) {
-            // 1. Mostra o indicador de banimento
-            if (banIndicator) {
-                banIndicator.style.display = 'flex'; 
-            }
-            // 2. Oculta o status de verificado
-            if (verifiedStatusContainer) {
-                verifiedStatusContainer.style.display = 'none';
-            }
-            // 3. Define o nome, mas não prossegue com o carregamento de conteúdo
+            if (banIndicator) banIndicator.style.display = 'flex'; 
+            if (verifiedStatusContainer) verifiedStatusContainer.style.display = 'none';
+            
             artistNameElement.textContent = `${artistName} (Banido)`;
             artistListeners.textContent = `Acesso restrito`;
             
-            // 4. Limpa e desativa as seções de música
             if (topTracksContainer) {
                 topTracksContainer.innerHTML = '<p class="text-gray-400 p-8">Conteúdo indisponível para contas banidas.</p>';
             }
             document.getElementById('albums-container').innerHTML = '';
             document.getElementById('stations-container').innerHTML = '';
             
-            // ⭐ NOVO: Aplica a imagem de banimento no background
             if (artistCoverBg) {
                 artistCoverBg.style.backgroundImage = `url('${bannedImageURL}')`;
                 artistCoverBg.style.backgroundSize = 'cover';
                 artistCoverBg.style.backgroundPosition = 'center';
-                artistCoverBg.style.backgroundRepeat = 'no-repeat';
-                artistCoverBg.style.backgroundColor = 'transparent'; // Garante que não há cor de fundo indesejada
             }
-            // Garante que o gradiente escuro ainda é aplicado sobre a imagem
-            if (mainHeader) {
-                 // Certifica-se que o gradiente 'artist-bg-gradient' do HTML ainda está funcionando
-                 // Se não estiver aparecendo, você pode tentar adicionar um filtro aqui também
-                 // mainHeader.style.background = `linear-gradient(to top, #000000ff, transparent) no-repeat center center / cover, url('${bannedImageURL}') center center / cover`;
-            }
-            
-            return; // Interrompe o restante do carregamento da página
+            return; 
         }
         // ⭐ FIM DA LÓGICA DE BANIMENTO ⭐
+
+        // -------------------------------------------------------------------------
+        // ⭐ LOGICA DO NOME + TAG DA GRAVADORA (SHRK) ⭐
+        // -------------------------------------------------------------------------
+        let nameContent = `<span>${artistName}</span>`;
         
-        // 1. Aplica Nome, Ouvintes e Foto (continuação da lógica original)
-        artistNameElement.textContent = artistName;
-        // Assume que formatNumber está disponível
+        if (artistData.gravadora && artistData.gravadora.toLowerCase() === 'shark') {
+            // Adiciona a imagem sharklabel.png ao lado do nome
+            nameContent += `
+               <img src="assets/sharklabel.png" 
+             alt="Shark Label Verified" 
+             title="Gravadora SHRK"
+             style="
+                width: 30px; 
+                height: 30px; 
+                object-fit: contain; 
+                margin-left: 10px; 
+                display: inline-block; 
+                vertical-align: middle;
+                filter: drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.37));
+             ">
+    `;
+        }
+        
+        artistNameElement.innerHTML = nameContent;
+        // -------------------------------------------------------------------------
+
+        // Carregamento de ouvintes inicial
         artistListeners.textContent = `${formatNumber(artistData.ouvintesMensais || 0)} ouvintes mensais`; 
 
+        // Lógica da Foto de Capa e Cor Dominante
         if (artistData.foto && artistCoverBg) {
-            // Lógica de background original (se não estiver banido)
             artistCoverBg.style.backgroundImage = `url('${artistData.foto}')`;
             artistCoverBg.style.backgroundSize = 'cover';
             artistCoverBg.style.backgroundPosition = 'center';
-            artistCoverBg.style.backgroundRepeat = 'no-repeat';
-            artistCoverBg.style.backgroundColor = 'transparent';
 
             const tempImg = new Image();
             tempImg.crossOrigin = "Anonymous";
             tempImg.src = artistData.foto;
-
-            // Assume que applyDominantColorToHeader e formatNumber estão definidos
             tempImg.onload = () => applyDominantColorToHeader(tempImg, mainHeader);
             tempImg.onerror = () => mainHeader.style.background = fallbackBackground;
         } else {
             mainHeader.style.background = fallbackBackground;
         }
 
+        // Atualiza total de streams calculado
         const totalStreams = await calculateTotalStreams(artistId); 
-
-        // Atualiza a contagem de ouvintes/streams com o valor calculado
         if (artistListeners) {
             artistListeners.textContent = `${formatNumber(totalStreams)} ouvintes mensais`; 
         }
 
-        // ----------------------------------------------------
-        // ⭐ 2. BUSCA E RENDERIZAÇÃO DAS MÚSICAS POPULARES ⭐
-        // ----------------------------------------------------
+        // Busca Músicas Populares
         const musicasRef = collection(db, "musicas");
-        // Filtra pelo ID do artista e ordena por streams
         const q = query(
             musicasRef, 
-            where("artist", "==", artistId), // Use o campo correto: artist
+            where("artist", "==", artistId), 
             orderBy("streams", "desc"), 
             limit(5)
         );
@@ -1388,31 +1359,20 @@ async function setupArtistPage(artistId) {
         const topTracks = [];
 
         querySnapshot.forEach((doc) => {
-            // Adiciona o nome do artista à faixa para uso no player
-            const track = { id: doc.id, ...doc.data(), artistName: artistName };
-            topTracks.push(track);
+            topTracks.push({ id: doc.id, ...doc.data(), artistName: artistName });
         });
         
-        // Renderiza a seção "Populares"
-        // Assume que renderTop5Tracks(tracks, containerId) está definido
         renderTop5Tracks(topTracks, "top-tracks-container"); 
 
-        // 3. Carrega álbuns e estações
-        // Assume que loadArtistAlbums e loadArtistStations estão definidas
-        if (typeof loadArtistAlbums === 'function') {
-            await loadArtistAlbums(artistId);
-        }
-        if (typeof loadArtistStations === 'function') {
-            await loadArtistStations(artistId);
-        }
+        // Carrega Álbuns e Estações
+        if (typeof loadArtistAlbums === 'function') await loadArtistAlbums(artistId);
+        if (typeof loadArtistStations === 'function') await loadArtistStations(artistId);
 
     } catch (error) {
         console.error("Erro ao buscar o artista:", error);
         artistNameElement.textContent = "Erro ao Carregar Artista";
-        if (mainHeader) mainHeader.style.background = fallbackBackground;
     }
 }
-
 
 async function fetchAndRenderTrendingSongs() {
     // Referências aos elementos HTML
@@ -1719,6 +1679,7 @@ songItem.addEventListener("click", () => {
         console.log(`Iniciando a reprodução de: ${songData.title}`);
         // 🚀 AGORA ISSO VAI FUNCIONAR, pois loadTrack está como playTrackGlobal
         window.playTrackGlobal(songData); 
+        
     } else {
         console.error("Erro: A função playTrackGlobal não está definida no window.");
     }
@@ -2231,6 +2192,86 @@ async function setupArtistSection(artistUid) { // Removido artistName do parâme
     }
 }
 
+async function carregarTopAlbuns() {
+    const listaTop = document.getElementById('top-albuns-list');
+    
+    try {
+        // 1. Busca os álbuns
+        const albunsSnap = await getDocs(collection(db, "albuns"));
+        
+        const promessasAlbuns = albunsSnap.docs.map(async (docAlbum) => {
+            const dadosAlbum = docAlbum.data();
+            const idAlbum = docAlbum.id;
+
+            // 2. Busca e soma os streams das músicas deste álbum
+            const qMusicas = query(collection(db, "musicas"), where("album", "==", idAlbum));
+            const musicasSnap = await getDocs(qMusicas);
+            
+            let totalStreams = 0;
+            musicasSnap.forEach(docMusica => {
+                totalStreams += Number(docMusica.data().streams || 0);
+            });
+
+            return {
+                id: idAlbum,
+                album: dadosAlbum.album, // Título do álbum
+                artist: dadosAlbum.artist,
+                cover: dadosAlbum.cover,
+                streams: totalStreams
+            };
+        });
+
+        const albunsCalculados = await Promise.all(promessasAlbuns);
+
+        // 3. Ordena e pega o Top 10
+        const top10 = albunsCalculados
+            .sort((a, b) => b.streams - a.streams)
+            .slice(0, 10);
+
+        listaTop.innerHTML = ''; 
+
+        // 4. Cria os cards usando o seu padrão exato
+        top10.forEach(album => {
+            const albumCard = document.createElement('div');
+            // Usando EXATAMENTE as suas classes
+            albumCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
+            
+            albumCard.addEventListener('click', () => {
+                // Usando a sua função de navegação
+                loadContent('album', album.id);
+            });
+
+            albumCard.innerHTML = `
+                <div class="relative w-full pb-[100%] rounded-md">
+                    <img src="${album.cover || 'https://placehold.co/150x150/333333/FFFFFF?text=Sem+Capa'}" 
+                         alt="Capa do Álbum: ${album.album}" 
+                         class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
+                </div>
+                <div class="mt-2 w-full">
+                    <h3 class="text-sm font-semibold text-white truncate">${album.album}</h3>
+                    <p class="text-gray-400 text-xs truncate">${album.artist}</p>
+                
+                </div>
+            `;
+            
+            listaTop.appendChild(albumCard);
+        });
+
+        // Configuração do Scroll Lateral
+        document.getElementById('top-albuns-scroll-left').onclick = () => 
+            listaTop.scrollBy({ left: -300, behavior: 'smooth' });
+        document.getElementById('top-albuns-scroll-right').onclick = () => 
+            listaTop.scrollBy({ left: 300, behavior: 'smooth' });
+
+    } catch (erro) {
+        console.error("Erro ao carregar Top Álbuns:", erro);
+    }
+}
+
+
+
+
+
 // ⭐ FUNÇÃO PARA ANITTA: idêntica à de Taylor Swift, mas com IDs da Anitta ⭐
 async function setupAnittaSection(artistUid) {
     const listContainer = document.getElementById('anitta-list');
@@ -2692,9 +2733,6 @@ function createAlbumCard(item) {
 }
 }
 
-/**
- * Define a saudação (Bom Dia, Boa Tarde, Boa Noite) com base na hora atual.
- */
 function setGreeting() {
     const greetingElement = document.getElementById('greeting-title');
     if (!greetingElement) {
@@ -2736,13 +2774,9 @@ async function loadPlaylistGenresSection() {
     );
 }
 
-/**
- * Função principal para configurar a página inicial (home).
- * Esta função deve ser chamada quando a página "home" é carregada.
- */
+
 function setupHomePage() {
-    // Carrossel de Álbuns Recentes (Novidades)
-    // Busca na coleção 'albuns' e ordena pela data de lançamento
+
     setupContentCarousel(
         'albums-list',
         'albums-scroll-left',
@@ -2788,27 +2822,33 @@ function setupHomePage() {
         createPlaylistCard
     );
 
-    // Estas chamadas duplicadas foram removidas/comentadas para clareza
-    // setupContentCarousel( /* ... albums */ );
-    // setupContentCarousel( /* ... stations */ );
-    // setupContentCarousel( /* ... charts */ );
-    // setupContentCarousel( /* ... artists */ );
-
-
-    // Chame a nova função que renderiza a seção de Pop unificada
     setupPopSection();
     // setupPopSection(); // Chamada duplicada removida
     setupLatinSection();
     loadPlaylistGenresSection();
-    // ⭐ CORREÇÃO AQUI: A função setupArtistSection só espera 1 argumento (artistUid)
+    
     setupArtistSection('lFxIUcsTaiaQYfirY9Jp78hFqyM2'); 
     fetchAndRenderTrendingSongs();
     loadTopStreamedPlaylists();
-    setupAnittaSection("x7xbPhbVfhVzVVgrxCod98MDwBh2");
+    // Lista de IDs disponíveis
+const anittaIds = [
+  "x7xbPhbVfhVzVVgrxCod98MDwBh2",
+  "QIzquREQCndEsfstX4MOOlCLcw33",
+  "vjJXWcOgRRfrLGOhbKgRwRLPzro1",
+  "WXWPmYtmmNYgLsWSEqh4Dt7wtc32",
+  "WBOKUHDfekdTUlfuTpvkyIOi1My2"
+];
+
+// Seleciona um índice aleatório de 0 a 4
+const randomIndex = Math.floor(Math.random() * anittaIds.length);
+
+// Executa a função com o ID sorteado
+setupAnittaSection(anittaIds[randomIndex]);
     loadMyLikedItems();
     checkAuthAndLoadLikedItems();
     loadSertanejoSection();
     setGreeting();
+    carregarTopAlbuns();
 }
 
 // --- Inicialização da Aplicação ---
