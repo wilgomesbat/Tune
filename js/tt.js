@@ -33,20 +33,43 @@ let artistSearchTimeout;
 
 
 
+
 // ===============================
-// OVERLAY DE ACESSO NEGADO
+// BLOQUEIO GLOBAL
+// ===============================
+function lockNonAdmin() {
+    // trava scroll
+    document.documentElement.style.overflow = "hidden";
+
+    // bloqueia TODOS os cliques fora do overlay
+    document.addEventListener("click", blockInteraction, true);
+    document.addEventListener("keydown", blockInteraction, true);
+
+    function blockInteraction(e) {
+        const overlay = document.getElementById("no-access-overlay");
+        if (!overlay || !overlay.contains(e.target)) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    }
+
+    // impede navegação por links internos
+    document.querySelectorAll("a").forEach(a => {
+        a.addEventListener("click", e => e.preventDefault());
+    });
+}
+
+// ===============================
+// OVERLAY
 // ===============================
 function renderNoAccess(titleText) {
     const overlay = document.getElementById("no-access-overlay");
     const title = document.getElementById("noAccessTitle");
 
-    if (!overlay || !title) {
-        console.error("Overlay de acesso não encontrado no HTML.");
-        return;
-    }
-
     title.textContent = titleText || "Acesso restrito ao Tune Team";
     overlay.classList.remove("hidden");
+
+    lockNonAdmin();
 }
 
 // ===============================
@@ -54,36 +77,25 @@ function renderNoAccess(titleText) {
 // ===============================
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
-        console.log("❌ Nenhum usuário logado. Redirecionando...");
         window.location.href = "/login.html";
         return;
     }
 
     currentUserId = user.uid;
-    console.log("✔ Usuário autenticado:", currentUserId);
 
     try {
         const userDocRef = doc(db, "usuarios", currentUserId);
         const docSnap = await getDoc(userDocRef);
 
         if (!docSnap.exists()) {
-            console.warn("⚠️ Documento do usuário não encontrado.");
             currentUserIsAdmin = false;
             renderNoAccess("Conta não encontrada");
             return;
         }
 
         const userData = docSnap.data();
-
-        // 🔐 REGRA DE ADMIN
         const nivelAdmin = Number(userData.niveladmin) || 0;
         currentUserIsAdmin = nivelAdmin >= 1;
-
-        console.log(
-            currentUserIsAdmin
-                ? `⭐ Admin autorizado (nível ${nivelAdmin})`
-                : `👤 Usuário comum (nível ${nivelAdmin})`
-        );
 
         if (!currentUserIsAdmin) {
             renderNoAccess("Acesso restrito ao Tune Team");
@@ -91,21 +103,20 @@ onAuthStateChanged(auth, async (user) => {
         }
 
         // ===============================
-        // ✅ USUÁRIO ADMIN → INICIALIZA O PAINEL
+        // ✅ SOMENTE ADMIN PASSA DAQUI
         // ===============================
-        console.log("🚀 Inicializando painel administrativo...");
-
+        console.log("⭐ Admin liberado");
+        
         // initDashboard();
-        // loadArtists();
         // loadUsers();
-        // loadStats();
+        // loadArtists();
 
     } catch (error) {
-        console.error("❌ Erro ao verificar permissões:", error);
-        currentUserIsAdmin = false;
+        console.error(error);
         renderNoAccess("Erro ao validar permissões");
     }
 });
+
 
 
 
