@@ -24,6 +24,67 @@
             height: 100vh;
         }
 
+        #no-access-overlay {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at top, #111 0%, #000 65%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+}
+
+#no-access-overlay.hidden {
+    display: none;
+}
+
+.no-access-card {
+    background: #0d0d0d;
+    padding: 40px;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 30px 80px rgba(0,0,0,.8);
+}
+
+.no-access-card .lock {
+    font-size: 42px;
+    margin-bottom: 12px;
+}
+
+.no-access-card h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.no-access-card p {
+    font-size: 14px;
+    color: #9b9b9b;
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+
+.no-access-card button {
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.no-access-card span {
+    display: block;
+    margin-top: 24px;
+    font-size: 11px;
+    color: #555;
+}
+
+
         #latNav {
             min-width: 100px;
             background-color: #000000;
@@ -187,6 +248,17 @@
 </head>
 
 <body>
+
+    <div id="no-access-overlay" class="hidden">
+    <div class="no-access-card">
+        <div class="lock">🔒</div>
+        <h2 id="noAccessTitle">Acesso restrito ao Tune Team</h2>
+        <p>Você não possui permissão para acessar esta área do painel administrativo.</p>
+        <button onclick="window.location.href='/'">Voltar ao site</button>
+
+    </div>
+</div>
+
                 
                 <hr class="mx-4 mb-0 mt-2">
             </nav>
@@ -250,12 +322,16 @@
 </div>
 
     </div>
+
+
+
 </main>
             </div>
         </div>
 
         
     </div>
+    
 
     <script type="module" src="./js/tt.js"></script>
     </body>
