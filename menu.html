@@ -147,22 +147,13 @@
             align-items: center;
         }
 
-        .sidebar-content ul.nav {
+.sidebar-content ul {
     display: flex;
-    flex-direction: column !important;
-    /* ESSENCIAL: Garante que os <li> fiquem na vertical */
-    align-items: center !important;
-    /* ESSENCIAL: Centraliza os links dentro do <ul> */
-    justify-content: center;
-    
-    /* MUDANÇA PRINCIPAL: Aumentado o espaçamento entre os ícones (li) */
-    gap: 32px; 
-    
-    width: 100%;
-    /* Ocupa toda a largura para o alinhamento funcionar */
-    margin: 0;
-    padding: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
 }
+
 
         .sidebar-content>a.d-flex {
             /* Certifique-se de que o coração 'a href="#"' também esteja centralizado se estiver fora da lista */

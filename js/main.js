@@ -1533,8 +1533,9 @@ function initializeRouting() {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
 
-    navigateTo(page, id, false);
+    loadContent(page, id);
 }
+
 
 
 // --- Função loadContent ---
