@@ -22,6 +22,8 @@ const rtdb = getDatabase(app);
 const getElement = (id) => document.getElementById(id);
 let currentUserId = null; 
 let currentEditingPlaylistId = null;
+let currentUserIsAdmin = false;
+
 
 // Variáveis de Paginação e Busca para ARTISTAS
 const ARTISTS_PER_PAGE = 20;
@@ -29,41 +31,79 @@ let currentArtistPage = 1;
 let allArtistsData = []; 
 let artistSearchTimeout; 
 
-onAuthStateChanged(auth, async (user) => { // 👈 Mudança: adicione 'async' para usar await
-    if (user) {
-        currentUserId = user.uid;
-        console.log("✔ Usuário autenticado:", currentUserId);
 
-        // ==========================================
-        // 🚀 VERIFICAÇÃO DE NÍVEL DE ADMIN (AUTORIZAÇÃO)
-        // ==========================================
-        try {
-            const userDocRef = doc(db, "usuarios", currentUserId);
-            const docSnap = await getDoc(userDocRef); // 👈 Busca síncrona do documento
 
-            if (docSnap.exists()) {
-                const userData = docSnap.data();
-                // Assumindo que 'niveladmin' >= 2 confere permissão de administrador
-                currentUserIsAdmin = userData.niveladmin && userData.niveladmin >= 2; 
+// ===============================
+// OVERLAY DE ACESSO NEGADO
+// ===============================
+function renderNoAccess(titleText) {
+    const overlay = document.getElementById("no-access-overlay");
+    const title = document.getElementById("noAccessTitle");
 
-                if (currentUserIsAdmin) {
-                    console.log("⭐ Usuário é Administrador (Nível:", userData.niveladmin, ")");
-                } else {
-                    console.log("👤 Usuário comum (Nível:", userData.niveladmin || '0', ")");
-                }
-            } else {
-                console.log("⚠️ Documento do usuário não encontrado na coleção 'usuarios'.");
-                currentUserIsAdmin = false;
-            }
-        } catch (error) {
-            console.error("❌ Erro ao buscar nível de admin:", error);
+    if (!overlay || !title) {
+        console.error("Overlay de acesso não encontrado no HTML.");
+        return;
+    }
+
+    title.textContent = titleText || "Acesso restrito ao Tune Team";
+    overlay.classList.remove("hidden");
+}
+
+// ===============================
+// AUTH STATE
+// ===============================
+onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+        console.log("❌ Nenhum usuário logado. Redirecionando...");
+        window.location.href = "/login.html";
+        return;
+    }
+
+    currentUserId = user.uid;
+    console.log("✔ Usuário autenticado:", currentUserId);
+
+    try {
+        const userDocRef = doc(db, "usuarios", currentUserId);
+        const docSnap = await getDoc(userDocRef);
+
+        if (!docSnap.exists()) {
+            console.warn("⚠️ Documento do usuário não encontrado.");
             currentUserIsAdmin = false;
+            renderNoAccess("Conta não encontrada");
+            return;
         }
-        
-    } else {
-        currentUserId = null;
-        currentUserIsAdmin = false; // Redefine para false ao deslogar
-        console.log("❌ Nenhum usuário logado. A edição de playlists pode ser limitada.");
+
+        const userData = docSnap.data();
+
+        // 🔐 REGRA DE ADMIN
+        const nivelAdmin = Number(userData.niveladmin) || 0;
+        currentUserIsAdmin = nivelAdmin >= 1;
+
+        console.log(
+            currentUserIsAdmin
+                ? `⭐ Admin autorizado (nível ${nivelAdmin})`
+                : `👤 Usuário comum (nível ${nivelAdmin})`
+        );
+
+        if (!currentUserIsAdmin) {
+            renderNoAccess("Acesso restrito ao Tune Team");
+            return;
+        }
+
+        // ===============================
+        // ✅ USUÁRIO ADMIN → INICIALIZA O PAINEL
+        // ===============================
+        console.log("🚀 Inicializando painel administrativo...");
+
+        // initDashboard();
+        // loadArtists();
+        // loadUsers();
+        // loadStats();
+
+    } catch (error) {
+        console.error("❌ Erro ao verificar permissões:", error);
+        currentUserIsAdmin = false;
+        renderNoAccess("Erro ao validar permissões");
     }
 });
 
