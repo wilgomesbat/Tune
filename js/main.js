@@ -21,8 +21,6 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app); // ✅ Inicialize e exporte o Auth
 
-const ALLOWED_UID = "VRxrKRgfz1b2dlNdEQCDlv1C2XV2"; // O UID permitido
-
 // ⚠️ Declare a variável globalmente
 let currentUserUid = null; 
 
@@ -31,20 +29,7 @@ let currentUserUid = null;
 onAuthStateChanged(auth, (user) => {
     if (user) {
         // Verifica se o UID do usuário logado é o administrador (ALLOWED_UID)
-        if (user.uid === ALLOWED_UID) {
-            console.log("Acesso Administrativo autorizado!");
-            currentUserUid = user.uid;
-            
-            if (typeof populateUserProfile === "function") {
-                populateUserProfile(user);
-            }
-            
-            hideLoadingAndShowContent();
-        } else {
-            // ✅ USUÁRIO COMUM: Redireciona para /welcome (sem .html)
-            console.log("Usuário comum detectado. Redirecionando...");
-            window.location.href = "welcome"; 
-        }
+       
     } else {
         // ✅ SEM LOGIN: Redireciona para /login (sem .html)
         console.log("Nenhum usuário logado. Redirecionando...");
@@ -1371,134 +1356,6 @@ async function setupArtistPage(artistId) {
     } catch (error) {
         console.error("Erro ao buscar o artista:", error);
         artistNameElement.textContent = "Erro ao Carregar Artista";
-    }
-}
-
-async function fetchAndRenderTrendingSongs() {
-    // Referências aos elementos HTML
-    const containerId = 'trending-songs-list';
-    const loadingMessageId = 'trending-songs-loading-message';
-    const listContainer = document.getElementById(containerId);
-    const loadingMessage = document.getElementById(loadingMessageId);
-
-    if (!listContainer) {
-        console.error(`CRÍTICO: Contêiner HTML com ID '${containerId}' não encontrado.`);
-        if (loadingMessage) loadingMessage.style.display = 'none';
-        return;
-    }
-
-    if (loadingMessage) loadingMessage.style.display = 'block';
-    listContainer.innerHTML = `<p class="text-gray-400">A carregar músicas em alta...</p>`;
-
-    try {
-        const musicasRef = collection(db, "musicas");
-        
-        // 1. Busca das Músicas em Alta
-        const q = query(
-            musicasRef, 
-            orderBy("streamsMensal", "desc"), 
-            limit(10)
-        );
-        const querySnapshot = await getDocs(q);
-        
-        const tracks = [];
-        const artistUidsToFetch = new Set();
-        
-        // 2. Coletar UIDs e preparar a lista de tracks
-        querySnapshot.forEach(docSnap => {
-            const trackData = docSnap.data();
-            const track = { 
-                id: docSnap.id, 
-                ...trackData, 
-                cover: trackData.cover || trackData.albumCover 
-            };
-            
-            if (track.artist && !track.artistName) {
-                artistUidsToFetch.add(track.artist);
-            }
-
-            tracks.push(track);
-        });
-        
-        // 3. Batch Fetch (Buscar Nomes de Artistas em paralelo)
-        const artistNameMap = new Map();
-        if (artistUidsToFetch.size > 0) {
-            const artistPromises = Array.from(artistUidsToFetch).map(uid => 
-                getDoc(doc(db, "usuarios", uid)) 
-            );
-            
-            const artistSnapshots = await Promise.all(artistPromises);
-            
-            artistSnapshots.forEach(snap => {
-                if (snap.exists()) {
-                    const artistData = snap.data();
-                    const name = artistData.nomeArtistico || artistData.apelido; 
-                    artistNameMap.set(snap.id, name); 
-                }
-            });
-        }
-
-        // Limpar a mensagem de carregamento
-        listContainer.innerHTML = ''; 
-
-        // 4. Renderizar: Usar o nome resolvido
-       if (tracks.length === 0) {
-     listContainer.innerHTML = `<p class="text-gray-400">Nenhuma música em alta encontrada.</p>`;
-} else {
-    // 👇 MUDANÇA: Usamos o forEach com o índice para obter a posição
-    tracks.forEach((track, index) => {
-        const rank = index + 1; // Posição (1, 2, 3...)
-        let finalArtistName = track.artistName;
-
-        if (!finalArtistName && track.artist && artistNameMap.has(track.artist)) {
-            finalArtistName = artistNameMap.get(track.artist);
-        }
-
-        const trackToRender = { 
-            ...track, 
-            artistName: finalArtistName || track.artist // Fallback para UID
-        };
-        
-        // ⭐ MUDANÇA: Passando o 'rank' (posição) como terceiro argumento
-        const card = createTrendingSongCard(trackToRender, trackToRender.id, rank); 
-        listContainer.appendChild(card);
-    });
-}
-    } catch (error) {
-        console.error("ERRO GRAVE ao buscar Músicas em Alta no Firebase:", error);
-        listContainer.innerHTML = `<p class="text-red-500">Erro ao carregar as músicas em alta. Verifique o console. (Erro: ${error.message})</p>`;
-    } finally {
-        if (loadingMessage) loadingMessage.style.display = 'none';
-    }
-}
-
-// -------------------------------------------------------------------------
-// ## 📌 ROTEAMENTO E HISTÓRICO (SOLUÇÃO SPA)
-
-/**
- * 1. Função Central de Navegação.
- * Realiza o roteamento, manipula o histórico e chama loadContent.
- *
- * @param {string} pageName - A página de destino ('home', 'album', etc.).
- * @param {string} id - O ID do item (opcional).
- * @param {boolean} updateHistory - Se deve adicionar um novo estado (true) ou apenas substituir (false).
- */
-function navigateTo(pageName, id = null, updateHistory = true) {
-    // A. CHAMA A FUNÇÃO DE RENDERIZAÇÃO
-    // loadContent é chamada para carregar o HTML e fazer o setup da página.
-    loadContent(pageName, id);
-    
-    // B. MANIPULA O HISTÓRICO
-    const newUrl = id ? `menu.html?page=${pageName}&id=${id}` : `menu.html?page=${pageName}`;
-
-    // O objeto { page: pageName, id: id } é o estado salvo para o botão 'Voltar'
-    if (updateHistory) {
-        // history.pushState: Usado ao clicar em um link (avança na história).
-        history.pushState({ page: pageName, id: id }, '', newUrl);
-    } else {
-        // history.replaceState: Usado no carregamento inicial (para que o usuário possa voltar para o site anterior)
-        // e no popstate (para não duplicar estados).
-        history.replaceState({ page: pageName, id: id }, '', newUrl);
     }
 }
 
