@@ -2734,7 +2734,9 @@ async function fetchAndRenderNewSingles() {
 
     try {
         const musicasRef = collection(db, "musicas");
-        // Busca apenas singles, ordenados pelo timestamp mais recente
+        
+        // 1. A consulta precisa bater com os campos do Firestore
+        // Certifique-se de que o campo 'single' é STRING "true" ou BOOLEAN true no banco
         const q = query(
             musicasRef, 
             where("single", "==", "true"), 
@@ -2743,7 +2745,7 @@ async function fetchAndRenderNewSingles() {
         );
 
         const querySnapshot = await getDocs(q);
-        listContainer.innerHTML = ''; // Limpa skeletons
+        listContainer.innerHTML = ''; 
 
         if (querySnapshot.empty) {
             listContainer.innerHTML = '<p class="text-gray-500 p-4">Nenhuma música nova encontrada.</p>';
@@ -2753,7 +2755,6 @@ async function fetchAndRenderNewSingles() {
         querySnapshot.forEach(docSnap => {
             const track = { id: docSnap.id, ...docSnap.data() };
             
-            // Criar o card (usando a lógica de estilo dos álbuns)
             const card = document.createElement('div');
             card.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4 group';
             
@@ -2769,12 +2770,23 @@ async function fetchAndRenderNewSingles() {
                 </div>
                 <div class="mt-2 w-full">
                     <h3 class="text-sm font-semibold text-white truncate">${track.title}</h3>
-                    <p class="text-gray-400 text-xs truncate">${track.artistName || 'Artista'}</p>
+                    <p class="text-gray-400 text-xs truncate artist-name-${track.id}">Carregando...</p>
                 </div>
             `;
 
-            // Ao clicar, toca a música
+            // Busca o apelido do artista para o card
+            getArtistName(track.artist).then(name => {
+                const el = card.querySelector(`.artist-name-${track.id}`);
+                if (el) el.textContent = name;
+            });
+
+            // Ao clicar, toca a música e registra o LOG
             card.onclick = () => {
+                // ⭐ REGISTRO DE LOG
+                if (typeof registrarLog === 'function') {
+                    registrarLog(track.title, "Música (Novas)");
+                }
+
                 if (window.playTrackGlobal) {
                     window.playTrackGlobal(track);
                 }
@@ -2783,12 +2795,13 @@ async function fetchAndRenderNewSingles() {
             listContainer.appendChild(card);
         });
 
-        // Configurar botões de scroll
         setupScrollButtons('singles-home-scroll-left', 'singles-home-scroll-right', 'new-singles-list');
 
     } catch (error) {
         console.error("Erro ao carregar novas músicas:", error);
-        listContainer.innerHTML = '<p class="text-red-500">Erro ao carregar.</p>';
+        // DICA: Se aparecer um erro de "The query requires an index", 
+        // o console do navegador mostrará um LINK. Clique nele para criar o índice automaticamente.
+        listContainer.innerHTML = '<p class="text-red-500 p-4 text-xs">Erro ao carregar singles. Verifique o console.</p>';
     }
 }
 

@@ -1620,7 +1620,8 @@ async function setupAddSinglePage() {
             album: "Single",
             streams: 0,
             streamsMensal: 0,
-            timestamp: serverTimestamp() // Recomendado usar o timestamp do Firebase
+           // No seu objeto singleData:
+            timestamp: new Date() // Isso cria um objeto de data padrão do JavaScript
         };
 
         try {
