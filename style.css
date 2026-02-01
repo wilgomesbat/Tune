@@ -2294,3 +2294,187 @@ footer {
     color: #000000;
 }
 
+/* Card de Lançamento Premium */
+.release-card {
+  font-family: 'Nationale Regular';
+   background: #121212; /* Cor de segurança enquanto a imagem carrega */
+    transition: background 0.8s ease, transform 0.3s ease; /* Transição suave de cor */
+    padding: 32px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px); /* Começa levemente abaixo */
+    transition: 
+        opacity 0.6s ease-out, 
+        transform 0.6s ease-out, 
+        background 0.8s ease; /* Transição suave para a cor que vai chegar */
+
+    border-radius: 16px;
+    color: white;
+    max-width: none;
+    margin: 20px auto; 
+    width: calc(100% - 40px); /* O segredo está aqui: largura total menos as margens */
+    transition: all 0.3s cubic-bezier(0.3, 0, 0.2, 1);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.release-card.loaded {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.release-card:hover {
+    background: linear-gradient(90deg, #181818 0%, #181818cc 100%);
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Header do Artista */
+.artist-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.artist-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.label { 
+  font-family: 'Nationale Regular';
+    font-size: 13px; 
+    color: #bdbdbdac; 
+    font-weight: 700;
+}
+
+.artist-name { 
+  font-family: 'Nationale Bold';
+    font-size: 28px; 
+    font-weight: 900; 
+    margin: 0; 
+
+}
+
+/* Área da Capa e Detalhes */
+.release-main {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+}
+
+.main-cover {
+    width: 180px;
+    height: 170px;
+    border-radius: 8px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.343);
+    transition: transform 0.3s ease;
+}
+
+.release-card:hover .main-cover {
+    transform: scale(1.02);
+}
+
+/* Textos do Lançamento */
+.type-label { 
+    font-size: 13px; 
+    font-weight: 600; 
+    color: #b3b3b3; 
+    display: block;
+    margin-bottom: 8px;
+}
+
+.release-title { 
+  font-family: 'Nationale Black';
+    font-size: 38px; 
+    font-weight: 900; 
+    margin: 0 0 24px 0; 
+    line-height: 1; 
+    letter-spacing: -1px;
+    color: #ffffff;
+}
+
+/* Botões de Ação Pequenos */
+.actions { 
+    display: flex; 
+    gap: 20px; 
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    color: #b3b3b3;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    color: #ffffff;
+    transform: scale(1.1);
+}
+
+/* --- CONFIGURAÇÃO PARA CELULAR (MINI) --- */
+@media (max-width: 768px) {
+    .release-card {
+        padding: 20px; /* Reduzido de 32px */
+        margin: 20px auto;
+        width: calc(100% - 24px); /* Respiro lateral menor */
+        border-radius: 12px;
+    }
+
+    .artist-header {
+        margin-bottom: 12px;
+        gap: 10px;
+    }
+
+    .artist-thumb {
+        width: 35px; /* Foto do artista menor */
+        height: 35px;
+    }
+
+    .artist-name {
+        font-size: 18px; /* Nome do artista menor */
+    }
+
+    .release-main {
+        flex-direction: row; /* Mantém lado a lado, ou mude para column se preferir */
+        align-items: center;
+        gap: 12px;
+    }
+
+    .main-cover {
+        /* O SEGREDO PARA NÃO ESTICAR: */
+        width: 100px; 
+        height: 100px;
+        min-width: 100px; /* Impede que ela diminua demais */
+        object-fit: cover; /* Corta a imagem sem esticar */
+        border-radius: 6px;
+    }
+
+    .release-title {
+        font-size: 27px; /* Título bem menor e "mini" */
+        margin: 4px 0 10px 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* Limita a 2 linhas se o nome for gigante */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .type-label {
+        font-size: 10px;
+        letter-spacing: 0.5px;
+    }
+
+    .actions {
+        gap: 12px;
+    }
+
+    .action-btn {
+        font-size: 22px; /* Ícones menores */
+    }
+}

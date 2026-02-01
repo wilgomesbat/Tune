@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, updateDoc, setDoc, query, where, onSnapshot, orderBy, getDocs, limit, addDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, serverTimestamp,  collection, doc, getDoc, updateDoc, setDoc, query, where, onSnapshot, orderBy, getDocs, limit, addDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { getDatabase, ref as databaseRef, set, onDisconnect, serverTimestamp, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+import { getDatabase, ref as databaseRef, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
 // ================================
 // 2️⃣ CONFIGURAÇÃO DO FIREBASE
@@ -1621,7 +1621,7 @@ async function setupAddSinglePage() {
             streams: 0,
             streamsMensal: 0,
            // No seu objeto singleData:
-            timestamp: new Date() // Isso cria um objeto de data padrão do JavaScript
+           timestamp: new Date() // Isso cria um objeto de data padrão do JavaScript
         };
 
         try {

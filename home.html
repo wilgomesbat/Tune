@@ -4,6 +4,7 @@
   <meta name="viewport" content="width=device-width">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./slide.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
 
 </head>
 <body class="bg-black text-white">
@@ -18,9 +19,42 @@
   
 <div class="main-content-area">
 
+<div id="new-release-banner" class="release-card" style="display: none;">
+    <div class="artist-header">
+        <img id="banner-artist-img" src="/assets/default-artist.png" class="artist-thumb">
+        <div class="artist-info">
+            <span class="label">Novo lançamento de</span>
+            <h2 id="banner-artist-name" class="artist-name"></h2>
+        </div>
+    </div>
 
+    <div class="release-main">
+        <div class="cover-area">
+            <img id="banner-cover" src="/assets/default-cover.png" class="main-cover">
+        </div>
+        <div class="details-area">
+            <span id="banner-type-artists" class="type-label"></span>
+            <h1 id="banner-title" class="release-title"></h1>
+            
+            <div class="actions">
+                <button class="action-btn"><i class='bx bx-plus-circle'></i></button>
+                <button class="action-btn"><i class='bx bx-heart'></i></button>
+            </div>
+        </div>
+    </div>
+</div>
 
-
+    <!-- Artistas -->
+  <div class="section">
+    <h2 class="section-title">Artistas do Tune</h2>
+    <div class="section-scroll">
+      <button id="artists-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="artists-list">
+        <div id="artists-loading-message" class="loading-text"></div>
+      </div>
+      <button id="artists-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
 
   
   <!-- Álbuns Recentes -->
@@ -42,15 +76,22 @@
 
   
 
-    <!-- Artistas -->
+
+
+    <!-- Charts -->
   <div class="section">
-    <h2 class="section-title">Artistas do Tune</h2>
+    <h2 class="section-title">Charts</h2>
     <div class="section-scroll">
-      <button id="artists-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
-      <div class="card-row" id="artists-list">
-        <div id="artists-loading-message" class="loading-text"></div>
+      <button id="charts-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="charts-list">
+        <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+        <div id="charts-loading-message" class="loading-text"></div>
       </div>
-      <button id="artists-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <button id="charts-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
     </div>
   </div>
 
@@ -85,23 +126,36 @@
     </div>
 </div>
 
-  
-  <!-- Charts -->
-  <div class="section">
-    <h2 class="section-title">Charts</h2>
+<div class="section">
+    <h2 class="section-title">Forró e Piseiro</h2>
     <div class="section-scroll">
-      <button id="charts-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
-      <div class="card-row" id="charts-list">
-        <div class="skeleton-card"></div>
+        <button id="forro-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+        <div class="card-row" id="forro-genre-listt">
             <div class="skeleton-card"></div>
             <div class="skeleton-card"></div>
             <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-        <div id="charts-loading-message" class="loading-text"></div>
-      </div>
-      <button id="charts-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+        </div>
+        <button id="forro-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
     </div>
-  </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">Potência Sertaneja</h2>
+    <div class="section-scroll">
+      <button id="sertanejo-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
+      
+      <div class="card-row" id="sertanejo-list">
+        <div id="sertanejo-loading-message" class="loading-text"></div>
+      </div>
+      
+      <button id="sertanejo-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+  
+
+
+
 
   <div class="section">
     <div id="anitta-header" class="flex items-center mb-4 cursor-pointer hover:underline">
@@ -191,18 +245,7 @@
 
 
 
-<div class="section">
-    <h2 class="section-title">Potência Sertaneja</h2>
-    <div class="section-scroll">
-      <button id="sertanejo-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
-      
-      <div class="card-row" id="sertanejo-list">
-        <div id="sertanejo-loading-message" class="loading-text"></div>
-      </div>
-      
-      <button id="sertanejo-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
-    </div>
-</div>
+
 
 <footer>
                 <div class="social-media-icons">

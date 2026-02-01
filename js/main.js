@@ -2745,7 +2745,14 @@ async function fetchAndRenderNewSingles() {
         );
 
         const querySnapshot = await getDocs(q);
-        listContainer.innerHTML = ''; 
+listContainer.innerHTML = ''; // Certifique-se de que isso está limpando TUDO mesmo
+
+querySnapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    // Isso vai mostrar a data legível no console para você comparar os segundos
+    const dataFormatada = data.timestamp?.toDate ? data.timestamp.toDate() : "Sem data";
+    console.log(`Música: ${data.title} | Data: ${dataFormatada}`);
+});
 
         if (querySnapshot.empty) {
             listContainer.innerHTML = '<p class="text-gray-500 p-4">Nenhuma música nova encontrada.</p>';
@@ -2816,6 +2823,196 @@ function setupScrollButtons(leftBtnId, rightBtnId, containerId) {
         rightBtn.onclick = () => container.scrollBy({ left: 300, behavior: 'smooth' });
     }
 }
+
+// ⭐ FUNÇÃO PARA GÊNERO FORRÓ: Mix de Álbuns, Playlists e Músicas Variadas ⭐
+async function setupForroGenreSection() {
+    const listContainer = document.getElementById('forro-genre-listt'); // ID conforme seu HTML
+    if (!listContainer) return;
+
+    let genreContent = [];
+    let seenArtists = new Set(); // Para garantir um artista por música
+
+    try {
+        // 1. BUSCAR PLAYLISTS (STATIONS)
+        const playlistsQuery = query(
+            collection(db, "playlists"), 
+            where('genres', 'array-contains', 'Forró')
+        );
+        const playlistsSnap = await getDocs(playlistsQuery);
+        playlistsSnap.forEach(doc => {
+            genreContent.push({ id: doc.id, type: 'playlist', ...doc.data() });
+        });
+
+        // 2. BUSCAR ÁLBUNS
+        const albumsQuery = query(
+            collection(db, "albuns"), 
+            where('genre', '==', 'Forró')
+        );
+        const albumsSnap = await getDocs(albumsQuery);
+        albumsSnap.forEach(doc => {
+            genreContent.push({ id: doc.id, type: 'album', ...doc.data() });
+        });
+
+        // 3. BUSCAR MÚSICAS (Limite de 30, uma por artista)
+        const songsQuery = query(
+            collection(db, "musicas"), 
+            where('genre', '==', 'Forró'), 
+            orderBy('timestamp', 'desc'), 
+            limit(60) // Buscamos mais para filtrar os artistas repetidos
+        );
+        const songsSnap = await getDocs(songsQuery);
+        
+        let songsAdded = 0;
+        songsSnap.forEach(doc => {
+            const songData = doc.data();
+            const artistId = songData.artist || songData.uidars;
+
+            // Só adiciona se o artista ainda não apareceu E não atingiu 30 músicas
+            if (!seenArtists.has(artistId) && songsAdded < 30) {
+                seenArtists.add(artistId);
+                genreContent.push({ id: doc.id, type: 'track', ...songData });
+                songsAdded++;
+            }
+        });
+
+        // Limpa skeletons antes de renderizar
+        listContainer.innerHTML = '';
+
+        if (genreContent.length === 0) {
+            listContainer.innerHTML = '<p class="text-gray-500 p-4">Nenhum conteúdo de Forró encontrado.</p>';
+            return;
+        }
+
+        // 4. RENDERIZAR OS CARDS
+        genreContent.forEach(item => {
+            let card;
+            if (item.type === 'album') {
+                // Tenta usar sua função global de card de álbum
+                card = typeof createAlbumCard === 'function' ? createAlbumCard(item, item.id) : createDefaultCard(item);
+            } else if (item.type === 'playlist') {
+                // Tenta usar sua função global de card de playlist
+                card = typeof createPlaylistCard === 'function' ? createPlaylistCard(item, item.id) : createDefaultCard(item);
+            } else {
+                // Para músicas individuais
+                card = createDefaultCard(item);
+            }
+            if (card) listContainer.appendChild(card);
+        });
+
+        // Configura os botões de scroll
+        setupScrollButtons('forro-scroll-left', 'forro-scroll-right', 'forro-genre-listt');
+
+    } catch (error) {
+        console.error("Erro ao carregar seção de Forró:", error);
+    }
+}
+
+// Função de fallback para criar card caso as globais falhem
+function createDefaultCard(item) {
+    const div = document.createElement('div');
+    div.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4 group';
+    div.innerHTML = `
+        <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg bg-zinc-900">
+            <img src="${item.cover || item.albumCover || './assets/default-cover.png'}" 
+                 class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 group-hover:scale-105">
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div class="w-10 h-10 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl">
+                    <i class='bx bx-play text-black text-2xl ml-0.5'></i>
+                </div>
+            </div>
+        </div>
+        <div class="mt-2 w-full">
+            <h3 class="text-sm font-semibold text-white truncate">${item.title || item.name || item.album}</h3>
+            <p class="text-gray-400 text-xs truncate">${item.artistName || 'Tune'}</p>
+        </div>
+    `;
+    div.onclick = () => {
+        if (item.type === 'track' && window.playTrackGlobal) {
+            window.playTrackGlobal(item);
+        } else {
+            // Se for álbum ou playlist, abre o conteúdo
+            loadContent(item.type, item.id);
+        }
+    };
+    return div;
+}
+
+// Substitua pelo ID do álbum que você quer destacar
+const ALBUM_DESTAQUE_ID = "aRgEsbWTutMb6Vxd9s8y"; 
+
+async function loadBannerAlbum() {
+    const banner = document.getElementById('new-release-banner');
+    const coverImg = document.getElementById('banner-cover');
+    
+    if (!banner || !coverImg) return;
+
+    try {
+        const albumRef = doc(db, "albuns", ALBUM_DESTAQUE_ID);
+        const albumSnap = await getDoc(albumRef);
+
+        if (albumSnap.exists()) {
+            const albumData = albumSnap.data();
+            
+            // 1. Preenche os textos
+            document.getElementById('banner-title').textContent = albumData.album;
+            document.getElementById('banner-artist-name').textContent = albumData.artist;
+            
+
+            // 2. Configura a imagem para extração de cor (CORS)
+            // IMPORTANTE: Definir Anonymous ANTES do src
+            coverImg.crossOrigin = "Anonymous";
+            
+            // Função que extrai a cor
+            const extrairCor = () => {
+                try {
+                    const colorThief = new ColorThief();
+                    const color = colorThief.getColor(coverImg);
+                    const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                    banner.style.background = `linear-gradient(135deg, ${rgb} 0%, #121212 100%)`;
+                } catch (e) {
+                    console.warn("CORS bloqueou a extração de cor ou imagem inválida.");
+                    // Fallback: cor padrão caso falhe
+                    banner.style.background = `linear-gradient(135deg, #282828 0%, #121212 100%)`;
+                }
+            };
+
+            banner.classList.add('loaded');
+            
+
+            // Se a imagem já estiver no cache, o onload não dispara, então verificamos 'complete'
+            if (coverImg.complete) {
+                extrairCor();
+            } else {
+                coverImg.onload = extrairCor;
+            }
+
+            coverImg.src = albumData.cover;
+
+            // 3. Busca foto do artista
+            if (albumData.uidars) {
+                const artistRef = doc(db, "usuarios", albumData.uidars);
+                const artistSnap = await getDoc(artistRef);
+                if (artistSnap.exists()) {
+                    document.getElementById('banner-artist-img').src = artistSnap.data().foto || "/assets/default-artist.png";
+                }
+            }
+
+            // 4. Ação de Clique
+            banner.onclick = (e) => {
+                if (e.target.closest('.action-btn')) return;
+                if (typeof loadContent === 'function') {
+                    loadContent('album', ALBUM_DESTAQUE_ID);
+                }
+            };
+
+            banner.style.display = 'block';
+        }
+    } catch (error) {
+        console.error("Erro ao carregar banner:", error);
+    }
+}
+
+
 
 
 
@@ -2909,8 +3106,10 @@ setupAnittaSection(anittaIds[randomIndex]);
     fetchAndRenderNewSingles();
     checkAuthAndLoadLikedItems();
     loadSertanejoSection();
+    setupForroGenreSection();
     setGreeting();
     carregarTopAlbuns();
+    loadBannerAlbum();
 }
 
 // --- Inicialização da Aplicação ---
