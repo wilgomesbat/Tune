@@ -2688,6 +2688,84 @@ function setGreeting() {
     greetingElement.textContent = greetingText;
 }
 
+async function fetchAndRenderNewSingles() {
+    const listContainer = document.getElementById('new-singles-list');
+    if (!listContainer) return;
+
+    try {
+        const musicasRef = collection(db, "musicas");
+        // Busca apenas singles, ordenados pelo timestamp mais recente
+        const q = query(
+            musicasRef, 
+            where("single", "==", "true"), 
+            orderBy("timestamp", "desc"), 
+            limit(12)
+        );
+
+        const querySnapshot = await getDocs(q);
+        listContainer.innerHTML = ''; // Limpa skeletons
+
+        if (querySnapshot.empty) {
+            listContainer.innerHTML = '<p class="text-gray-500 p-4">Nenhuma música nova encontrada.</p>';
+            return;
+        }
+
+        querySnapshot.forEach(docSnap => {
+            const track = { id: docSnap.id, ...docSnap.data() };
+            
+            // Criar o card (usando a lógica de estilo dos álbuns)
+            const card = document.createElement('div');
+            card.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4 group';
+            
+            card.innerHTML = `
+                <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg">
+                    <img src="${track.cover || track.albumCover || './assets/default-cover.png'}" 
+                         class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 group-hover:scale-105">
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="w-10 h-10 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl">
+                            <i class='bx bx-play text-black text-2xl ml-0.5'></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2 w-full">
+                    <h3 class="text-sm font-semibold text-white truncate">${track.title}</h3>
+                    <p class="text-gray-400 text-xs truncate">${track.artistName || 'Artista'}</p>
+                </div>
+            `;
+
+            // Ao clicar, toca a música
+            card.onclick = () => {
+                if (window.playTrackGlobal) {
+                    window.playTrackGlobal(track);
+                }
+            };
+
+            listContainer.appendChild(card);
+        });
+
+        // Configurar botões de scroll
+        setupScrollButtons('singles-home-scroll-left', 'singles-home-scroll-right', 'new-singles-list');
+
+    } catch (error) {
+        console.error("Erro ao carregar novas músicas:", error);
+        listContainer.innerHTML = '<p class="text-red-500">Erro ao carregar.</p>';
+    }
+}
+
+// Função auxiliar para os botões de scroll (caso você não tenha uma genérica)
+function setupScrollButtons(leftBtnId, rightBtnId, containerId) {
+    const leftBtn = document.getElementById(leftBtnId);
+    const rightBtn = document.getElementById(rightBtnId);
+    const container = document.getElementById(containerId);
+
+    if (leftBtn && rightBtn && container) {
+        leftBtn.onclick = () => container.scrollBy({ left: -300, behavior: 'smooth' });
+        rightBtn.onclick = () => container.scrollBy({ left: 300, behavior: 'smooth' });
+    }
+}
+
+
+
 /**
  * Carrega playlists da categoria "Playlist Genres"
  */
@@ -2775,6 +2853,7 @@ const randomIndex = Math.floor(Math.random() * anittaIds.length);
 // Executa a função com o ID sorteado
 setupAnittaSection(anittaIds[randomIndex]);
     loadMyLikedItems();
+    fetchAndRenderNewSingles();
     checkAuthAndLoadLikedItems();
     loadSertanejoSection();
     setGreeting();
