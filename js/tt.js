@@ -1652,6 +1652,73 @@ async function setupAddSinglePage() {
     });
 }
 
+async function setupLogsPage() {
+    const logsContainer = document.getElementById('logs-container');
+    if (!logsContainer) return;
+
+    console.log("Monitorando logs e buscando apelidos...");
+    logsContainer.innerHTML = '<p class="text-gray-500 p-4 text-center">Carregando atividades...</p>';
+
+    const logsRef = collection(db, "logs");
+    const q = query(logsRef, orderBy("timestamp", "desc"), limit(50));
+
+    // Escuta os logs
+    onSnapshot(q, (snapshot) => {
+        logsContainer.innerHTML = ''; 
+        
+        snapshot.forEach(async (docSnap) => {
+            const log = docSnap.data();
+            const logId = docSnap.id;
+            
+            // Criamos o elemento do log imediatamente com um "Carregando..." no nome
+            const logItem = document.createElement('div');
+            logItem.id = `log-${logId}`;
+            logItem.className = "flex items-center justify-between p-3 mb-2 bg-[#121212] rounded border-l-4 " + 
+                                (log.type === 'Música' ? 'border-green-500' : 'border-blue-500');
+
+            // Formatação da hora
+            const timestamp = log.timestamp?.seconds ? new Date(log.timestamp.seconds * 1000) : new Date();
+            const hora = timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            // HTML Inicial
+            logItem.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">${log.type === 'Música' ? '🎵' : '💿'}</span>
+                    <div>
+                        <p class="text-white text-sm font-bold user-name-field">Buscando apelido...</p>
+                        <p class="text-gray-400 text-xs">Clicou em: <b class="text-gray-200">${log.itemTitle}</b></p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] text-gray-600 font-mono mb-1">${log.userId || 'sem-id'}</p>
+                    <span class="text-xs text-gray-500 font-mono">${hora}</span>
+                </div>
+            `;
+            logsContainer.appendChild(logItem);
+
+            // --- BUSCA O APELIDO PELA CHAVE UID ---
+            if (log.userId && log.userId !== "deslogado") {
+                try {
+                    const userRef = doc(db, "usuarios", log.userId);
+                    const userSnap = await getDoc(userRef);
+                    
+                    const nameField = logItem.querySelector('.user-name-field');
+                    if (userSnap.exists() && userSnap.data().apelido) {
+                        nameField.textContent = userSnap.data().apelido;
+                    } else {
+                        // Se não achar apelido, usa o nome que foi gravado no log originalmente
+                        nameField.textContent = log.userName || "Usuário desconhecido";
+                    }
+                } catch (err) {
+                    console.error("Erro ao buscar apelido:", err);
+                }
+            } else {
+                logItem.querySelector('.user-name-field').textContent = "Visitante";
+            }
+        });
+    });
+}
+
 // ============================================
 // ⭐ SETUP DA PÁGINA addmusic (VERSÃO COMPLETA E CORRIGIDA) ⭐
 // ============================================
@@ -1983,6 +2050,8 @@ async function loadContent(pageName) {
             setupAddMusicPage();
         } else if (pageName === 'addsingle') {
             setupAddSinglePage();
+        } else if (pageName === 'logs') {
+            setupLogsPage();
         }
         
         window.history.pushState({ page: pageName }, '', `?page=${pageName}`);

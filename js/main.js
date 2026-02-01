@@ -664,49 +664,54 @@ async function renderTracksSpotifyStyle(tracks, playlist) {
             const trackId = track.id; 
             if (!trackId) continue;
 
-            const isExplicit = track.explicit === true;
             const coverUrl = track.cover || playlist.cover || './assets/default-cover.png';
             
-         // Garanta que trackRow receba a classe .track-item
-const trackRow = document.createElement("div");
-trackRow.className = "track-item group hover:bg-white/10";
+            const trackRow = document.createElement("div");
+            trackRow.className = "track-item group hover:bg-white/10";
 
-trackRow.innerHTML = `
-    <div class="text-gray-500 text-sm text-center font-reg">
-        ${index + 1}
-    </div>
+            trackRow.innerHTML = `
+                <div class="text-gray-500 text-sm text-center font-reg">
+                    ${index + 1}
+                </div>
+                <img src="${coverUrl}" class="w-12 h-12 rounded object-cover">
+                <div class="track-info-container">
+                    <span class="text-white text-base font-bold" style="font-family: 'Nationale Bold';">
+                        ${track.title || 'Sem título'}
+                    </span>
+                    <div class="text-gray-400 text-xs artist-name-field" style="font-family: 'Nationale Regular';">
+                        ${track.artistName || 'Carregando...'}
+                    </div>
+                </div>
+                <div class="text-gray-400 text-xs text-right font-mono">
+                    ${track.duration || '--:--'}
+                </div>
+            `;
 
-    <img src="${coverUrl}" class="w-12 h-12 rounded object-cover">
-
-    <div class="track-info-container">
-        <span class="text-white text-base font-bold" style="font-family: 'Nationale Bold';">
-            ${track.title || 'Sem título'}
-        </span>
-        <div class="text-gray-400 text-xs artist-name-field" style="font-family: 'Nationale Regular';">
-            ${track.artistName || 'Carregando...'}
-        </div>
-    </div>
-
-    <div class="text-gray-400 text-xs text-right font-mono">
-        ${track.duration || '--:--'}
-    </div>
-`;
-            // Busca o nome do artista usando a chave nomeArtistico
             getArtistName(track.artist).then(name => {
                 const nameField = trackRow.querySelector('.artist-name-field');
                 if (nameField) nameField.textContent = name;
             });
 
-           // Localize esta parte na função renderTracksSpotifyStyle:
-trackRow.addEventListener("click", (e) => {
-    if (e.target.closest('.track-like-button')) return;
-    
-    // 1. Incrementa os streams (o seu boost de 1M)
-    checkAndResetMonthlyStreams(track.id); 
-    
-    // 2. Toca a música
-    if (window.playTrackGlobal) window.playTrackGlobal(track);
-});
+            // --- CONFIGURAÇÃO DE CLIQUE E LOG ---
+            trackRow.addEventListener("click", (e) => {
+                if (e.target.closest('.track-like-button')) return;
+
+                // ⭐ 1. REGISTRA O LOG DE MÚSICA
+                if (typeof registrarLog === 'function') {
+                    // Passamos o título da música e o tipo para o seu sistema de logs
+                    registrarLog(track.title || "Sem título", "Música");
+                }
+                
+                // 2. Incrementa os streams
+                if (typeof checkAndResetMonthlyStreams === 'function') {
+                    checkAndResetMonthlyStreams(track.id); 
+                }
+                
+                // 3. Toca a música
+                if (window.playTrackGlobal) {
+                    window.playTrackGlobal(track);
+                }
+            });
 
             listWrapper.appendChild(trackRow);
 
@@ -716,8 +721,6 @@ trackRow.addEventListener("click", (e) => {
     }
     tracksContainer.appendChild(listWrapper);
 }
-
-
 
 // Função para iniciar a contagem regressiva
 function startCountdown(releaseDateString, coverUrl) {
@@ -1194,12 +1197,10 @@ function formatNumber(num) {
     // Formata o número com separadores de milhar (ex: 1.234.567)
     return num.toLocaleString('pt-BR');
 }
-
 function renderTop5Tracks(tracks, containerId) {
     const tracksContainer = document.getElementById(containerId);
     if (!tracksContainer) return;
 
-    // Título alinhado com o padding da página
     tracksContainer.innerHTML = `
         <h2 class="text-2xl font-bold mb-4 text-white px-2" style="font-family: 'Nationale Bold';">Populares</h2>
         <div id="top-tracks-list" class="flex flex-col w-full"></div>
@@ -1209,8 +1210,6 @@ function renderTop5Tracks(tracks, containerId) {
     
     tracks.forEach((track, index) => {
         const trackRow = document.createElement("div");
-        
-        // Adicionamos px-2 para alinhar o conteúdo interno com o título acima
         trackRow.className = "track-item group hover:bg-white/10 transition duration-200 cursor-pointer rounded-md px-2";
 
         const streamsFormatted = formatNumber(track.streams || 0);
@@ -1239,6 +1238,27 @@ function renderTop5Tracks(tracks, containerId) {
                 </button>
             </div>
         `;
+
+        // --- LÓGICA DE CLIQUE (LOGS + PLAYER + STREAMS) ---
+        trackRow.addEventListener("click", () => {
+            
+            // 1. REGISTRA O LOG NO FIRESTORE
+            // Enviamos o título e o nome do artista para o log ficar completo
+            if (typeof registrarLog === 'function') {
+                const identificadorMusica = track.artistName ? `${track.title} - ${track.artistName}` : track.title;
+                registrarLog(identificadorMusica, "Música (Populares)");
+            }
+
+            // 2. TOCA A MÚSICA NO PLAYER GLOBAL
+            if (window.playTrackGlobal) {
+                window.playTrackGlobal(track);
+            }
+            
+            // 3. INCREMENTA STREAMS (BOOST)
+            if (typeof checkAndResetMonthlyStreams === 'function') {
+                checkAndResetMonthlyStreams(track.id);
+            }
+        });
         
         listContainer.appendChild(trackRow);
     });
@@ -1702,6 +1722,26 @@ function createAlbumCard(album, albumId) {
         </div>
     `;
     return albumCard;
+}
+
+async function registrarLog(itemTitle, type) {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const db = getFirestore();
+
+    const logData = {
+        userName: user ? (user.displayName || "Usuário sem nome") : "Anônimo",
+        userId: user ? user.uid : "deslogado",
+        itemTitle: itemTitle,
+        type: type,
+        timestamp: new Date() // Ou serverTimestamp() do firebase
+    };
+
+    try {
+        await addDoc(collection(db, "logs"), logData);
+    } catch (e) {
+        console.error("Erro ao salvar log: ", e);
+    }
 }
 
 

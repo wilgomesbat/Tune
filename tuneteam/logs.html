@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs de Atividade - Tune</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <style>
+        body { background-color: #000; color: white; font-family: 'Inter', sans-serif; }
+        .log-card { background: #121212; border-left: 4px solid #1ed760; transition: 0.3s; }
+        .log-card:hover { background: #181818; }
+        .type-music { color: #1ed760; }
+        .type-album { color: #3d91ff; }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
+            <div>
+                <h1 class="text-3xl font-black uppercase tracking-tighter">Logs do Sistema</h1>
+                <p class="text-gray-400 text-sm">Monitoramento de cliques em tempo real</p>
+            </div>
+            <i class='bx bx-history text-4xl text-[#1ed760]'></i>
+        </header>
+
+        <div id="logs-container" class="space-y-3">
+            <div class="text-center py-10 text-gray-500">Aguardando atividades...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+        import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+        // Use a MESMA configuração que você já tem no main.js
+        const firebaseConfig = {
+            apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
+            authDomain: "tune-8cafb.firebaseapp.com",
+            projectId: "tune-8cafb",
+            storageBucket: "tune-8cafb.appspot.com",
+            messagingSenderId: "599729070480",
+            appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const logsContainer = document.getElementById('logs-container');
+
+        // Escuta em tempo real (onSnapshot)
+        const q = query(collection(db, "logs"), orderBy("timestamp", "desc"), limit(50));
+
+        onSnapshot(q, (snapshot) => {
+            logsContainer.innerHTML = '';
+            
+            snapshot.forEach((doc) => {
+                const log = doc.data();
+                const time = log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString() : '--:--';
+                const date = log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleDateString() : '';
+
+                const div = document.createElement('div');
+                div.className = 'log-card p-4 rounded-r-lg flex justify-between items-center shadow-lg';
+                
+                const icon = log.type === 'Música' ? 'bx-music' : 'bx-disc';
+                const colorClass = log.type === 'Música' ? 'type-music' : 'type-album';
+
+                div.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                            <i class='bx ${icon} text-xl ${colorClass}'></i>
+                        </div>
+                        <div>
+                            <p class="text-white font-bold">
+                                <span class="text-gray-400 font-normal">Usuário:</span> ${log.userName}
+                            </p>
+                            <p class="text-sm text-gray-400">
+                                Clicou em <span class="text-white">${log.itemTitle}</span> (${log.type})
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[#1ed760] font-mono text-sm">${time}</p>
+                        <p class="text-gray-600 text-[10px] uppercase">${date}</p>
+                    </div>
+                `;
+                logsContainer.appendChild(div);
+            });
+        });
+    </script>
+</body>
+</html>
