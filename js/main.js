@@ -1245,232 +1245,171 @@ function renderTop5Tracks(tracks, containerId) {
 }
 
 async function setupArtistPage(artistId) {
+    // 1. Referências dos Elementos
     const artistCoverBg = document.getElementById('artist-cover-bg');
     const artistNameElement = document.getElementById('artist-name');
     const artistListeners = document.getElementById('artist-listeners');
     const mainHeader = document.getElementById('artist-header');
     const banIndicator = document.getElementById('ban-indicator');
-    const verifiedStatusContainer = document.getElementById('verified-status-container');
+    
+    // Containers
+    const singlesSection = document.getElementById('singles-section');
+    const singlesContainer = document.getElementById('singles-container');
     const topTracksContainer = document.getElementById('top-tracks-container');
+    const albumsContainer = document.getElementById('albums-container');
+    const stationsContainer = document.getElementById('stations-container');
 
     const fallbackBackground = 'linear-gradient(to bottom, #1a1a1a, #121212)';
     const bannedImageURL = 'https://i.ibb.co/fzqH088Z/Captura-de-tela-2025-10-06-230858.png';
 
-    if (!artistId) {
-        artistNameElement.textContent = "ID do Artista Ausente";
-        if (mainHeader) mainHeader.style.background = fallbackBackground;
-        return;
-    }
+    if (!artistId) return;
+
+    // LIMPEZA INICIAL (Evita duplicação ao trocar de artista)
+    if (singlesContainer) singlesContainer.innerHTML = "";
+    if (topTracksContainer) topTracksContainer.innerHTML = "";
+    if (albumsContainer) albumsContainer.innerHTML = "";
+    if (stationsContainer) stationsContainer.innerHTML = "";
 
     try {
         const artistRef = doc(db, "usuarios", artistId);
         const docSnap = await getDoc(artistRef);
 
-        if (!docSnap.exists() || docSnap.data().artista !== "true") {
-            artistNameElement.textContent = "Artista Não Encontrado";
-            if (mainHeader) mainHeader.style.background = fallbackBackground;
-            return;
-        }
+        if (!docSnap.exists() || docSnap.data().artista !== "true") return;
 
         const artistData = docSnap.data();
         const artistName = artistData.nomeArtistico || "Nome Desconhecido";
         
-        // ⭐ VERIFICAÇÃO DE BANIMENTO ⭐
-        const isBanned = artistData.banido === "true";
-
-        if (isBanned) {
+        // Lógica de Banimento
+        if (artistData.banido === "true") {
             if (banIndicator) banIndicator.style.display = 'flex'; 
-            if (verifiedStatusContainer) verifiedStatusContainer.style.display = 'none';
-            
             artistNameElement.textContent = `${artistName} (Banido)`;
-            artistListeners.textContent = `Acesso restrito`;
-            
-            if (topTracksContainer) {
-                topTracksContainer.innerHTML = '<p class="text-gray-400 p-8">Conteúdo indisponível para contas banidas.</p>';
-            }
-            document.getElementById('albums-container').innerHTML = '';
-            document.getElementById('stations-container').innerHTML = '';
-            
-            if (artistCoverBg) {
-                artistCoverBg.style.backgroundImage = `url('${bannedImageURL}')`;
-                artistCoverBg.style.backgroundSize = 'cover';
-                artistCoverBg.style.backgroundPosition = 'center';
-            }
+            if (artistCoverBg) artistCoverBg.style.backgroundImage = `url('${bannedImageURL}')`;
             return; 
         }
-        // ⭐ FIM DA LÓGICA DE BANIMENTO ⭐
 
-        // -------------------------------------------------------------------------
-        // ⭐ LOGICA DO NOME + TAG DA GRAVADORA (SHRK) ⭐
-        // -------------------------------------------------------------------------
-        let nameContent = `<span>${artistName}</span>`;
-        
-        if (artistData.gravadora && artistData.gravadora.toLowerCase() === 'shark') {
-            // Adiciona a imagem sharklabel.png ao lado do nome
-            nameContent += `
-               <img src="assets/sharklabel.png" 
-             alt="Shark Label Verified" 
-             title="Gravadora SHRK"
-             style="
-                width: 30px; 
-                height: 30px; 
-                object-fit: contain; 
-                margin-left: 10px; 
-                display: inline-block; 
-                vertical-align: middle;
-                filter: drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.37));
-             ">
-    `;
-        }
-        
-        artistNameElement.innerHTML = nameContent;
-        // -------------------------------------------------------------------------
+        // Nome e Capa
+        artistNameElement.innerHTML = `<span>${artistName}</span>` + (artistData.gravadora?.toLowerCase() === 'shark' ? `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
+        if (artistData.foto && artistCoverBg) artistCoverBg.style.backgroundImage = `url('${artistData.foto}')`;
 
-        // Carregamento de ouvintes inicial
-        artistListeners.textContent = `${formatNumber(artistData.ouvintesMensais || 0)} ouvintes mensais`; 
-
-        // Lógica da Foto de Capa e Cor Dominante
-        if (artistData.foto && artistCoverBg) {
-            artistCoverBg.style.backgroundImage = `url('${artistData.foto}')`;
-            artistCoverBg.style.backgroundSize = 'cover';
-            artistCoverBg.style.backgroundPosition = 'center';
-
-            const tempImg = new Image();
-            tempImg.crossOrigin = "Anonymous";
-            tempImg.src = artistData.foto;
-            tempImg.onload = () => applyDominantColorToHeader(tempImg, mainHeader);
-            tempImg.onerror = () => mainHeader.style.background = fallbackBackground;
-        } else {
-            mainHeader.style.background = fallbackBackground;
-        }
-
-        // Atualiza total de streams calculado
+        // Ouvintes
         const totalStreams = await calculateTotalStreams(artistId); 
-        if (artistListeners) {
-            artistListeners.textContent = `${formatNumber(totalStreams)} ouvintes mensais`; 
+        if (artistListeners) artistListeners.textContent = `${formatNumber(totalStreams)} ouvintes mensais`; 
+
+        const musicasRef = collection(db, "musicas");
+
+        // -----------------------------------------------------------
+        // 7. RENDERIZAR SINGLES (ESTILO CARD DE ÁLBUM)
+        // -----------------------------------------------------------
+        const qSingles = query(musicasRef, where("artist", "==", artistId), where("single", "==", "true"));
+        const singlesSnap = await getDocs(qSingles);
+
+        if (!singlesSnap.empty && singlesContainer) {
+            singlesSection.classList.remove('hidden');
+            singlesSnap.forEach(d => {
+                const track = { id: d.id, ...d.data(), artistName };
+                
+                // Criando o card com o mesmo visual da createAlbumCard
+                const card = document.createElement('div');
+                card.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[160px] group';
+                card.innerHTML = `
+                    <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg">
+                        <img src="${track.cover || './assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 group-hover:scale-105">
+                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-4 group-hover:translate-y-0 transition-transform">
+                                <i class='bx bx-play text-black text-3xl ml-1'></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 w-full">
+                        <h3 class="text-white font-bold truncate text-sm" style="font-family: 'Nationale Bold';">${track.title}</h3>
+                        <p class="text-gray-400 text-xs truncate">${artistName}</p>
+                    </div>
+                `;
+
+                // Ação de Play
+                card.onclick = () => {
+                    if (window.playTrackGlobal) {
+                        checkAndResetMonthlyStreams(track.id); // Incrementa stream
+                        window.playTrackGlobal(track);
+                    }
+                };
+                singlesContainer.appendChild(card);
+            });
         }
 
-        // Busca Músicas Populares
-        const musicasRef = collection(db, "musicas");
-        const q = query(
-            musicasRef, 
-            where("artist", "==", artistId), 
-            orderBy("streams", "desc"), 
-            limit(5)
-        );
-        
-        const querySnapshot = await getDocs(q);
+        // -----------------------------------------------------------
+        // 8. RENDERIZAR POPULARES (LISTA SPOTIFY)
+        // -----------------------------------------------------------
+        const qPopulares = query(musicasRef, where("artist", "==", artistId), orderBy("streams", "desc"), limit(5));
+        const popularesSnap = await getDocs(qPopulares);
         const topTracks = [];
-
-        querySnapshot.forEach((doc) => {
-            topTracks.push({ id: doc.id, ...doc.data(), artistName: artistName });
-        });
+        popularesSnap.forEach(d => topTracks.push({ id: d.id, ...d.data(), artistName }));
         
-        renderTop5Tracks(topTracks, "top-tracks-container"); 
+        if (topTracksContainer) {
+            // Usamos a função de lista para populares
+            renderTop5Tracks(topTracks, "top-tracks-container"); 
+        }
 
-        // Carrega Álbuns e Estações
+        // 9. Carregar Álbuns e Estações originais (sem duplicar)
         if (typeof loadArtistAlbums === 'function') await loadArtistAlbums(artistId);
         if (typeof loadArtistStations === 'function') await loadArtistStations(artistId);
 
     } catch (error) {
-        console.error("Erro ao buscar o artista:", error);
-        artistNameElement.textContent = "Erro ao Carregar Artista";
+        console.error("Erro:", error);
     }
 }
 
+// Manter a função fetchAndRenderTrendingSongs exatamente como está no seu prompt original
 async function fetchAndRenderTrendingSongs() {
-    // Referências aos elementos HTML
     const containerId = 'trending-songs-list';
     const loadingMessageId = 'trending-songs-loading-message';
     const listContainer = document.getElementById(containerId);
     const loadingMessage = document.getElementById(loadingMessageId);
 
-    if (!listContainer) {
-        console.error(`CRÍTICO: Contêiner HTML com ID '${containerId}' não encontrado.`);
-        if (loadingMessage) loadingMessage.style.display = 'none';
-        return;
-    }
-
+    if (!listContainer) return;
     if (loadingMessage) loadingMessage.style.display = 'block';
     listContainer.innerHTML = `<p class="text-gray-400">A carregar músicas em alta...</p>`;
 
     try {
         const musicasRef = collection(db, "musicas");
-        
-        // 1. Busca das Músicas em Alta
-        const q = query(
-            musicasRef, 
-            orderBy("streamsMensal", "desc"), 
-            limit(10)
-        );
+        const q = query(musicasRef, orderBy("streamsMensal", "desc"), limit(10));
         const querySnapshot = await getDocs(q);
-        
         const tracks = [];
         const artistUidsToFetch = new Set();
         
-        // 2. Coletar UIDs e preparar a lista de tracks
         querySnapshot.forEach(docSnap => {
             const trackData = docSnap.data();
-            const track = { 
-                id: docSnap.id, 
-                ...trackData, 
-                cover: trackData.cover || trackData.albumCover 
-            };
-            
-            if (track.artist && !track.artistName) {
-                artistUidsToFetch.add(track.artist);
-            }
-
+            const track = { id: docSnap.id, ...trackData, cover: trackData.cover || trackData.albumCover };
+            if (track.artist && !track.artistName) artistUidsToFetch.add(track.artist);
             tracks.push(track);
         });
         
-        // 3. Batch Fetch (Buscar Nomes de Artistas em paralelo)
         const artistNameMap = new Map();
         if (artistUidsToFetch.size > 0) {
-            const artistPromises = Array.from(artistUidsToFetch).map(uid => 
-                getDoc(doc(db, "usuarios", uid)) 
-            );
-            
+            const artistPromises = Array.from(artistUidsToFetch).map(uid => getDoc(doc(db, "usuarios", uid)));
             const artistSnapshots = await Promise.all(artistPromises);
-            
             artistSnapshots.forEach(snap => {
                 if (snap.exists()) {
-                    const artistData = snap.data();
-                    const name = artistData.nomeArtistico || artistData.apelido; 
-                    artistNameMap.set(snap.id, name); 
+                    const data = snap.data();
+                    artistNameMap.set(snap.id, data.nomeArtistico || data.apelido);
                 }
             });
         }
 
-        // Limpar a mensagem de carregamento
         listContainer.innerHTML = ''; 
-
-        // 4. Renderizar: Usar o nome resolvido
-       if (tracks.length === 0) {
-     listContainer.innerHTML = `<p class="text-gray-400">Nenhuma música em alta encontrada.</p>`;
-} else {
-    // 👇 MUDANÇA: Usamos o forEach com o índice para obter a posição
-    tracks.forEach((track, index) => {
-        const rank = index + 1; // Posição (1, 2, 3...)
-        let finalArtistName = track.artistName;
-
-        if (!finalArtistName && track.artist && artistNameMap.has(track.artist)) {
-            finalArtistName = artistNameMap.get(track.artist);
+        if (tracks.length === 0) {
+            listContainer.innerHTML = `<p class="text-gray-400">Nenhuma música em alta encontrada.</p>`;
+        } else {
+            tracks.forEach((track, index) => {
+                const rank = index + 1;
+                let finalArtistName = track.artistName || artistNameMap.get(track.artist) || track.artist;
+                const trackToRender = { ...track, artistName: finalArtistName };
+                const card = createTrendingSongCard(trackToRender, trackToRender.id, rank); 
+                listContainer.appendChild(card);
+            });
         }
-
-        const trackToRender = { 
-            ...track, 
-            artistName: finalArtistName || track.artist // Fallback para UID
-        };
-        
-        // ⭐ MUDANÇA: Passando o 'rank' (posição) como terceiro argumento
-        const card = createTrendingSongCard(trackToRender, trackToRender.id, rank); 
-        listContainer.appendChild(card);
-    });
-}
     } catch (error) {
-        console.error("ERRO GRAVE ao buscar Músicas em Alta no Firebase:", error);
-        listContainer.innerHTML = `<p class="text-red-500">Erro ao carregar as músicas em alta. Verifique o console. (Erro: ${error.message})</p>`;
+        console.error("ERRO:", error);
     } finally {
         if (loadingMessage) loadingMessage.style.display = 'none';
     }

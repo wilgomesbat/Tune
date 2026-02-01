@@ -1586,6 +1586,71 @@ function setupEditAlbumsPage() {
     // Inicia o carregamento dos álbuns
     fetchAlbums();
 }
+// Adicione esta função ao seu arquivo tt.js
+async function setupAddSinglePage() {
+    const singleForm = document.getElementById('singleMusicForm');
+    if (!singleForm) return;
+
+    singleForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const btn = document.getElementById('btnSubmitSingle');
+        const statusMsg = document.getElementById('singleStatus');
+
+        // Impede cliques duplos
+        btn.disabled = true;
+        btn.innerText = "ENVIANDO AO FIRESTORE...";
+
+        // Captura dos valores
+        const title = document.getElementById('sTitle').value;
+        const artistUid = document.getElementById('sArtistUid').value; // O UID do artista
+
+        const singleData = {
+            title: title,
+            artist: artistUid, // IMPORTANTE: Para a busca na página do artista funcionar
+            artistName: document.getElementById('sArtistName').value, 
+            audioURL: document.getElementById('sAudioURL').value,
+            cover: document.getElementById('sCoverURL').value,
+            genre: document.getElementById('sGenre').value || "Indefinido",
+            duration: document.getElementById('sDuration').value || "0:00",
+            explicit: document.getElementById('sExplicit').checked ? "true" : "false",
+            
+            // Chaves para a lógica que criamos na página do artista
+            single: "true", 
+            album: "Single",
+            streams: 0,
+            streamsMensal: 0,
+            timestamp: serverTimestamp() // Recomendado usar o timestamp do Firebase
+        };
+
+        try {
+            // EFETUANDO O ENVIO REAL (Importe o addDoc e collection no topo do tt.js)
+            const musicasRef = collection(db, "musicas");
+            await addDoc(musicasRef, singleData);
+
+            console.log("✅ Single enviado com sucesso:", singleData);
+
+            // Feedback Visual de Sucesso
+            statusMsg.innerHTML = `
+                <div class="bg-green-900/30 border border-green-500 p-4 rounded-lg text-center">
+                    <p class="text-green-500 font-bold text-lg">✅ Lançamento Concluído!</p>
+                    <p class="text-gray-300 text-sm">O single "${title}" já está disponível.</p>
+                </div>
+            `;
+            statusMsg.classList.remove('hidden');
+            
+            singleForm.reset();
+
+        } catch (error) {
+            console.error("Erro ao salvar no Firestore:", error);
+            statusMsg.innerHTML = `<p class="text-red-500 font-bold bg-red-900/20 p-3 rounded">❌ Erro ao enviar: ${error.message}</p>`;
+            statusMsg.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "LANÇAR SINGLE AGORA";
+        }
+    });
+}
 
 // ============================================
 // ⭐ SETUP DA PÁGINA addmusic (VERSÃO COMPLETA E CORRIGIDA) ⭐
@@ -1916,6 +1981,8 @@ async function loadContent(pageName) {
             // Você pode chamar outras funções de setup de configurações aqui se houver
         } else if (pageName === 'addmusic') {
             setupAddMusicPage();
+        } else if (pageName === 'addsingle') {
+            setupAddSinglePage();
         }
         
         window.history.pushState({ page: pageName }, '', `?page=${pageName}`);

@@ -1,0 +1,52 @@
+<form id="singleMusicForm" class="space-y-4 max-w-xl mx-auto bg-[#181818] p-8 rounded-xl">
+    <h2 class="text-2xl font-black text-white mb-6">Lançar Novo Single</h2>
+    
+    <div>
+        <label class="text-xs text-gray-400 font-bold uppercase">Título da Música</label>
+        <input type="text" id="sTitle" required class="w-full bg-[#282828] border-none rounded p-3 text-white focus:ring-2 focus:ring-green-500">
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label class="text-xs text-gray-400 font-bold uppercase">Nome do Artista</label>
+            <input type="text" id="sArtistName" required class="w-full bg-[#282828] border-none rounded p-3 text-white">
+        </div>
+        <div>
+            <label class="text-xs text-gray-400 font-bold uppercase">UID do Artista (Firestore)</label>
+            <input type="text" id="sArtistUid" required class="w-full bg-[#282828] border-none rounded p-3 text-white">
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label class="text-xs text-gray-400 font-bold uppercase">URL do Áudio (.mp3)</label>
+            <input type="url" id="sAudioURL" required class="w-full bg-[#282828] border-none rounded p-3 text-white">
+        </div>
+        <div>
+            <label class="text-xs text-gray-400 font-bold uppercase">URL da Capa (Imagem)</label>
+            <input type="url" id="sCoverURL" required class="w-full bg-[#282828] border-none rounded p-3 text-white">
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label class="text-xs text-gray-400 font-bold uppercase">Gênero</label>
+            <input type="text" id="sGenre" placeholder="Ex: Trap" class="w-full bg-[#282828] border-none rounded p-3 text-white">
+        </div>
+        <div>
+            <label class="text-xs text-gray-400 font-bold uppercase">Duração (0:00)</label>
+            <input type="text" id="sDuration" placeholder="3:45" class="w-full bg-[#282828] border-none rounded p-3 text-white">
+        </div>
+    </div>
+
+    <div class="flex items-center gap-2 py-2">
+        <input type="checkbox" id="sExplicit" class="w-5 h-5 accent-green-500">
+        <label for="sExplicit" class="text-white text-sm font-bold uppercase">Conteúdo Explícito</label>
+    </div>
+
+    <button type="submit" id="btnSubmitSingle" class="w-full bg-green-500 hover:bg-green-400 text-black font-black py-4 rounded-full transition-all uppercase tracking-widest">
+        Lançar Single Agora
+    </button>
+
+    <div id="singleStatus" class="mt-4 hidden text-center"></div>
+</form>
