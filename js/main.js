@@ -458,40 +458,83 @@ imgToLoad.onload = () => {
     }
 };
 
-        // 4. Carregamento das Músicas
-        let tracks = [];
-        const automaticTopNames = ["Top 100", "Daily Top 50"];
-        const isAutomaticTop = automaticTopNames.includes(playlist.name) && playlist.category === "Charts";
 
-        // A) Playlists Automáticas (Charts)
-        if (isAutomaticTop) {
-            const limitCount = playlist.name === "Top 100" ? 100 : 50;
-            const musicasRef = collection(db, "musicas");
-            const q = query(musicasRef, orderBy("streamsMensal", "desc"), limit(limitCount));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-        } 
-        // B) Artist Stations
-        else if (playlist.uidars) {
-            const musicasRef = collection(db, "musicas");
-            const q = query(musicasRef, where("artist", "==", playlist.uidars), limit(30));
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-        } 
-        // C) Playlists Manuais
-        else {
-            const playlistMusicasRef = collection(db, `playlists/${playlistId}/musicas`);
-            const snapshotMusicas = await getDocs(playlistMusicasRef);
 
-            if (!snapshotMusicas.empty) {
-                snapshotMusicas.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-            } else if (playlist.track_ids && Array.isArray(playlist.track_ids)) {
-                for (const trackId of playlist.track_ids) {
-                    const snap = await getDoc(doc(db, "musicas", trackId));
-                    if (snap.exists()) tracks.push({ id: snap.id, ...snap.data() });
-                }
-            }
+// 4. Carregamento das Músicas
+let tracks = [];
+const automaticTopNames = ["Top 100", "Daily Top 50"];
+
+// Identifica se é a sua playlist de lançamentos
+const isRecentReleases = 
+    playlist.name === "Novidades da Semana" || 
+    playlist.name === "Novidades" || 
+    playlist.name === "Lançamentos da Semana";
+
+const isAutomaticTop = automaticTopNames.includes(playlist.name) && playlist.category === "Charts";
+
+if (isAutomaticTop) {
+    const limitCount = playlist.name === "Top 100" ? 100 : 50;
+    const musicasRef = collection(db, "musicas");
+    const q = query(musicasRef, orderBy("streamsMensal", "desc"), limit(limitCount));
+    const querySnapshot = await getDocs(q);
+    querySnapshot.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
+} 
+
+else if (isRecentReleases) {
+    const musicasRef = collection(db, "musicas");
+    
+    // Define a janela de tempo (6 dias atrás)
+    const dataLimite = new Date();
+    dataLimite.setDate(dataLimite.getDate() - 3);
+    const dataLimiteISO = dataLimite.toISOString(); 
+
+    try {
+        // Query com limite de 50 resultados
+        const q = query(
+            musicasRef, 
+            where("timestamp", ">=", dataLimiteISO),
+            limit(50)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        tracks = [];
+        querySnapshot.forEach((d) => {
+            tracks.push({ id: d.id, ...d.data() });
+        });
+
+        // Ordena no cliente para garantir que a mais recente (01/02/2026) fique no topo
+        tracks.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+        console.log(`✅ Playlist '${playlist.name}' carregada com ${tracks.length} músicas.`);
+    } catch (e) {
+        console.error("Erro ao carregar novidades:", e);
+    }
+}
+
+// --- C) ARTIST STATIONS ---
+else if (playlist.uidars) {
+    console.log("Carregando via Artist Station...");
+    const musicasRef = collection(db, "musicas");
+    const q = query(musicasRef, where("artist", "==", playlist.uidars), limit(30));
+    const querySnapshot = await getDocs(q);
+    querySnapshot.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
+} 
+
+// --- D) PLAYLISTS MANUAIS ---
+else {
+    console.log("Carregando via Manual/Subcoleção...");
+    const playlistMusicasRef = collection(db, `playlists/${playlistId}/musicas`);
+    const snapshotMusicas = await getDocs(playlistMusicasRef);
+
+    if (!snapshotMusicas.empty) {
+        snapshotMusicas.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
+    } else if (playlist.track_ids && Array.isArray(playlist.track_ids)) {
+        for (const trackId of playlist.track_ids) {
+            const snap = await getDoc(doc(db, "musicas", trackId));
+            if (snap.exists()) tracks.push({ id: snap.id, ...snap.data() });
         }
+    }
+}
 
         // 5. Ordenação (apenas para manuais)
         if (!isAutomaticTop && !playlist.uidars) { 
