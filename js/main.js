@@ -5,6 +5,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebas
 import { getFirestore, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
 // Configuração do Firebase para a sua aplicação web (APENAS ESTA SEÇÃO)
 const firebaseConfig = {
@@ -16,15 +17,63 @@ const firebaseConfig = {
     appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
 };
 
+
+
 // -------------------------------
 // 🔥 Inicialização do Firebase
 // -------------------------------
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+const rtdb = getDatabase(app); // Inicializa o Realtime Database
 
 // UID do usuário atual (apenas referência, sem bloqueio)
 let currentUserUid = null;
+
+controlarFluxoManutencaoFirestore();
+
+function controlarFluxoManutencaoFirestore() {
+    console.log("Iniciando monitor de manutenção via Firestore...");
+
+    // Referência para o documento dentro da coleção 'config' e documento 'status'
+    const manutencaoDocRef = doc(db, 'config', 'status');
+
+    onSnapshot(manutencaoDocRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const dados = snapshot.data();
+            const estaEmManutencao = dados.manutencao; // Pega o campo 'manutencao'
+            
+            console.log("Status Manutenção Firestore:", estaEmManutencao);
+
+            const path = window.location.pathname;
+            const paginaAtual = path.substring(path.lastIndexOf('/') + 1);
+            const tela = document.getElementById('maintenance-screen');
+
+            if (estaEmManutencao === true) {
+                if (paginaAtual !== "main.html" && paginaAtual !== "main") {
+                    window.location.href = "main.html";
+                    return;
+                }
+                if (tela) {
+                    tela.style.display = 'flex';
+                    tela.classList.remove('maintenance-hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            } else {
+                if (tela) {
+                    tela.style.display = 'none';
+                    tela.classList.add('maintenance-hidden');
+                    document.body.style.overflow = '';
+                }
+            }
+        } else {
+            console.warn("⚠️ Documento 'config/status' não encontrado no Firestore!");
+        }
+    }, (error) => {
+        console.error("Erro ao ouvir Firestore:", error);
+    });
+}
+
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -64,6 +113,7 @@ function hideLoadingAndShowContent() {
         loadingOverlay.classList.add('hidden');
     }
 }
+
 
 
 /**
@@ -3152,6 +3202,7 @@ setupAnittaSection(anittaIds[randomIndex]);
     setGreeting();
     carregarTopAlbuns();
     loadBannerAlbum();
+   
 }
 
 // --- Inicialização da Aplicação ---
