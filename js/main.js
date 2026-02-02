@@ -50,8 +50,8 @@ function controlarFluxoManutencaoFirestore() {
             const tela = document.getElementById('maintenance-screen');
 
             if (estaEmManutencao === true) {
-                if (paginaAtual !== "main.html" && paginaAtual !== "main") {
-                    window.location.href = "main.html";
+                if (paginaAtual !== "main" && paginaAtual !== "main") {
+                    window.location.href = "main";
                     return;
                 }
                 if (tela) {
