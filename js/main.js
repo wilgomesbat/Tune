@@ -2,7 +2,7 @@
 
 // Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, Timestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
@@ -73,6 +73,7 @@ function controlarFluxoManutencaoFirestore() {
         console.error("Erro ao ouvir Firestore:", error);
     });
 }
+
 
 
 onAuthStateChanged(auth, (user) => {
@@ -2819,35 +2820,37 @@ function setGreeting() {
 
     greetingElement.textContent = greetingText;
 }
-
 async function fetchAndRenderNewSingles() {
     const listContainer = document.getElementById('new-singles-list');
     if (!listContainer) return;
 
     try {
         const musicasRef = collection(db, "musicas");
+
+        // --- LÓGICA DE TEMPO ---
+        const vinteEQuatroHorasAtras = new Date();
+        vinteEQuatroHorasAtras.setHours(vinteEQuatroHorasAtras.getHours() - 24);
         
-        // 1. A consulta precisa bater com os campos do Firestore
-        // Certifique-se de que o campo 'single' é STRING "true" ou BOOLEAN true no banco
+        // Aqui usamos o objeto Date diretamente ou o Timestamp do Firestore
+        // Se o erro de "Timestamp is not defined" persistir, use: new Date(vinteEQuatroHorasAtras)
+        const dataLimite = Timestamp.fromDate(vinteEQuatroHorasAtras);
+
+        // 1. A consulta
         const q = query(
             musicasRef, 
-            where("single", "==", "true"), 
-            orderBy("timestamp", "desc"), 
+            where("single", "==", "true"), // String "true" conforme seu print
+            where("timestamp", ">=", dataLimite), // Filtra as últimas 24h
+            orderBy("timestamp", "desc"), // Mais recentes primeiro
             limit(12)
         );
 
         const querySnapshot = await getDocs(q);
-listContainer.innerHTML = ''; // Certifique-se de que isso está limpando TUDO mesmo
-
-querySnapshot.forEach(docSnap => {
-    const data = docSnap.data();
-    // Isso vai mostrar a data legível no console para você comparar os segundos
-    const dataFormatada = data.timestamp?.toDate ? data.timestamp.toDate() : "Sem data";
-    
-});
+        listContainer.innerHTML = '';
 
         if (querySnapshot.empty) {
-            listContainer.innerHTML = '<p class="text-gray-500 p-4">Nenhuma música nova encontrada.</p>';
+            // OPCIONAL: Se não houver nada nas últimas 24h, você pode remover o filtro 
+            // de data para não deixar a seção vazia, ou mostrar a mensagem:
+            listContainer.innerHTML = '<p class="text-gray-500 p-4 text-xs">Nenhum lançamento nas últimas 24h.</p>';
             return;
         }
 
@@ -2869,23 +2872,22 @@ querySnapshot.forEach(docSnap => {
                 </div>
                 <div class="mt-2 w-full">
                     <h3 class="text-sm font-semibold text-white truncate">${track.title}</h3>
-                    <p class="text-gray-400 text-xs truncate artist-name-${track.id}">Carregando...</p>
+                    <p class="text-gray-400 text-xs truncate artist-name-${track.id}">${track.artistName || 'Carregando...'}</p>
                 </div>
             `;
 
-            // Busca o apelido do artista para o card
-            getArtistName(track.artist).then(name => {
-                const el = card.querySelector(`.artist-name-${track.id}`);
-                if (el) el.textContent = name;
-            });
+            // Otimização: Você já tem o 'artistName' no banco, não precisa chamar getArtistName se ele existir
+            if (!track.artistName) {
+                getArtistName(track.artist).then(name => {
+                    const el = card.querySelector(`.artist-name-${track.id}`);
+                    if (el) el.textContent = name;
+                });
+            }
 
-            // Ao clicar, toca a música e registra o LOG
             card.onclick = () => {
-                // ⭐ REGISTRO DE LOG
                 if (typeof registrarLog === 'function') {
                     registrarLog(track.title, "Música (Novas)");
                 }
-
                 if (window.playTrackGlobal) {
                     window.playTrackGlobal(track);
                 }
@@ -2897,9 +2899,7 @@ querySnapshot.forEach(docSnap => {
         setupScrollButtons('singles-home-scroll-left', 'singles-home-scroll-right', 'new-singles-list');
 
     } catch (error) {
-        
-        // DICA: Se aparecer um erro de "The query requires an index", 
-        // o console do navegador mostrará um LINK. Clique nele para criar o índice automaticamente.
+        console.error("Erro ao buscar singles:", error);
         listContainer.innerHTML = '<p class="text-red-500 p-4 text-xs">Erro ao carregar singles. Verifique o console.</p>';
     }
 }
