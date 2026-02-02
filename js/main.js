@@ -28,7 +28,7 @@ let currentUserUid = null;
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        console.log("Usuário logado com sucesso:", user.uid);
+
 
         // Salva UID atual
         currentUserUid = user.uid;
@@ -74,11 +74,10 @@ async function populateUserProfile(user) {
     // Imagem de fallback do seu novo HTML
     const DEFAULT_PROFILE_PIC = "./assets/artistpfp.png"; 
     
-    console.log("--- INÍCIO DE POPULATE PROFILE ---");
-
+    
     if (user) {
         const uid = user.uid;
-        console.log(`STATUS: Usuário logado. UID: ${uid}`);
+        
 
         // Variáveis que serão preenchidas
         let nomeArtistico = "Carregando Nome...";
@@ -91,12 +90,12 @@ async function populateUserProfile(user) {
     // 💡 IMPORTANTE: MUDE "users" PARA O NOME EXATO DA SUA COLEÇÃO NO FIRESTORE (EX: "Users", "Perfis", "clientes")
     const collectionPath = "usuarios"; // <-- Corrija o nome desta coleção!
     const userDocRef = doc(db, collectionPath, uid); 
-    console.log(`BUSCA: Tentando buscar documento em: ${collectionPath}/${uid}`);
+    
     
     const userDoc = await getDoc(userDocRef);
     
     if (userDoc.exists()) {
-        console.log("SUCESSO: Documento do Firestore encontrado!");
+        
         const userData = userDoc.data();
         
         // Mapeamento das chaves do Firestore
@@ -105,7 +104,7 @@ async function populateUserProfile(user) {
         apelido = userData.apelido || uid; 
         email = userData.email || user.email;
         
-        console.log(`DADOS OBTIDOS: Nome: ${nomeArtistico}, Foto URL: ${profilePicURL}, Apelido: ${apelido}`);
+       
         
     } else {
         console.log("ALERTA: Documento do Firestore NÃO encontrado. Usando fallbacks.");
@@ -157,7 +156,7 @@ async function populateUserProfile(user) {
     } else {
         console.log("STATUS: Usuário não está logado.");
     }
-    console.log("--- FIM DE POPULATE PROFILE ---\n");
+    
 }
 
 // === SISTEMA DE FILA DE REPRODUÇÃO ===
@@ -2794,7 +2793,7 @@ querySnapshot.forEach(docSnap => {
     const data = docSnap.data();
     // Isso vai mostrar a data legível no console para você comparar os segundos
     const dataFormatada = data.timestamp?.toDate ? data.timestamp.toDate() : "Sem data";
-    console.log(`Música: ${data.title} | Data: ${dataFormatada}`);
+    
 });
 
         if (querySnapshot.empty) {
@@ -2848,7 +2847,7 @@ querySnapshot.forEach(docSnap => {
         setupScrollButtons('singles-home-scroll-left', 'singles-home-scroll-right', 'new-singles-list');
 
     } catch (error) {
-        console.error("Erro ao carregar novas músicas:", error);
+        
         // DICA: Se aparecer um erro de "The query requires an index", 
         // o console do navegador mostrará um LINK. Clique nele para criar o índice automaticamente.
         listContainer.innerHTML = '<p class="text-red-500 p-4 text-xs">Erro ao carregar singles. Verifique o console.</p>';
