@@ -814,31 +814,41 @@ async function renderTracksSpotifyStyle(tracks, playlist) {
     const listWrapper = document.createElement("div");
     listWrapper.className = "flex flex-col w-full space-y-1"; 
 
+    const now = new Date(); // Data de referência para o bloqueio
+
     for (const [index, track] of tracks.entries()) {
         try {
             const trackId = track.id; 
             if (!trackId) continue;
 
+            // 1. Lógica de Agendamento/Bloqueio
+            const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
+                                  ? new Date(track.scheduledTime) : null;
+            const isLocked = scheduledDate && scheduledDate > now;
+
             const coverUrl = track.cover || playlist.cover || './assets/default-cover.png';
             
             const trackRow = document.createElement("div");
-            trackRow.className = "track-item group hover:bg-white/10";
+            
+            // 2. Aplica classes de estilo (Opacidade e desativa eventos se estiver bloqueado)
+            trackRow.className = `track-item group ${isLocked ? 'opacity-30 pointer-events-none grayscale-[0.5]' : 'hover:bg-white/10 cursor-pointer'}`;
 
             trackRow.innerHTML = `
-                <div class="text-gray-500 text-sm text-center font-reg">
-                    ${index + 1}
+                <div class="text-gray-500 text-sm text-center font-reg flex items-center justify-center">
+                    ${isLocked ? "<i class='bx bxs-lock-alt text-xs'></i>" : (index + 1)}
                 </div>
-                <img src="${coverUrl}" class="w-12 h-12 rounded object-cover">
+                <img src="${coverUrl}" class="w-12 h-12 rounded object-cover ${isLocked ? 'brightness-50' : ''}">
                 <div class="track-info-container">
-                    <span class="text-white text-base font-bold" style="font-family: 'Nationale Bold';">
+                    <span class="text-white text-base font-bold flex items-center gap-2" style="font-family: 'Nationale Bold';">
                         ${track.title || 'Sem título'}
+                        ${isLocked ? '<span class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-gray-400 font-normal">EM BREVE</span>' : ''}
                     </span>
                     <div class="text-gray-400 text-sm artist-name-field" style="font-family: 'Nationale Regular';">
                         ${track.artistName || 'Carregando...'}
                     </div>
                 </div>
                 <div class="text-gray-400 text-xs text-right font-mono">
-                    ${track.duration || '--:--'}
+                    ${isLocked ? '--:--' : (track.duration || '--:--')}
                 </div>
             `;
 
@@ -847,26 +857,24 @@ async function renderTracksSpotifyStyle(tracks, playlist) {
                 if (nameField) nameField.textContent = name;
             });
 
-            // --- CONFIGURAÇÃO DE CLIQUE E LOG ---
-            trackRow.addEventListener("click", (e) => {
-                if (e.target.closest('.track-like-button')) return;
+            // 3. Só adiciona o evento de clique se NÃO estiver bloqueado
+            if (!isLocked) {
+                trackRow.addEventListener("click", (e) => {
+                    if (e.target.closest('.track-like-button')) return;
 
-                // ⭐ 1. REGISTRA O LOG DE MÚSICA
-                if (typeof registrarLog === 'function') {
-                    // Passamos o título da música e o tipo para o seu sistema de logs
-                    registrarLog(track.title || "Sem título", "Música");
-                }
-                
-                // 2. Incrementa os streams
-                if (typeof checkAndResetMonthlyStreams === 'function') {
-                    checkAndResetMonthlyStreams(track.id); 
-                }
-                
-                // 3. Toca a música
-                if (window.playTrackGlobal) {
-                    window.playTrackGlobal(track);
-                }
-            });
+                    if (typeof registrarLog === 'function') {
+                        registrarLog(track.title || "Sem título", "Música");
+                    }
+                    
+                    if (typeof checkAndResetMonthlyStreams === 'function') {
+                        checkAndResetMonthlyStreams(track.id); 
+                    }
+                    
+                    if (window.playTrackGlobal) {
+                        window.playTrackGlobal(track);
+                    }
+                });
+            }
 
             listWrapper.appendChild(trackRow);
 
@@ -1459,44 +1467,71 @@ async function setupArtistPage(artistId) {
         const musicasRef = collection(db, "musicas");
 
         // -----------------------------------------------------------
-        // 7. RENDERIZAR SINGLES (ESTILO CARD DE ÁLBUM)
-        // -----------------------------------------------------------
-        const qSingles = query(musicasRef, where("artist", "==", artistId), where("single", "==", "true"));
-        const singlesSnap = await getDocs(qSingles);
+// 7. RENDERIZAR SINGLES (COM TRAVA DE AGENDAMENTO)
+// -----------------------------------------------------------
+const qSingles = query(musicasRef, where("artist", "==", artistId), where("single", "==", "true"));
+const singlesSnap = await getDocs(qSingles);
 
-        if (!singlesSnap.empty && singlesContainer) {
-            singlesSection.classList.remove('hidden');
-            singlesSnap.forEach(d => {
-                const track = { id: d.id, ...d.data(), artistName };
+if (!singlesSnap.empty && singlesContainer) {
+    singlesSection.classList.remove('hidden');
+    
+    const now = new Date(); // Data atual para comparação
+
+    singlesSnap.forEach(d => {
+        const trackData = d.data();
+        const track = { id: d.id, ...trackData, artistName };
+        
+        // Lógica de Bloqueio (Agendamento)
+        const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
+                              ? new Date(track.scheduledTime) : null;
+        const isLocked = scheduledDate && scheduledDate > now;
+
+        // Criando o card
+        const card = document.createElement('div');
+        
+        // Se estiver bloqueado: opacidade baixa, sem eventos de mouse e cursor padrão
+        // Se estiver liberado: cursor pointer e efeitos de group-hover
+        card.className = `flex flex-col items-start text-left flex-shrink-0 w-[160px] transition-all duration-300 
+            ${isLocked ? 'opacity-40 pointer-events-none grayscale-[0.3]' : 'cursor-pointer group'}`;
+
+        card.innerHTML = `
+            <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg bg-[#282828]">
+                <img src="${track.cover || './assets/default-cover.png'}" 
+                     class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 ${!isLocked ? 'group-hover:scale-105' : ''}">
                 
-                // Criando o card com o mesmo visual da createAlbumCard
-                const card = document.createElement('div');
-                card.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[160px] group';
-                card.innerHTML = `
-                    <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg">
-                        <img src="${track.cover || './assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 group-hover:scale-105">
-                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-4 group-hover:translate-y-0 transition-transform">
-                                <i class='bx bx-play text-black text-3xl ml-1'></i>
-                            </div>
+                ${isLocked ? `
+                    <div class="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <i class='bx bxs-lock-alt text-white text-4xl opacity-70'></i>
+                    </div>
+                ` : `
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-4 group-hover:translate-y-0 transition-transform">
+                            <i class='bx bx-play text-black text-3xl ml-1'></i>
                         </div>
                     </div>
-                    <div class="mt-2 w-full">
-                        <h3 class="text-white font-bold truncate text-sm" style="font-family: 'Nationale Bold';">${track.title}</h3>
-                        <p class="text-gray-400 text-sm truncate">${artistName}</p>
-                    </div>
-                `;
+                `}
+            </div>
+            <div class="mt-2 w-full">
+                <h3 class="text-white font-bold truncate text-sm" style="font-family: 'Nationale Bold';">${track.title}</h3>
+                <p class="text-gray-400 text-xs truncate">
+                    ${isLocked ? `<span class="text-orange-400">${scheduledDate.toLocaleDateString()}</span>` : artistName}
+                </p>
+            </div>
+        `;
 
-                // Ação de Play
-                card.onclick = () => {
-                    if (window.playTrackGlobal) {
-                        checkAndResetMonthlyStreams(track.id); // Incrementa stream
-                        window.playTrackGlobal(track);
-                    }
-                };
-                singlesContainer.appendChild(card);
-            });
+        // Ação de Play (Apenas se não estiver bloqueado)
+        if (!isLocked) {
+            card.onclick = () => {
+                if (window.playTrackGlobal) {
+                    checkAndResetMonthlyStreams(track.id);
+                    window.playTrackGlobal(track);
+                }
+            };
         }
+
+        singlesContainer.appendChild(card);
+    });
+}
 
         // -----------------------------------------------------------
         // 8. RENDERIZAR POPULARES (LISTA SPOTIFY)
