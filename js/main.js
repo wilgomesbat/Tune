@@ -950,71 +950,61 @@ countdownContainer.innerHTML = `
     updateCountdown();
     window.countdownInterval = setInterval(updateCountdown, 1000);
 }
+// Objeto global (fora da função) para persistir o estado entre cliques
+const lastClickCache = {};
 
-/**
-/**
- * Verifica e reseta o streamsMensal se um novo mês começou e incrementa o contador.
- * Agora adicionando 1.000.000 de streams por execução.
- * @param {string} musicId O ID do documento da música.
- */
 async function checkAndResetMonthlyStreams(musicId) {
     if (!musicId) return;
+
+    // --- Lógica Anti-Fraude (Rate Limit) ---
+    const now = Date.now();
+    const COOLDOWN_TIME = 5000; // 5 segundos em milissegundos
+
+    if (lastClickCache[musicId] && (now - lastClickCache[musicId] < COOLDOWN_TIME)) {
+        console.warn(`⚠️ Spam detectado para ${musicId}. Ignorando clique excessivo.`);
+        return; // Sai da função sem executar nada no banco de dados
+    }
+
+    // Atualiza o timestamp do último clique permitido
+    lastClickCache[musicId] = now;
+    // ---------------------------------------
 
     try {
         const musicRef = doc(db, "musicas", musicId);
         const docSnap = await getDoc(musicRef);
 
         if (!docSnap.exists()) {
-            console.warn(`Música com ID ${musicId} não encontrada no Firestore.`);
+            console.warn(`Música com ID ${musicId} não encontrada.`);
             return;
         }
 
         const musicData = docSnap.data();
         const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
         
-        // Define o valor do "boost" (1 Milhão)
-        const streamBoost = Math.floor(Math.random() * (50000 - 100000 + 1)) + 100000;
-
-        const lastStreamDate = musicData.lastMonthlyStreamDate 
-            ? musicData.lastMonthlyStreamDate.toDate() 
-            : null;
+        // Sorteio do boost (Corrigi sua lógica de random que estava invertida)
+        const streamBoost = Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000;
 
         let updateData = {};
-        let needsReset = false;
+        const lastStreamDate = musicData.lastMonthlyStreamDate?.toDate();
 
-        if (lastStreamDate) {
-            const lastStreamMonth = lastStreamDate.getMonth();
-            const lastStreamYear = lastStreamDate.getFullYear();
-
-            if (currentYear > lastStreamYear || currentMonth !== lastStreamMonth) {
-                needsReset = true;
-            }
-        } else {
-             needsReset = true;
-        }
+        const needsReset = !lastStreamDate || 
+                           today.getMonth() !== lastStreamDate.getMonth() || 
+                           today.getFullYear() !== lastStreamDate.getFullYear();
 
         if (needsReset) {
-            // Se o mês virou, reseta e já começa com 1 milhão
-            updateData.streamsMensal = streamBoost; 
-            console.log(`📅 Novo mês detectado. Reset Mensal efetuado com +${streamBoost.toLocaleString()} para: ${musicId}`);
+            updateData.streamsMensal = streamBoost;
         } else {
-            // Se for o mesmo mês, incrementa mais 1 milhão ao valor atual
             updateData.streamsMensal = increment(streamBoost);
         }
 
-        // Incrementa sempre o stream geral (Total) em 1 milhão
         updateData.streams = increment(streamBoost);
-        
-        // Atualiza a data do último stream para o controle mensal
         updateData.lastMonthlyStreamDate = today; 
         
         await updateDoc(musicRef, updateData);
-        console.log(`🚀 Sucesso: +${streamBoost.toLocaleString()} streams aplicados à música: ${musicId}`);
+        console.log(`🚀 +${streamBoost.toLocaleString()} streams aplicados!`);
 
     } catch (error) {
-        console.error("Erro ao processar stream mensal:", error);
+        console.error("Erro ao processar stream:", error);
     }
 }
 
