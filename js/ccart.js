@@ -42,19 +42,52 @@ let isArtistSelected = false; // Deve começar como false (alpha 1.0)
 // FUNÇÕES DE UTILIDADE E INICIALIZAÇÃO (Manutencao e Toast)
 // ----------------------------------------------------------------------
 
-async function verificarManutencao() {
-    const docRef = doc(db, "config", "status");
-    try {
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists() && docSnap.data().manutencao) {
-            window.location.href = "man";
-        }
-    } catch (e) {
-        console.error("Erro ao verificar status de manutenção: ", e);
-    }
+// Exemplo de lógica para colocar no seu arquivo de Login ou Auth check
+auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        const docSnap = await getDoc(doc(db, "usuarios", user.uid));
+        if (docSnap.exists()) {
+            const userData = docSnap.data();
+            if (userData.aprovado === "false" && !window.location.href.includes("welcome")) {
+                window.location.href = "welcome";
+            }
+        }
+    }
+});
+
+
+// -------------------------------
+// ☁️ Cloudinary (UPLOAD FRONT)
+// -------------------------------
+const CLOUD_NAME = "dsrrzjwuf";
+const UPLOAD_PRESET = "tune_unsigned";
+
+export async function uploadImageToCloudinary(file) {
+    if (!file) throw new Error("Nenhum arquivo selecionado");
+
+    if (file.size > 2 * 1024 * 1024) {
+        throw new Error("Imagem maior que 2MB");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", UPLOAD_PRESET);
+    formData.append("folder", "tune/posts");
+
+    const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+    );
+
+    const data = await res.json();
+
+    if (!data.secure_url) {
+        console.error(data);
+        throw new Error("Erro no upload");
+    }
+
+    return data.secure_url;
 }
-verificarManutencao();
 
 function showToast(message, type = "error") {
     const toastContainer = document.getElementById('toast-container');
@@ -147,105 +180,113 @@ debounceTimeout = setTimeout(async () => {
     checkFormReady();
 }, 500);
 });
-
 // ----------------------------------------------------------------------
-// SUBMIT DO FORMULÁRIO (REGISTRO)
+// SUBMIT DO FORMULÁRIO (REGISTRO COMPLETO)
 // ----------------------------------------------------------------------
 
 registerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+    e.preventDefault();
 
-   
+    const nome = nomeInput.value.trim();
+    const user = userInputField.value.trim();
+    const email = emailInput.value.trim();
+    const senha = senhaInput.value;
 
-    const nome = nomeInput.value.trim();
-    const user = userInputField.value.trim();
-    const email = emailInput.value.trim();
-    const senha = senhaInput.value;
-    
+    // 1. Validações Iniciais
+    if (!nome || !user || !email || !senha) {
+        showToast("Preencha todos os campos.");
+        return;
+    }
 
+    if (!isUsernameAvailable) {
+        showToast("Nome de usuário não disponível.");
+        return;
+    }
 
-    if (!nome || !user || !email || !senha) {
-        showToast("Preencha todos os campos.");
-        return;
-    }
+    if (!profileFile) {
+        showToast("Adicione uma foto de perfil.");
+        return;
+    }
+    
+    // Bloqueia o botão para evitar cliques duplos
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Processando...";
 
-    if (!isUsernameAvailable) {
-        showToast("Nome de usuário não disponível.");
-        return;
-    }
+    try {
+        // 2. Upload da foto para o Cloudinary (Substituindo Firebase Storage)
+        // Isso resolve o erro de CORS que você estava tendo com o Google
+        let photoURL;
+        try {
+            photoURL = await uploadImageToCloudinary(profileFile);
+        } catch (uploadError) {
+            console.error("Erro Cloudinary:", uploadError);
+            throw new Error("Falha ao subir imagem. Tente uma foto menor ou outro formato.");
+        }
 
-    if (!profileFile) {
-        showToast("Adicione uma foto de perfil.");
-        return;
-    }
-    
-    submitBtn.disabled = true;
-    submitBtn.innerText = "Criando...";
+        // 3. Criar usuário no Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
+        const userUid = userCredential.user.uid;
 
-    try {
-        // 2. Criar usuário no Auth
-        const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
-        const userUid = userCredential.user.uid;
+        // 4. Salvar nome de usuário (para garantir que ninguém use o mesmo)
+        await setDoc(doc(db, "nomes", user.toLowerCase()), {
+            uid: userUid,
+            criadoEm: new Date().toISOString()
+        });
+        
+        // 5. Definir os dados do usuário (Status aprovado: "false")
+        const dadosUsuario = {
+            email: email,
+            apelido: user,
+            nomeArtistico: nome,
+            artista: "true", 
+            admin: "false",
+            verificado: "false",
+            niveladmin: 0,
+            aprovado: "false", // Será verificado para redirecionamento
+            seguidores: 0,
+            banido: "false",
+            instagram: "",
+            twitter: "",
+            youtube: "",
+            streams: 0,
+            status: "ativo",
+            foto: photoURL, // URL retornada pelo Cloudinary
+            criadoEm: new Date().toLocaleString('pt-BR'),
+            uid: userUid
+        };
 
-        // 3. Upload da foto
-        const storageRef = ref(storage, `fotos_perfil/${userUid}/${profileFile.name}`);
-        await uploadBytes(storageRef, profileFile);
-        const photoURL = await getDownloadURL(storageRef);
+        // 6. Salvar no Firestore
+        await setDoc(doc(db, "usuarios", userUid), dadosUsuario);
 
-        // 4. Salvar nome de usuário (para checagem de disponibilidade)
-        await setDoc(doc(db, "nomes", user.toLowerCase()), {
-            uid: userUid,
-            criadoEm: new Date().toISOString()
-        });
-        
-        // 5. Salvar dados do usuário na coleção 'usuarios'
-        await setDoc(doc(db, "usuarios", userUid), {
-            email,
-            apelido: user,
-            nomeArtistico: nome,
-            artista: "true", 
-            admin: "false",
-            verificado: "false",
-            niveladmin: 0,
-            seguidores: 0,
-            banido: "false",
-            instagram: "",
-            twitter: "",
-            youtube: "",
-            streams: 0,
-            status: "ativo",
-            foto: photoURL,
-            criadoEm: new Date().toLocaleString('pt-BR'),
-            uid: userUid
-        });
+        showToast("Conta criada com sucesso!", "success");
 
-        showToast("Conta criada com sucesso!", "success");
-        setTimeout(() => window.location.href = "index.html", 4000);
+        // 7. Lógica de Redirecionamento (72h / Welcome)
+        setTimeout(() => {
+            // Se aprovado for "false", vai para a tela de análise
+            if (dadosUsuario.aprovado === "false") {
+                window.location.href = "welcome.html";
+            } else {
+                window.location.href = "index.html";
+            }
+        }, 2000);
 
-    } catch (err) {
-        console.error(err);
-        let userMessage = 'Erro desconhecido. Tente novamente.';
+    } catch (err) {
+        console.error("Erro completo no registro:", err);
+        let userMessage = 'Erro ao criar conta. Tente novamente.';
 
-        if (err.code && err.code.startsWith('auth/')) {
-            if (err.code === 'auth/email-already-in-use') {
-                userMessage = 'O e-mail já está em uso por outro usuário.';
-            } else if (err.code === 'auth/weak-password') {
-                userMessage = 'A senha deve ter pelo menos 6 caracteres.';
-            } else {
-                userMessage = 'Erro no registro. Verifique seu e-mail e senha.';
-            }
-        } else if (err.code && err.code.startsWith('storage/')) {
-            userMessage = 'Erro no Upload da Foto. Verifique o tamanho do arquivo.';
-        } else {
-            userMessage = `Erro: ${err.message}`; 
-        }
-        
-        showToast(userMessage);
-
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerText = "Criar";
-    }
+        // Tratamento amigável de erros do Firebase
+        if (err.code === 'auth/email-already-in-use') {
+            userMessage = 'Este e-mail já está cadastrado.';
+        } else if (err.code === 'auth/weak-password') {
+            userMessage = 'A senha precisa de pelo menos 6 dígitos.';
+        } else if (err.message) {
+            userMessage = err.message;
+        }
+        
+        showToast(userMessage);
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Criar";
+    }
 });
 
 // ----------------------------------------------------------------------

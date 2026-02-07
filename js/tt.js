@@ -670,7 +670,7 @@ function showToastError(message) {
 // A função setupListArtistsPage deve ser definida no seu arquivo tt.js ou módulo principal
 
 function setupListArtistsPage() {
-    // Referências aos elementos da página
+    // --- Referências aos elementos da página ---
     const artistsGrid = document.getElementById('artistsGrid');
     const loadingMessage = document.getElementById('loadingArtists');
     const prevButton = document.getElementById('prevPageButton');
@@ -684,65 +684,36 @@ function setupListArtistsPage() {
     const modalCancelButton = document.getElementById('modalArtistCancelButton');
     const editForm = document.getElementById('editArtistForm');
     
-    // Variáveis de escopo
-    const ARTISTS_PER_PAGE = 20; // Reutilizando a constante global ou definindo aqui
-    let currentArtistPage = 1; // Reutilizando a variável global ou definindo aqui
+    // --- Variáveis de escopo ---
+    const ARTISTS_PER_PAGE = 20; 
+    let currentArtistPage = 1; 
     let allArtistsData = []; 
     let artistSearchTimeout; 
     
     // --- Verificação de Elementos ---
     if (!artistsGrid || !modal) {
-        console.error("ERRO: Elementos essenciais (Grid ou Modal de Artista) não encontrados na página listartists.");
+        console.error("ERRO: Elementos essenciais não encontrados na página listartists.");
         return;
     }
 
     // ========================================
-    // LÓGICA DE BANIMENTO DE CONTA (NOVA FUNÇÃO)
-    // ========================================
-
-    async function toggleBanStatus(artistId, currentStatus) {
-        const docRef = doc(db, "usuarios", artistId);
-        // O campo 'banido' é string ("false", "true") na sua base
-        const newStatus = currentStatus === "true" ? "false" : "true";
-        const actionText = newStatus === "true" ? "Banir" : "Desbanir";
-        
-        if (!confirm(`Tem certeza que deseja ${actionText} o artista?`)) {
-            return;
-        }
-
-        try {
-            await updateDoc(docRef, {
-                banido: newStatus 
-            });
-            
-            showToastSuccess(`Artista ${newStatus === "true" ? "banido" : "desbanido"} com sucesso!`);
-            
-            // Recarrega os dados do modal para refletir o novo status
-            openEditArtistModal(artistId); 
-            // Recarrega a listagem geral (opcional, mas recomendado)
-            fetchAllArtistsData(); 
-            
-        } catch (error) {
-            console.error(`Erro ao tentar ${actionText} o artista:`, error);
-            showToastError(`Erro ao ${actionText.toLowerCase()} o artista. Tente novamente.`);
-        }
-    }
-    
-    // ========================================
-    // LÓGICA DE BUSCA E PAGINAÇÃO DE ARTISTAS
+    // 1. LÓGICA DE BUSCA E LISTAGEM GERAL
     // ========================================
 
     async function fetchAllArtistsData() {
-        loadingMessage.textContent = "Carregando todos os artistas para busca...";
-        loadingMessage.style.display = 'block';
+        if (loadingMessage) {
+            loadingMessage.textContent = "Carregando todos os artistas...";
+            loadingMessage.style.display = 'block';
+        }
 
-        try {
-            const q = query(
-                collection(db, "usuarios"), 
-                where("artista", "==", "true"),
-                orderBy("nomeArtistico", "asc")
-            );
-            const snapshot = await getDocs(q);
+try {
+        // Buscamos todos que são artistas
+        const q = query(
+            collection(db, "usuarios"), 
+            where("artista", "==", "true"),
+            orderBy("nomeArtistico", "asc")
+        );
+        const snapshot = await getDocs(q);
             
             allArtistsData = snapshot.docs.map(doc => ({ 
                 id: doc.id, 
@@ -757,12 +728,10 @@ function setupListArtistsPage() {
         }
     }
     
-    // Filtra, pagina e renderiza os artistas com base no termo de busca
     function liveSearchArtists() {
         const searchTerm = searchInput.value.trim().toLowerCase();
-        
-        // 1. FILTRAR
         let filteredArtists = allArtistsData;
+
         if (searchTerm) {
             filteredArtists = allArtistsData.filter(artist => 
                 (artist.nome && artist.nome.toLowerCase().includes(searchTerm)) || 
@@ -770,15 +739,12 @@ function setupListArtistsPage() {
             );
         }
         
-        // 2. PAGINAR DADOS FILTRADOS
         const startIndex = (currentArtistPage - 1) * ARTISTS_PER_PAGE;
         const endIndex = startIndex + ARTISTS_PER_PAGE;
         const currentDocs = filteredArtists.slice(startIndex, endIndex);
 
-        // 3. RENDERIZAR
         renderArtists(currentDocs, filteredArtists.length);
         
-        // 4. ATUALIZAR PAGINAÇÃO
         prevButton.disabled = currentArtistPage === 1;
         nextButton.disabled = endIndex >= filteredArtists.length;
         pageDisplay.textContent = `Página ${currentArtistPage} / Total: ${filteredArtists.length}`;
@@ -788,226 +754,189 @@ function setupListArtistsPage() {
         artistsGrid.innerHTML = '';
         if (docs.length === 0) {
             artistsGrid.innerHTML = `<p class="text-gray-400 col-span-full">${totalCount === 0 ? 'Nenhum artista encontrado.' : 'Nenhum artista nesta página.'}</p>`;
+            if (loadingMessage) loadingMessage.style.display = 'none';
+            return;
         }
 
         docs.forEach(artist => {
-            const artistId = artist.id;
-            const artistName = artist.nomeArtistico || "Nome Desconhecido";
-            const artistPhoto = artist.foto || './assets/default-profile.png';
-            const artistCountry = artist.country || 'N/A';
-
             const artistCard = document.createElement('div');
             artistCard.className = 'bg-transparent rounded-lg overflow-hidden relative group flex flex-col items-center p-4'; 
             
             artistCard.innerHTML = `
                 <div class="relative w-24 h-24 rounded-full overflow-hidden mb-3">
-                    <img src="${artistPhoto}" alt="Foto de ${artistName}" class="w-full h-full object-cover">
+                    <img src="${artist.foto || './assets/default-profile.png'}" alt="Foto" class="w-full h-full object-cover">
                 </div>
-                
-                <h4 class="text-base font-semibold text-black truncate w-full text-center" title="${artistName}">${artistName}</h4>
-                <p class="text-xs text-black truncate w-full text-center">${artistCountry}</p>
+                <h4 class="text-base font-semibold text-black truncate w-full text-center">${artist.nomeArtistico || "Desconhecido"}</h4>
+                <p class="text-xs text-black truncate w-full text-center">${artist.country || 'N/A'}</p>
                 
                 <div class="flex flex-col mt-3 space-y-2 w-full">
-                    <button 
-                        data-id="${artistId}" 
-                        class="copy-artist-id-btn flex items-center justify-center space-x-1 
-                               w-full py-1 text-xs font-medium text-gray-300 
-                               bg-gray-700 hover:bg-gray-600 rounded transition-colors duration-200"
-                    >
-                        <i class='bx bx-copy text-lg'></i>
-                        <span id="copyArtistText-${artistId}">Copiar ID</span>
+                    <button data-id="${artist.id}" class="copy-artist-id-btn flex items-center justify-center space-x-1 w-full py-1 text-xs font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 rounded transition">
+                        <i class='bx bx-copy text-lg'></i> <span id="copyArtistText-${artist.id}">Copiar ID</span>
                     </button>
-
-                    <button 
-                        data-id="${artistId}" 
-                        class="edit-artist-btn flex items-center justify-center space-x-1 
-                               w-full py-1 text-xs font-medium 
-                               bg-white text-black 
-                               hover:bg-gray-200 rounded transition-colors duration-200"
-                    >
-                        <i class='bx bx-search-alt text-lg'></i>
-                        <span>Editar</span>
+                    <button data-id="${artist.id}" class="edit-artist-btn flex items-center justify-center space-x-1 w-full py-1 text-xs font-medium bg-white text-black hover:bg-gray-200 rounded transition">
+                        <i class='bx bx-search-alt text-lg'></i> <span>Editar</span>
                     </button>
                 </div>
             `;
             artistsGrid.appendChild(artistCard);
         });
         
-        loadingMessage.style.display = 'none';
+        if (loadingMessage) loadingMessage.style.display = 'none';
         attachArtistActionListeners();
     }
-    
+
     // ========================================
-    // LÓGICA DE EVENT LISTENERS (Busca, Paginação, Ações)
+    // 2. LÓGICA DE PENDENTES E APROVAÇÃO
     // ========================================
 
-    // Handler para o campo de busca de artistas (debounce)
-    searchInput.addEventListener('input', () => {
-        currentArtistPage = 1; 
-        clearTimeout(artistSearchTimeout);
-        artistSearchTimeout = setTimeout(() => {
-            liveSearchArtists();
-        }, 300);
-    });
-    
-    // Botões de Paginação de Artistas
-    prevButton.addEventListener('click', () => {
-        if (currentArtistPage > 1) {
-            currentArtistPage--;
-            liveSearchArtists(); 
-        }
-    });
+    async function fetchPendingArtists() {
+        const pendingGrid = document.getElementById('pendingArtistsGrid');
+        const pendingSection = document.getElementById('pendingSection');
+        if (!pendingGrid || !pendingSection) return;
 
-    nextButton.addEventListener('click', () => {
-        currentArtistPage++;
-        liveSearchArtists(); 
-    });
-
-    // Funções de Ação (Copia ID)
-    function handleCopyArtistId(artistId) {
-        navigator.clipboard.writeText(artistId).then(() => {
-            const copySpan = document.getElementById(`copyArtistText-${artistId}`);
-            if (copySpan) {
-                const originalText = copySpan.textContent;
-                copySpan.textContent = "Copiado!";
-                showToastSuccess("ID do artista copiado com sucesso!");
-                setTimeout(() => {
-                    copySpan.textContent = originalText;
-                }, 1500);
-            }
-        }).catch(err => {
-            console.error('Erro ao copiar ID do artista:', err);
-            showToastError("Erro ao copiar o ID do artista.");
-        });
-    }
-
-    function attachArtistActionListeners() {
-        document.querySelectorAll('.edit-artist-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const artistId = e.currentTarget.getAttribute('data-id');
-                openEditArtistModal(artistId);
-            });
-        });
+        const q = query(collection(db, "usuarios"), where("aprovado", "==", "false"));
         
-        document.querySelectorAll('.copy-artist-id-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const artistId = e.currentTarget.getAttribute('data-id');
-                handleCopyArtistId(artistId);
+        try {
+            const querySnapshot = await getDocs(q);
+            pendingGrid.innerHTML = '';
+
+            if (querySnapshot.empty) {
+                pendingSection.classList.add('hidden');
+                return;
+            }
+
+            pendingSection.classList.remove('hidden');
+            querySnapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const artistCard = document.createElement('div');
+                artistCard.className = "bg-gray-800 p-4 rounded-lg shadow-lg border border-yellow-600 relative flex flex-col items-center text-center";
+                artistCard.innerHTML = `
+                    <img src="${data.foto || 'assets/default-artist.png'}" class="w-20 h-20 rounded-full object-cover mb-3 border-2 border-yellow-500" onerror="this.src='assets/default-artist.png'">
+                    <h3 class="text-white font-bold truncate w-full">${data.nome || 'Sem Nome'}</h3>
+                    <p class="text-gray-400 text-xs mb-4">${data.email || ''}</p>
+                    <button onclick="approveArtist('${docSnap.id}')" class="w-full bg-green-600 hover:bg-green-700 text-white text-xs py-2 px-2 rounded-md font-bold transition">
+                        APROVAR CONTA
+                    </button>
+                `;
+                pendingGrid.appendChild(artistCard);
             });
-        });
+        } catch (error) {
+            console.error("Erro ao buscar pendentes:", error);
+        }
     }
 
-    
+    // Função anexada ao window para ser acessível pelo onclick
+    window.approveArtist = async function(artistId) {
+        if (!confirm("Deseja aprovar a conta deste artista?")) return;
+        try {
+            await updateDoc(doc(db, "usuarios", artistId), { aprovado: "true" });
+            showToastSuccess("Artista aprovado com sucesso! ✅");
+            fetchPendingArtists();
+            fetchAllArtistsData(); 
+        } catch (error) {
+            showToastError("Erro ao aprovar conta.");
+        }
+    };
+
     // ========================================
-    // LÓGICA DO MODAL DE EDIÇÃO E BANIMENTO (ATUALIZADA)
+    // 3. MODAL DE EDIÇÃO E BANIMENTO
     // ========================================
-    
+
     async function openEditArtistModal(artistId) {
         editForm.reset();
         modal.style.display = 'flex';
-        const docRef = doc(db, "usuarios", artistId);
         
-        // Referências para os elementos de banimento no modal
         const banStatusText = document.getElementById('banStatusText');
         const oldToggleBanButton = document.getElementById('toggleBanButton');
         
-        if (!oldToggleBanButton || !banStatusText) {
-             console.error("ERRO: Elementos de banimento (toggleBanButton ou banStatusText) não encontrados no modal.");
-             return;
-        }
-
-        // Clonar o botão para remover o listener anterior (evitar duplicação de eventos)
         const newToggleBanButton = oldToggleBanButton.cloneNode(true);
         oldToggleBanButton.parentNode.replaceChild(newToggleBanButton, oldToggleBanButton);
 
         try {
-            const docSnap = await getDoc(docRef);
+            const docSnap = await getDoc(doc(db, "usuarios", artistId));
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                
                 document.getElementById('artistDocId').value = artistId; 
-                document.getElementById('modalArtistTitle').textContent = `Editar Artista: ${data.nome || 'N/A'}`;
-                
+                document.getElementById('modalArtistTitle').textContent = `Editar: ${data.nome || 'N/A'}`;
                 document.getElementById('modalArtistName').value = data.nome || '';
                 document.getElementById('modalArtistPhoto').value = data.foto || '';
                 document.getElementById('modalArtistCountry').value = data.country || '';
                 
-                // ⭐ LÓGICA DE BANIMENTO: Carregar Status e Configurar Botão ⭐
-                // O campo 'banido' é armazenado como string "true" ou "false"
+                // Interface de Banimento
                 const isBanned = data.banido === "true"; 
+                banStatusText.textContent = isBanned ? "Status: BANIDO 🚫" : "Status: ATIVO ✅";
+                banStatusText.className = isBanned ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold';
+                newToggleBanButton.textContent = isBanned ? "DESBANIR" : "BANIR";
+                newToggleBanButton.className = `py-2 px-4 rounded-full font-bold text-white ${isBanned ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`;
                 
-                if (isBanned) {
-                    banStatusText.textContent = "Status Atual: BANIDO 🚫";
-                    banStatusText.className = 'text-red-500 font-semibold'; // Atualiza classes
-                    
-                    newToggleBanButton.textContent = "DESBANIR";
-                    newToggleBanButton.className = 'py-2 px-4 rounded-full font-bold transition-colors duration-200 bg-green-500 hover:bg-green-600 text-white'; // Atualiza classes
-                } else {
-                    banStatusText.textContent = "Status Atual: ATIVO ✅";
-                    banStatusText.className = 'text-green-500 font-semibold'; // Atualiza classes
-                    
-                    newToggleBanButton.textContent = "BANIR";
-                    newToggleBanButton.className = 'py-2 px-4 rounded-full font-bold transition-colors duration-200 bg-red-500 hover:bg-red-600 text-white'; // Atualiza classes
-                }
-                
-                // Adicionar o listener no novo botão
-                newToggleBanButton.addEventListener('click', () => {
-                    // Passa o ID e o status atual
-                    toggleBanStatus(artistId, data.banido); 
-                });
-                
-            } else {
-                showToastError("Documento do artista não encontrado.");
-                modal.style.display = 'none';
+                newToggleBanButton.onclick = () => toggleBanStatus(artistId, data.banido);
             }
-        } catch (error) {
-            console.error("Erro ao carregar dados para edição do artista:", error);
-            showToastError("Erro ao carregar dados do artista.");
-            modal.style.display = 'none';
-        }
+        } catch (e) { console.error(e); }
     }
 
-    function closeArtistModal() {
-        modal.style.display = 'none';
-        editForm.reset();
-    }
-    
-    // Listeners para fechar o modal
-    closeModalButton.addEventListener('click', closeArtistModal);
-    modalCancelButton.addEventListener('click', closeArtistModal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeArtistModal();
-        }
-    });
-
-    // LÓGICA DE SALVAR EDIÇÃO DE ARTISTA
-    editForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const docId = document.getElementById('artistDocId').value;
-        const docRef = doc(db, "usuarios", docId);
-
-        const updatedData = {
-            nome: document.getElementById('modalArtistName').value.trim(),
-            foto: document.getElementById('modalArtistPhoto').value.trim(),
-            country: document.getElementById('modalArtistCountry').value.trim() || null,
-        };
+    async function toggleBanStatus(artistId, currentBanStatus) {
+        const newStatus = currentBanStatus === "true" ? "false" : "true";
+        if (!confirm(newStatus === "true" ? "Banir este artista?" : "Desbanir este artista?")) return;
 
         try {
-            await updateDoc(docRef, updatedData);
-            showToastSuccess("Artista atualizado com sucesso!");
-            closeArtistModal();
-            // Recarrega a listagem após a edição
+            await updateDoc(doc(db, "usuarios", artistId), { banido: newStatus });
+            showToastSuccess("Status alterado!");
+            openEditArtistModal(artistId); 
             fetchAllArtistsData(); 
-        } catch (error) {
-            console.error("Erro ao salvar a edição do artista:", error);
-            showToastError("Erro ao salvar a edição do artista. Tente novamente.");
-        }
+        } catch (e) { showToastError("Erro na operação."); }
+    }
+
+    // ========================================
+    // 4. LISTENERS DE INTERAÇÃO
+    // ========================================
+
+    function attachArtistActionListeners() {
+        document.querySelectorAll('.edit-artist-btn').forEach(btn => {
+            btn.onclick = (e) => openEditArtistModal(e.currentTarget.dataset.id);
+        });
+        document.querySelectorAll('.copy-artist-id-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                const id = e.currentTarget.dataset.id;
+                navigator.clipboard.writeText(id);
+                showToastSuccess("ID Copiado!");
+            };
+        });
+    }
+
+    searchInput.addEventListener('input', () => {
+        currentArtistPage = 1; 
+        clearTimeout(artistSearchTimeout);
+        artistSearchTimeout = setTimeout(liveSearchArtists, 300);
     });
 
-    // INÍCIO: Inicia o carregamento dos artistas ao carregar a página
+    prevButton.onclick = () => { if (currentArtistPage > 1) { currentArtistPage--; liveSearchArtists(); } };
+    nextButton.onclick = () => { currentArtistPage++; liveSearchArtists(); };
+
+    // Fechar Modal
+    const closeFn = () => modal.style.display = 'none';
+    closeModalButton.onclick = closeFn;
+    modalCancelButton.onclick = closeFn;
+
+    // Salvar Edição
+    editForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('artistDocId').value;
+        const data = {
+            nome: document.getElementById('modalArtistName').value.trim(),
+            foto: document.getElementById('modalArtistPhoto').value.trim(),
+            country: document.getElementById('modalArtistCountry').value.trim() || null
+        };
+        try {
+            await updateDoc(doc(db, "usuarios", id), data);
+            showToastSuccess("Atualizado!");
+            closeFn();
+            fetchAllArtistsData();
+        } catch (e) { showToastError("Erro ao salvar."); }
+    };
+
+    // INICIALIZAÇÃO
     fetchAllArtistsData();
+    fetchPendingArtists();
 }
 // ============================================
 // ⭐ FUNÇÃO DE SETUP PARA PÁGINA DE PLAYLIST (ATUALIZADA) ⭐
@@ -2078,6 +2007,21 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     });
+
+    // Este código roda apenas uma vez quando o site abre
+document.addEventListener('click', (e) => {
+    // Procura se o clique foi em algo com data-navigate ou se o pai do que foi clicado tem
+    const target = e.target.closest('[data-navigate]');
+    
+    if (target) {
+        e.preventDefault();
+        const page = target.dataset.navigate;
+        const id = target.dataset.id || null;
+        
+        console.log("Navegando via delegação:", page, id);
+        loadContent(page, id); // Chame sua função de carregar conteúdo aqui
+    }
+});
 
     // Verifica a URL para carregar a página correta no início
     const urlParams = new URLSearchParams(window.location.search);

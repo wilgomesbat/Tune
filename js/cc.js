@@ -48,71 +48,110 @@ function showToast(message, type = "error") {
     }, 5000);
 }
 
-// --- SUBMIT COM TRATAMENTO DE ERROS FIREBASE ---
+// ----------------------------------------------------------------------
+// SUBMIT DO FORMULÁRIO (REGISTRO COM CLOUDINARY)
+// ----------------------------------------------------------------------
+
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    if (!termosCheckbox.checked) {
-        showToast("Você precisa aceitar os Termos de Uso.");
-        return;
-    }
-
     const nome = nomeInput.value.trim();
+    const user = userInputField.value.trim();
     const email = emailInput.value.trim();
     const senha = senhaInput.value;
 
+    // Validações básicas
+    if (!nome || !user || !email || !senha) {
+        showToast("Preencha todos os campos.");
+        return;
+    }
+
+    if (!isUsernameAvailable) {
+        showToast("Nome de usuário não disponível.");
+        return;
+    }
+
+    if (!profileFile) {
+        showToast("Adicione uma foto de perfil.");
+        return;
+    }
+    
     submitBtn.disabled = true;
     submitBtn.innerText = "Criando...";
 
     try {
+        // 1. Upload da foto para o CLOUDINARY
+        // Usando a função que você forneceu
+        let photoURL;
+        try {
+            photoURL = await uploadImageToCloudinary(profileFile);
+        } catch (uploadError) {
+            throw new Error(`Falha no upload da imagem: ${uploadError.message}`);
+        }
+
+        // 2. Criar usuário no Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
         const userUid = userCredential.user.uid;
 
-        await setDoc(doc(db, "usuarios", userUid), {
-            email: email,
-            apelido: nome.toLowerCase().replace(/\s+/g, ''),
+        // 3. Salvar nome de usuário (para checagem de disponibilidade)
+        await setDoc(doc(db, "nomes", user.toLowerCase()), {
+            uid: userUid,
+            criadoEm: new Date().toISOString()
+        });
+        
+        // 4. Salvar dados do usuário na coleção 'usuarios'
+        const dadosUsuario = {
+            email,
+            apelido: user,
             nomeArtistico: nome,
-            artista: "false",
+            artista: "true", 
             admin: "false",
             verificado: "false",
             niveladmin: 0,
+            aprovado: "false", // Importante para o redirecionamento
             seguidores: 0,
             banido: "false",
-            instagram: "", twitter: "", youtube: "",
+            instagram: "",
+            twitter: "",
+            youtube: "",
             streams: 0,
             status: "ativo",
-            foto: "", 
+            foto: photoURL, // URL vinda do Cloudinary
             criadoEm: new Date().toLocaleString('pt-BR'),
             uid: userUid
-        });
+        };
+
+        await setDoc(doc(db, "usuarios", userUid), dadosUsuario);
 
         showToast("Conta criada com sucesso!", "success");
-        setTimeout(() => window.location.href = "index.html", 3000);
+
+        // 5. Lógica de Redirecionamento baseada no status 'aprovado'
+        setTimeout(() => {
+            if (dadosUsuario.aprovado === "false") {
+                window.location.href = "welcome.html";
+            } else {
+                window.location.href = "index.html";
+            }
+        }, 2000);
 
     } catch (err) {
-        console.error("Erro Original:", err.code); // Log para debug
-        
-        let mensagemErro = "Ocorreu um erro ao criar a conta.";
+        console.error(err);
+        let userMessage = 'Erro desconhecido. Tente novamente.';
 
-        // Mapeamento de erros comuns do Firebase
-        switch (err.code) {
-            case 'auth/weak-password':
-                mensagemErro = "A senha deve ter pelo menos 6 caracteres.";
-                break;
-            case 'auth/email-already-in-use':
-                mensagemErro = "Este e-mail já está sendo usado por outra conta.";
-                break;
-            case 'auth/invalid-email':
-                mensagemErro = "O endereço de e-mail não é válido.";
-                break;
-            case 'auth/operation-not-allowed':
-                mensagemErro = "O cadastro de e-mail/senha não está habilitado.";
-                break;
-            default:
-                mensagemErro = err.message; // Exibe a mensagem padrão do Firebase se não for mapeada
+        // Tratamento de erros específicos
+        if (err.message.includes("Imagem maior que 2MB")) {
+            userMessage = "A foto deve ter no máximo 2MB.";
+        } else if (err.code === 'auth/email-already-in-use') {
+            userMessage = 'O e-mail já está em uso.';
+        } else if (err.code === 'auth/weak-password') {
+            userMessage = 'A senha deve ter pelo menos 6 caracteres.';
+        } else {
+            userMessage = err.message || "Erro ao criar conta.";
         }
+        
+        showToast(userMessage);
 
-        showToast(mensagemErro, "error");
+    } finally {
         submitBtn.disabled = false;
         submitBtn.innerText = "Criar";
     }

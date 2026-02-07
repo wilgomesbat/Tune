@@ -18,7 +18,6 @@ const firebaseConfig = {
 };
 
 
-
 // -------------------------------
 // 🔥 Inicialização do Firebase
 // -------------------------------
@@ -27,8 +26,38 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 const rtdb = getDatabase(app); // Inicializa o Realtime Database
 
-// UID do usuário atual (apenas referência, sem bloqueio)
-let currentUserUid = null;
+// -------------------------------
+// ☁️ Cloudinary (UPLOAD FRONT)
+// -------------------------------
+const CLOUD_NAME = "dsrrzjwuf";
+const UPLOAD_PRESET = "tune_unsigned";
+
+export async function uploadImageToCloudinary(file) {
+    if (!file) throw new Error("Nenhum arquivo selecionado");
+
+    if (file.size > 2 * 1024 * 1024) {
+        throw new Error("Imagem maior que 2MB");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", UPLOAD_PRESET);
+    formData.append("folder", "tune/posts");
+
+    const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+    );
+
+    const data = await res.json();
+
+    if (!data.secure_url) {
+        console.error(data);
+        throw new Error("Erro no upload");
+    }
+
+    return data.secure_url;
+}
 
 controlarFluxoManutencaoFirestore();
 
@@ -74,30 +103,103 @@ function controlarFluxoManutencaoFirestore() {
     });
 }
 
+// UID do usuário atual (apenas referência, sem bloqueio)
+let currentUserUid = null;
+// Única linha necessária para o cache no topo do arquivo ou antes das funções:
+window.__HOME_CACHE__ = window.__HOME_CACHE__ || { 
+    loaded: false, 
+    html: null, 
+    scrollPosition: 0 
+};
+
+function rebindHomeUI() {
+    try {
+        setGreeting(); 
+    } catch (e) {
+        console.warn("Erro ao definir saudação:", e);
+    }
+
+    // Procura todos os elementos com data-navigate e garante o clique
+    document.querySelectorAll('[data-navigate]').forEach(el => {
+        el.onclick = (e) => {
+            e.preventDefault();
+            const page = el.getAttribute('data-navigate');
+            const id = el.getAttribute('data-id');
+            loadContent(page, id);
+        };
+    });
+}
 
 
-onAuthStateChanged(auth, (user) => {
+// Adicione estas definições para evitar o erro de ReferenceError
+function setupReleasesPage() {
+    console.log("Iniciando setup da página de lançamentos...");
+    listarMusicasArtista();
+    listarAlbunsArtista();
+}
+
+function setupAddMusicPage() {
+    console.log("Iniciando setup da página de nova música...");
+    carregarAlbunsNoSelect();
+}
+
+function setupAddAlbumPage() {
+    console.log("Iniciando setup de novo álbum...");
+}
+
+onAuthStateChanged(auth, async (user) => {
     if (user) {
-
-
-        // Salva UID atual
         currentUserUid = user.uid;
 
-        // Carrega o perfil do usuário (se existir a função)
+        // --- LÓGICA DO CARD DE ARTISTA (VERSÃO BOOLEAN) ---
+        try {
+            const userDocRef = doc(db, "usuarios", user.uid);
+            const userSnap = await getDoc(userDocRef);
+            
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                console.log("Status artista no banco:", userData.artista);
+
+                // Verificação para boolean puro
+                if (userData.artista === true) {
+                    
+                    // Espera o elemento carregar no DOM (importante para SPAs/loadContent)
+                    const checkExist = setInterval(() => {
+                        const artistCard = document.querySelector('.artist-promo-container');
+                        if (artistCard) {
+                            artistCard.style.setProperty('display', 'block', 'important');
+                            console.log("✅ Card de artista exibido com sucesso.");
+                            clearInterval(checkExist); // Para de procurar quando encontrar
+                        }
+                    }, 500); // Tenta a cada 0.5 segundos
+
+                    // Limite de segurança: para de procurar após 5 segundos para não pesar o site
+                    setTimeout(() => clearInterval(checkExist), 5000);
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao verificar artista:", error);
+        }
+
+        // Carrega o perfil
         if (typeof populateUserProfile === "function") {
             populateUserProfile(user);
         }
-
-        // Libera a aplicação
         hideLoadingAndShowContent();
 
     } else {
-        // ❌ Usuário não logado → redireciona para login
-        console.log("Nenhum usuário logado. Redirecionando para login...");
         window.location.href = "/index";
     }
 });
 
+function handleInitialRoute() {
+    const params = new URLSearchParams(window.location.search);
+
+    const page = params.get('page') || 'home';
+    const id = params.get('id');
+
+    loadContent(page, id);
+}
 
 // -------------------------------
 // 🎬 Remove loading e mostra app
@@ -436,172 +538,132 @@ async function getArtistName(artistUid) {
         return "Erro ao carregar";
     }
 }
-
-// --- Setup Página Playlist Completo ---
+// --- Setup Página Playlist Completo (Versão Atualizada para Top 50) ---
 async function setupPlaylistPage(playlistId) {
-    // Seletores de Elementos
     const playlistImgDetail = document.getElementById("playlist-cover-detail");
-    const playlistCoverBg = document.getElementById("playlist-cover-bg");
     const playlistTitleDetail = document.getElementById("playlist-title-detail");
     const playlistDescriptionDetail = document.getElementById("playlist-description-detail");
     const tracksContainer = document.getElementById("tracks-container");
-    const playlistBg = document.getElementById("playlist-bg"); // Container do fundo dinâmico
-    const detailHeader = document.querySelector('#playlist-header');
+    const playlistBg = document.getElementById("playlist-bg"); 
     
-    // Fallbacks
     const fallbackBackground = 'linear-gradient(to bottom, #1a1a1a, #030303)';
-    const fallbackImage = 'https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png'; // Sua imagem padrão
+    const fallbackImage = 'https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png'; 
 
     if (!playlistId) return;
 
     try {
-        // 1. Busca dados da Playlist no Firestore
         const playlistRef = doc(db, "playlists", playlistId);
         const playlistSnap = await getDoc(playlistRef);
 
         if (!playlistSnap.exists()) {
-            playlistTitleDetail.textContent = "Playlist não encontrada";
+            if (playlistTitleDetail) playlistTitleDetail.textContent = "Playlist não encontrada";
             tracksContainer.innerHTML = `<p class="text-gray-400">Não foi possível carregar esta playlist.</p>`;
             return;
         }
 
         const playlist = { id: playlistSnap.id, ...playlistSnap.data() };
         
-        // 2. Define a URL da Capa e Atualiza Textos
         const coverUrl = playlist.cover || fallbackImage;
-        playlistTitleDetail.textContent = playlist.name || "Sem título";
-        playlistDescriptionDetail.textContent = playlist.category === "Stations" 
-            ? "Baseada nas músicas deste artista." 
-            : (playlist.description || "");
+        if (playlistTitleDetail) playlistTitleDetail.textContent = playlist.name || "Sem título";
+        if (playlistDescriptionDetail) {
+            playlistDescriptionDetail.textContent = playlist.category === "Stations" 
+                ? "Baseada nas músicas deste artista." 
+                : (playlist.description || "");
+        }
 
         if (playlistImgDetail) playlistImgDetail.src = coverUrl;
 
-        // 3. Lógica do ColorThief para Gradiente e Glow Dinâmico
-       const colorThief = new ColorThief();
-const imgToLoad = new Image();
-const playlistBg = document.getElementById("playlist-bg");
+        // Lógica ColorThief
+        const colorThief = new ColorThief();
+        const imgToLoad = new Image();
+        imgToLoad.crossOrigin = "Anonymous"; 
+        imgToLoad.src = coverUrl;
 
-imgToLoad.crossOrigin = "Anonymous"; 
-imgToLoad.src = coverUrl; // Certifique-se que coverUrl está definida acima
+        imgToLoad.onload = () => {
+            try {
+                const color = colorThief.getColor(imgToLoad);
+                const rgb = `${color[0]}, ${color[1]}, ${color[2]}`;
+                if (playlistBg) {
+                    playlistBg.style.background = `linear-gradient(to bottom, rgb(${rgb}) 0%, rgba(${rgb}, 0.4) 40%, #030303 100%)`;
+                }
+            } catch (e) {
+                if (playlistBg) playlistBg.style.background = "#030303";
+            }
+        };
 
-imgToLoad.onload = () => {
-    try {
-        const color = colorThief.getColor(imgToLoad);
-        const rgb = `${color[0]}, ${color[1]}, ${color[2]}`;
-        
-        if (playlistBg) {
-            // Criamos o efeito imersivo:
-            // A cor dominante começa no topo (0%)
-            // Ela vai ficando transparente e escurecendo até os 700px (altura média da capa + título)
-            // Depois disso, o preto do body assume o controle.
-            playlistBg.style.background = `linear-gradient(to bottom, rgb(${rgb}) 0%, rgba(${rgb}, 0.4) 40%, #030303 100%)`;
+        let tracks = [];
+        // AJUSTE: Mudei de "Top 100" para "Top 50" na verificação de nomes
+        const automaticTopNames = ["Top 50", "Daily Top 50"]; 
+        const isRecentReleases = ["Novidades da Semana", "Novidades", "Lançamentos da Semana"].includes(playlist.name);
+        const isAutomaticTop = automaticTopNames.includes(playlist.name) && playlist.category === "Charts";
+
+        // A) Charts Automáticos (AJUSTADO PARA LIMITE DE 50)
+        if (isAutomaticTop) {
+            const limitCount = 50; // Limite fixo em 50
+            const q = query(
+                collection(db, "musicas"), 
+                orderBy("streamsMensal", "desc"), 
+                limit(limitCount)
+            );
+            const snap = await getDocs(q);
+            snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
+        } 
+        // B) Lançamentos Recentes
+        else if (isRecentReleases) {
+            const dataLimite = new Date();
+            dataLimite.setDate(dataLimite.getDate() - 3);
+            
+            // O Firestore lida melhor com objetos Date do que toISOString em alguns casos
+            const q = query(
+                collection(db, "musicas"), 
+                where("timestamp", ">=", dataLimite), 
+                limit(50)
+            );
+            const snap = await getDocs(q);
+            snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
+            
+            tracks.sort((a, b) => {
+                const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+                const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+                return dateB - dateA;
+            });
+        }
+        // C) Artist Stations
+        else if (playlist.uidars) {
+            const q = query(collection(db, "musicas"), where("artist", "==", playlist.uidars), limit(30));
+            const snap = await getDocs(q);
+            snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
+        } 
+        // D) Playlists Manuais
+        else {
+            const subColRef = query(collection(db, `playlists/${playlistId}/musicas`), limit(50));
+            const subSnap = await getDocs(subColRef);
+
+            if (!subSnap.empty) {
+                subSnap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
+            } 
+            else if (playlist.track_ids?.length > 0) {
+                const lotes = [playlist.track_ids.slice(0, 30)]; // Reduzido para 30 para performance
+                for (const ids of lotes) {
+                    const q = query(collection(db, "musicas"), where("__name__", "in", ids));
+                    const snapIn = await getDocs(q);
+                    snapIn.forEach(d => tracks.push({ id: d.id, ...d.data() }));
+                }
+            }
         }
 
-        // Aplica o brilho na imagem da capa para combinar
-        if (playlistImgDetail) {
-            playlistImgDetail.style.boxShadow = `0 20px 80px rgba(${rgb}, 0.4)`;
-        }
-
-    } catch (e) {
-        console.error("Erro ao extrair cor:", e);
-        if (playlistBg) playlistBg.style.background = "#030303";
-    }
-};
-
-
-
-// 4. Carregamento das Músicas
-let tracks = [];
-const automaticTopNames = ["Top 100", "Daily Top 50"];
-
-// Identifica se é a sua playlist de lançamentos
-const isRecentReleases = 
-    playlist.name === "Novidades da Semana" || 
-    playlist.name === "Novidades" || 
-    playlist.name === "Lançamentos da Semana";
-
-const isAutomaticTop = automaticTopNames.includes(playlist.name) && playlist.category === "Charts";
-
-if (isAutomaticTop) {
-    const limitCount = playlist.name === "Top 100" ? 100 : 50;
-    const musicasRef = collection(db, "musicas");
-    const q = query(musicasRef, orderBy("streamsMensal", "desc"), limit(limitCount));
-    const querySnapshot = await getDocs(q);
-    querySnapshot.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-} 
-
-else if (isRecentReleases) {
-    const musicasRef = collection(db, "musicas");
-    
-    // Define a janela de tempo (6 dias atrás)
-    const dataLimite = new Date();
-    dataLimite.setDate(dataLimite.getDate() - 3);
-    const dataLimiteISO = dataLimite.toISOString(); 
-
-    try {
-        // Query com limite de 50 resultados
-        const q = query(
-            musicasRef, 
-            where("timestamp", ">=", dataLimiteISO),
-            limit(50)
-        );
-        
-        const querySnapshot = await getDocs(q);
-        tracks = [];
-        querySnapshot.forEach((d) => {
-            tracks.push({ id: d.id, ...d.data() });
-        });
-
-        // Ordena no cliente para garantir que a mais recente (01/02/2026) fique no topo
-        tracks.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-
-        console.log(`✅ Playlist '${playlist.name}' carregada com ${tracks.length} músicas.`);
-    } catch (e) {
-        console.error("Erro ao carregar novidades:", e);
-    }
-}
-
-// --- C) ARTIST STATIONS ---
-else if (playlist.uidars) {
-    console.log("Carregando via Artist Station...");
-    const musicasRef = collection(db, "musicas");
-    const q = query(musicasRef, where("artist", "==", playlist.uidars), limit(30));
-    const querySnapshot = await getDocs(q);
-    querySnapshot.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-} 
-
-// --- D) PLAYLISTS MANUAIS ---
-else {
-    console.log("Carregando via Manual/Subcoleção...");
-    const playlistMusicasRef = collection(db, `playlists/${playlistId}/musicas`);
-    const snapshotMusicas = await getDocs(playlistMusicasRef);
-
-    if (!snapshotMusicas.empty) {
-        snapshotMusicas.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-    } else if (playlist.track_ids && Array.isArray(playlist.track_ids)) {
-        for (const trackId of playlist.track_ids) {
-            const snap = await getDoc(doc(db, "musicas", trackId));
-            if (snap.exists()) tracks.push({ id: snap.id, ...snap.data() });
-        }
-    }
-}
-
-        // 5. Ordenação (apenas para manuais)
+        // 5. Ordenação e Renderização
         if (!isAutomaticTop && !playlist.uidars) { 
             tracks.sort((a, b) => (a.trackNumber || 99) - (b.trackNumber || 99));
         }
 
-        // 6. Renderiza na Tela
         renderTracksSpotifyStyle(tracks, playlist);
 
     } catch (error) {
         console.error("Erro ao carregar playlist:", error);
-        playlistTitleDetail.textContent = "Erro ao Carregar";
-        if (playlistBg) playlistBg.style.background = fallbackBackground;
+        if (playlistTitleDetail) playlistTitleDetail.textContent = "Erro ao Carregar";
     }
 }
-
-
 
 async function toggleLike(type, itemId, buttonElement) {
     // Verifica se o usuário está logado
@@ -905,7 +967,7 @@ async function checkAndResetMonthlyStreams(musicId) {
         const currentYear = today.getFullYear();
         
         // Define o valor do "boost" (1 Milhão)
-        const streamBoost = Math.floor(Math.random() * (500000 - 100000 + 1)) + 100000;
+        const streamBoost = Math.floor(Math.random() * (50000 - 100000 + 1)) + 100000;
 
         const lastStreamDate = musicData.lastMonthlyStreamDate 
             ? musicData.lastMonthlyStreamDate.toDate() 
@@ -1103,171 +1165,153 @@ async function shareAlbum(albumTitle, artistName, shareUrl, showToast) {
  * Função principal para carregar e configurar a página do álbum.
  * @param {string} albumId - O ID único do álbum.
  */
+/**
+ * Carrega e configura a página de álbum (LOW COST Firestore)
+ * @param {string} albumId
+ */
 async function setupAlbumPage(albumId) {
-    // 1. Definições Iniciais
+
+    // ====== ELEMENTOS ======
     const detailHeader = document.querySelector('#album-header');
     const albumCoverDetail = document.getElementById('album-cover-detail');
     const albumTitleDetail = document.getElementById('album-title-detail');
     const artistNameDetail = document.getElementById('artist-name-detail');
     const albumYearDetail = document.getElementById('album-year-detail');
-    const tracksContainer = document.getElementById("tracks-container");
-    const playButton = document.querySelector('.album-actions .play'); 
+    const tracksContainer = document.getElementById('tracks-container');
+    const playButton = document.querySelector('.album-actions .play');
     const likeButton = document.querySelector('.album-actions .like');
     const shareButton = document.querySelector('.album-actions .share');
-    const fallbackBackground = 'linear-gradient(to bottom, #000000ff, #000000ff)';
-    
+console.count('setupAlbumPage executado');
+
+    const fallbackBackground = 'linear-gradient(to bottom, #000, #000)';
+
     if (!albumId) {
-        console.error("Nenhum ID de álbum encontrado na URL.");
+        console.warn("setupAlbumPage chamado sem albumId");
         return;
     }
 
     try {
-        // 2. CÓDIGO DE CARREGAMENTO DO ÁLBUM (FIREBASE/FIRESTORE)
-        const albumDocRef = doc(db, "albuns", albumId);
-        const albumSnap = await getDoc(albumDocRef);
+        // ====== BUSCA DO ÁLBUM (1 READ) ======
+        const albumRef = doc(db, 'albuns', albumId);
+        const albumSnap = await getDoc(albumRef);
 
         if (!albumSnap.exists()) {
             albumTitleDetail.textContent = "Álbum não encontrado";
-            tracksContainer.innerHTML = `<p class="text-gray-400">Não foi possível carregar este álbum.</p>`;
+            tracksContainer.innerHTML = `<p class="text-gray-400">Álbum indisponível.</p>`;
             if (detailHeader) detailHeader.style.background = fallbackBackground;
             return;
         }
-        
+
         const album = { id: albumSnap.id, ...albumSnap.data() };
-        
-        // Dados principais
-        const albumTitle = album.album || 'Título Desconhecido';
-        const artistName = album.artist || 'Artista Desconhecido';
+
+        const albumTitle = album.album || 'Título desconhecido';
+        const artistName = album.artist || 'Artista desconhecido';
         const coverUrl = album.cover || './assets/artistpfp.png';
-        
-        // Determinação segura do ano (Corrigido na etapa anterior)
-        let albumYear = album.releaseYear || 'Ano Desconhecido';
-        if (albumYear === 'Ano Desconhecido' && album.date) {
-            if (typeof album.date.toDate === 'function') {
-                albumYear = new Date(album.date.toDate()).getFullYear();
-            } else if (typeof album.date === 'string' || typeof album.date === 'number') {
-                 const dateObj = new Date(album.date);
-                 if (!isNaN(dateObj)) {
-                    albumYear = dateObj.getFullYear();
-                 }
-            } 
+
+        // ====== ANO ======
+        let albumYear = album.releaseYear || '—';
+        if (!album.releaseYear && album.date?.toDate) {
+            albumYear = album.date.toDate().getFullYear();
         }
-        
-        // Atualiza o DOM
+
+        // ====== DOM ======
         albumCoverDetail.src = coverUrl;
         albumTitleDetail.textContent = albumTitle;
         artistNameDetail.textContent = artistName;
         albumYearDetail.textContent = albumYear;
-        document.title = `${albumTitle} de ${artistName} | TUNE`;
+        document.title = `${albumTitle} — ${artistName} | TUNE`;
 
-        // 3. Aplica Cor Dominante no Cabeçalho
-        if (albumCoverDetail) {
-            const tempImg = new Image();
-            tempImg.crossOrigin = "Anonymous";
-            tempImg.src = coverUrl;
-            tempImg.onload = () => applyDominantColorToHeader(tempImg, detailHeader);
-            tempImg.onerror = () => detailHeader.style.background = fallbackBackground;
-        } else {
-            detailHeader.style.background = fallbackBackground;
+        // ====== FUNDO ======
+        if (albumCoverDetail && typeof applyDominantColorToHeader === 'function') {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.src = coverUrl;
+            img.onload = () => applyDominantColorToHeader(img, detailHeader);
+            img.onerror = () => detailHeader.style.background = fallbackBackground;
         }
 
+        // ====== FOTO DO ARTISTA (QUERY BARATA) ======
         try {
-    const usuariosRef = collection(db, "usuarios");
-    // Busca pelo nome artístico que está no álbum
-    const artistQuery = query(usuariosRef, where("nomeArtistico", "==", artistName));
-    const artistSnap = await getDocs(artistQuery);
+            const artistQuery = query(
+                collection(db, 'usuarios'),
+                where('nomeArtistico', '==', artistName),
+                limit(1)
+            );
 
-    if (!artistSnap.empty) {
-        const artistData = artistSnap.docs[0].data();
-        if (artistData.foto) {
-            document.getElementById('artist-image-detail').src = artistData.foto;
+            const artistSnap = await getDocs(artistQuery);
+            if (!artistSnap.empty) {
+                const foto = artistSnap.docs[0].data().foto;
+                if (foto) {
+                    document.getElementById('artist-image-detail').src = foto;
+                }
+            }
+        } catch (err) {
+            console.warn("Erro ao buscar artista:", err);
         }
-    }
-} catch (e) {
-    console.error("Erro ao buscar foto do artista:", e);
-}
 
-        // 4. Configuração de Meta Tags para Link Preview
-        const currentUrl = window.location.href; 
-        const title = `${albumTitle} - ${artistName}`;
-        const description = `Ouça o álbum "${albumTitle}" de ${artistName} na TUNE.`;
-        // Supondo que updateMetaTags está definido no seu código
-        if (typeof updateMetaTags === 'function') updateMetaTags(title, description, coverUrl, currentUrl);
+        // ====== METAS ======
+        if (typeof updateMetaTags === 'function') {
+            updateMetaTags(
+                `${albumTitle} - ${artistName}`,
+                `Ouça o álbum "${albumTitle}" de ${artistName} na TUNE.`,
+                coverUrl,
+                window.location.href
+            );
+        }
 
-        // 5. Configuração do Botão de Curtir (LIKE)
-        if (likeButton && typeof checkAndSetLikeState === 'function' && typeof toggleLike === 'function') {
+        // ====== LIKE ======
+        if (likeButton && typeof checkAndSetLikeState === 'function') {
             checkAndSetLikeState('album', albumId, likeButton);
-            likeButton.onclick = () => toggleLike('album', albumId, likeButton);
-        } else if (likeButton) {
-            console.warn("Funções de LIKE (checkAndSetLikeState ou toggleLike) não encontradas/definidas. O botão de curtir foi desabilitado.");
-            likeButton.disabled = true;
+            likeButton.onclick = () =>
+                toggleLike('album', albumId, likeButton);
         }
 
-        // 6. Configuração do Botão de Compartilhar (SHARE)
-        if (shareButton && typeof shareAlbum === 'function' && typeof showToast === 'function') {
-            shareButton.onclick = () => {
-                shareAlbum(albumTitle, artistName, currentUrl, showToast);
-            };
+        // ====== SHARE ======
+        if (shareButton && typeof shareAlbum === 'function') {
+            shareButton.onclick = () =>
+                shareAlbum(albumTitle, artistName, window.location.href);
         }
 
-        // 7. Configuração do Botão de Play e Carregamento de Faixas
-        try {
-            const musicasRef = collection(db, "musicas");
-            // ⭐ CORREÇÃO APLICADA AQUI: Usando 'album' em vez de 'albumId' (campo que funcionava antes)
-            // IMPORTANTE: Se o campo 'album' for um array de IDs, use where("album", "array-contains", albumId)
-            const q = query(musicasRef, where("album", "==", albumId), orderBy("trackNumber"));
-            
-            let tracks = [];
-            
-            onSnapshot(q, (querySnapshot) => {
-                tracks = [];
-                querySnapshot.forEach((docSnap) => {
-                    const trackData = docSnap.data();
-                    const trackArtist = trackData.artistName || artistName; 
-                    tracks.push({ 
-                        id: docSnap.id, 
-                        ...trackData, 
-                        artistName: trackArtist, 
-                        cover: trackData.cover || coverUrl 
-                    });
-                });
+        const musicQuery = query(
+    collection(db, 'musicas'),
+    where('album', '==', albumId),
+    orderBy('trackNumber')
+);
 
-                tracks.sort((a, b) => (a.trackNumber || 999) - (b.trackNumber || 999));
+        const musicSnap = await getDocs(musicQuery);
+        const tracks = [];
 
-                console.log(`Músicas encontradas para renderizar: ${tracks.length}`);
-                
-                // ⭐ CHAMADA DE RENDERIZAÇÃO: Usando a função genérica definida abaixo
-                if (typeof renderTracksSpotifyStyle === 'function') {
-                    renderTracksSpotifyStyle(tracks, album);
-                } else {
-                    // Fallback para exibir a lista se o nome da função estiver errado
-                    tracksContainer.innerHTML = `<p class="text-red-500">Função de renderização de faixas não definida (renderTracksSpotifyStyle).</p>`;
-                }
-                
-                // Configura o botão de Play/Shuffle principal
-                if (playButton && tracks.length > 0 && typeof addToQueue === 'function') {
-                    playButton.onclick = () => addToQueue(tracks);
-                    playButton.classList.remove('hidden'); 
-                } else if (playButton) {
-                    playButton.classList.add('hidden');
-                }
-            }, (error) => {
-                console.error("Erro na query de músicas:", error);
-                tracksContainer.innerHTML = `<p class="text-red-500">Erro ao buscar faixas do álbum. Verifique as regras do Firestore ou o campo 'album' na coleção 'musicas'.</p>`;
+        musicSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            tracks.push({
+                id: docSnap.id,
+                ...data,
+                artistName: data.artistName || artistName,
+                cover: data.cover || coverUrl
             });
+        });
 
-        } catch (e) {
-            console.error("Erro fatal ao configurar query de músicas:", e);
-            tracksContainer.innerHTML = `<p class="text-red-500">Erro fatal. Verifique se as imports do Firestore estão corretas.</p>`;
+        // ====== RENDER ======
+        if (typeof renderTracksSpotifyStyle === 'function') {
+            renderTracksSpotifyStyle(tracks, album);
         }
-        
 
-    } catch (error) {
-        console.error("Erro ao carregar álbum (Geral):", error);
-        albumTitleDetail.textContent = "Erro ao Carregar Álbum";
-        if (detailHeader) detailHeader.style.background = fallbackBackground;
+        // ====== PLAY ======
+        if (playButton && tracks.length) {
+            playButton.classList.remove('hidden');
+            playButton.onclick = () => addToQueue(tracks);
+        }
+
+    } catch (err) {
+        console.error("Erro crítico em setupAlbumPage:", err);
+        tracksContainer.innerHTML =
+            `<p class="text-red-500">Erro ao carregar álbum.</p>`;
     }
-}
+
+} // 👈 FECHAMENTO FINAL — NÃO APAGUE
+
+
+
 // ... (Restante do seu código) ...
 
    // Botão de voltar (CORRIGIDO)
@@ -1579,28 +1623,33 @@ function initializeRouting() {
 }
 
 
-
-// --- Função loadContent ---
-
 async function loadContent(pageName, id = null) {
     const contentArea = document.getElementById('content-area');
-    if (!contentArea) return;
+    if (!contentArea || !pageName) return;
+
+    // 1. CHECAGEM DE CACHE
+    if (pageName === 'home' && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
+        contentArea.innerHTML = window.__HOME_CACHE__.html;
+        
+        // Atualiza apenas a saudação, os cliques agora são globais e automáticos
+        setGreeting(); 
+        
+        const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        const newUrl = isDev ? `menu.html?page=home` : `/home`;
+        window.history.pushState({ page: 'home' }, '', newUrl);
+        return; 
+    }
 
     try {
         const filePath = `${pageName}.html`;
         const response = await fetch(filePath);
-        if (!response.ok) throw new Error(`Não foi possível carregar ${filePath}: ${response.statusText}`);
+        if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
         
         const html = await response.text();
         contentArea.innerHTML = html;
         
-       const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-
-const newUrl = isDev
-  ? `menu.html?page=${pageName}${id ? `&id=${id}` : ''}`
-  : `/${pageName}${id ? `?id=${id}` : ''}`;
-
-
+        const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        const newUrl = isDev ? `menu.html?page=${pageName}${id ? `&id=${id}` : ''}` : `/${pageName}${id ? `?id=${id}` : ''}`;
         window.history.pushState({ page: pageName, id: id }, '', newUrl);
 
         // Garantimos que o DOM foi atualizado antes de chamar as funções de setup
@@ -1621,10 +1670,13 @@ const newUrl = isDev
                 }).catch(err => console.error("Erro ao importar search.js:", err));
             } else if (pageName === 'playlist') { 
                 setupPlaylistPage(id);
+                } else if (pageName === 'music') { // ⬅️ ADICIONE ESTE BLOCO
+    setupMusicPage(id);
             } else if (pageName === 'liked') { // ⬅️ NOVO: Chama a função de setup da página de curtidas
                 setupLikedPage();
             } else if (pageName === 'library') { // ⬅️ NOVO: Chama a função de setup da página de curtidas
                 setupLibraryPage();
+                validarCardArtista();
                 checkAuthAndLoadLikedItems();
             }
         }, 50);
@@ -1645,37 +1697,22 @@ async function setupLibraryPage() {
 
 }
 
-// --- Lógica Principal da Página Home (setupHomePage) ---
-
-// NOVO: Função para criar o card de um artista
 function createArtistCard(docData, docId) {
     const card = document.createElement("div");
-    // Increased width for better visibility and slightly better alignment with the screenshot's 'feel'
     card.className = "w-27 flex-shrink-0 text-center cursor-pointer hover:opacity-80 transition";
-
-    const img = document.createElement("img");
-    img.src = docData.foto || "/assets/default-artist.png";
-    img.alt = docData.apelido || "Artista";
     
-    // 🎨 CORRECTION/IMPROVEMENT: 
-    // 1. Made the size explicit and square (e.g., w-24 h-24) to ensure proper circular cropping.
-    // 2. Used 'rounded-full' for a perfect circle.
-    // 3. Used 'object-cover' to ensure the image covers the area without distortion, cropping as needed.
-    img.className = "w-24 h-24 rounded-full object-cover mx-auto mb-0";
+    // CORREÇÃO: Atributos de navegação em vez de click listener
+    card.setAttribute('data-navigate', 'artist');
+    card.setAttribute('data-id', docId);
 
-     const nome = document.createElement("p");
-    // 🎨 MUDANÇA 2: Aumentada a fonte de text-xs para text-sm.
-      nome.className = "text-white text-xs font-bold truncate mt-3";  
-    nome.innerText = docData.nomeArtistico || "Artista";
+    const fotoUrl = docData.foto || "";
+    const imgSrc = fotoUrl.startsWith("https://firebasestorage.googleapis.com") ? "/assets/artistpfp.png" : (fotoUrl || "/assets/default-artist.png");
 
-    card.appendChild(img);
-    card.appendChild(nome);
+    card.innerHTML = `
+        <img src="${imgSrc}" alt="${docData.nomeArtistico}" class="w-24 h-24 rounded-full object-cover mx-auto mb-0">
+        <p class="text-white text-xs font-bold truncate mt-3">${docData.nomeArtistico || "Artista"}</p>
+    `;
 
-    if (docId) {
-        card.addEventListener("click", () => {
-            loadContent('artist', docId);
-        });
-    }
     return card;
 }
 
@@ -1733,27 +1770,20 @@ songItem.addEventListener("click", () => {
 
 function createPlaylistCard(playlist, playlistId) {
     const playlistCard = document.createElement('div');
-    // Manteve o estilo de card original do usuário
     playlistCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
-    playlistCard.addEventListener('click', () => {
-        loadContent('playlist', playlistId);
-    });
-
-    // 💡 Adiciona o cálculo e formatação dos streams
-    // (A função formatNumber deve estar definida no escopo global/do módulo)
-    const formattedStreams = playlist.streams ? formatNumber(playlist.streams) : '0';
+    
+    // CORREÇÃO: Atributos de navegação
+    playlistCard.setAttribute('data-navigate', 'playlist');
+    playlistCard.setAttribute('data-id', playlistId);
 
     playlistCard.innerHTML = `
         <div class="relative w-full pb-[100%] rounded-md">
-            <img src="${playlist.cover || 'https://placehold.co/150x150/333333/FFFFFF?text=Sem+Capa'}" 
-                alt="Capa da Playlist: ${playlist.name}" 
-                class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
+            <img src="${playlist.cover || '/assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
         </div>
         <div class="mt-2 w-full">
             <h3 class="text-sm font-semibold text-white truncate">${playlist.name}</h3>
             <p class="text-gray-400 text-xs truncate">${playlist.genres?.join(', ') || 'Playlist'}</p>
-            
-            
+        </div>
     `;
     return playlistCard;
 }
@@ -1800,18 +1830,18 @@ function renderCardRow(rowElementId, items, type) {
 function createAlbumCard(album, albumId) {
     const albumCard = document.createElement('div');
     albumCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
-    albumCard.addEventListener('click', () => {
-        loadContent('album', albumId);
-    });
+    
+    // CORREÇÃO: Atributos de navegação
+    albumCard.setAttribute('data-navigate', 'album');
+    albumCard.setAttribute('data-id', albumId);
+
     albumCard.innerHTML = `
         <div class="relative w-full pb-[100%] rounded-md">
-            <img src="${album.cover || 'https://placehold.co/150x150/333333/FFFFFF?text=Sem+Capa'}" alt="Capa do Álbum: ${album.album}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
+            <img src="${album.cover || '/assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
         </div>
         <div class="mt-2 w-full">
             <h3 class="text-sm font-semibold text-white truncate">${album.album}</h3>
             <p class="text-gray-400 text-xs truncate">${album.artist}</p>
-            <div class="mt-1 text-gray-500 text-xs">
-            </div>
         </div>
     `;
     return albumCard;
@@ -1840,7 +1870,7 @@ async function registrarLog(itemTitle, type) {
 
 
 
-function setupContentCarousel(
+async function setupContentCarousel(
   listId,
   leftBtnId,
   rightBtnId,
@@ -1857,14 +1887,16 @@ function setupContentCarousel(
 
   if (!listContainer || !listWrapper || !btnLeft || !btnRight) return;
 
-  // Esconde as setas por padrão ao carregar a página
   btnLeft.classList.add('hidden');
   btnRight.classList.add('hidden');
 
-  const q = query(collection(db, collectionName), ...queryConfig);
-  onSnapshot(q, (querySnapshot) => {
+  try {
+    const q = query(collection(db, collectionName), ...queryConfig);
+    const querySnapshot = await getDocs(q); // ✅ leitura única (barata)
+
     listContainer.innerHTML = '';
     if (loadingMessage) loadingMessage.style.display = 'none';
+
     if (querySnapshot.empty) {
       listContainer.innerHTML = `<p class="flex-shrink-0 text-gray-400">Nenhum item encontrado.</p>`;
     } else {
@@ -1875,8 +1907,9 @@ function setupContentCarousel(
         listContainer.appendChild(card);
       });
     }
-    // A visibilidade inicial será controlada pelo mouse
-  });
+  } catch (err) {
+    console.error('Erro ao carregar carrossel:', err);
+  }
 
   function updateArrowVisibility() {
     const scrollLeft = listContainer.scrollLeft;
@@ -1885,23 +1918,15 @@ function setupContentCarousel(
     btnRight.classList.toggle('hidden', scrollLeft >= maxScrollLeft - 1);
   }
 
-  // --- Lógica para mostrar/esconder as setas ao passar o mouse ---
-  listWrapper.addEventListener('mouseenter', () => {
-    // Quando o mouse entra, exibe as setas com base na posição do scroll
-    updateArrowVisibility();
-  });
-
+  listWrapper.addEventListener('mouseenter', updateArrowVisibility);
   listWrapper.addEventListener('mouseleave', () => {
-    // Quando o mouse sai, esconde as setas
     btnLeft.classList.add('hidden');
     btnRight.classList.add('hidden');
   });
 
-  // Observa o scroll para atualizar a visibilidade enquanto o mouse estiver dentro
   listContainer.addEventListener('scroll', updateArrowVisibility);
   window.addEventListener('resize', updateArrowVisibility);
 
-  // Botões de scroll agora usam o contêiner correto
   btnLeft.addEventListener('click', () =>
     listContainer.scrollBy({ left: -300, behavior: 'smooth' })
   );
@@ -1909,27 +1934,19 @@ function setupContentCarousel(
     listContainer.scrollBy({ left: 300, behavior: 'smooth' })
   );
 
-  // Drag para scroll
+  // Drag
   let isDown = false;
   let startX;
   let scrollLeftStart;
 
   listContainer.addEventListener('mousedown', (e) => {
     isDown = true;
-    listContainer.classList.add('cursor-grabbing');
     startX = e.pageX - listContainer.offsetLeft;
     scrollLeftStart = listContainer.scrollLeft;
   });
 
-  listContainer.addEventListener('mouseleave', () => {
-    isDown = false;
-    listContainer.classList.remove('cursor-grabbing');
-  });
-
-  listContainer.addEventListener('mouseup', () => {
-    isDown = false;
-    listContainer.classList.remove('cursor-grabbing');
-  });
+  listContainer.addEventListener('mouseup', () => (isDown = false));
+  listContainer.addEventListener('mouseleave', () => (isDown = false));
 
   listContainer.addEventListener('mousemove', (e) => {
     if (!isDown) return;
@@ -1938,20 +1955,8 @@ function setupContentCarousel(
     const walk = (x - startX) * 1.5;
     listContainer.scrollLeft = scrollLeftStart - walk;
   });
-
-  // Suporte para toque
-  let touchStartX;
-  listContainer.addEventListener('touchstart', (e) => {
-    touchStartX = e.touches[0].pageX;
-    scrollLeftStart = listContainer.scrollLeft;
-  });
-
-  listContainer.addEventListener('touchmove', (e) => {
-    const touchX = e.touches[0].pageX;
-    const walk = (touchX - touchStartX) * 1.5;
-    listContainer.scrollLeft = scrollLeftStart - walk;
-  });
 }
+
 
 // ⭐ NOVO: Função para buscar e renderizar a seção de Pop unificada ⭐
 async function setupPopSection() {
@@ -2255,190 +2260,129 @@ async function setupArtistSection(artistUid) { // Removido artistName do parâme
     }
 }
 
-async function carregarTopAlbuns() {
-    const listaTop = document.getElementById('top-albuns-list');
-    
+
+
+async function setupMusicPage(musicId) {
+    if (!musicId) return;
+
     try {
-        // 1. Busca os álbuns
-        const albunsSnap = await getDocs(collection(db, "albuns"));
-        
-        const promessasAlbuns = albunsSnap.docs.map(async (docAlbum) => {
-            const dadosAlbum = docAlbum.data();
-            const idAlbum = docAlbum.id;
+        const docRef = doc(db, "musicas", musicId);
+        const snap = await getDoc(docRef);
 
-            // 2. Busca e soma os streams das músicas deste álbum
-            const qMusicas = query(collection(db, "musicas"), where("album", "==", idAlbum));
-            const musicasSnap = await getDocs(qMusicas);
+        if (snap.exists()) {
+            const data = snap.data();
             
-            let totalStreams = 0;
-            musicasSnap.forEach(docMusica => {
-                totalStreams += Number(docMusica.data().streams || 0);
-            });
-
-            return {
-                id: idAlbum,
-                album: dadosAlbum.album, // Título do álbum
-                artist: dadosAlbum.artist,
-                cover: dadosAlbum.cover,
-                streams: totalStreams
-            };
-        });
-
-        const albunsCalculados = await Promise.all(promessasAlbuns);
-
-        // 3. Ordena e pega o Top 10
-        const top10 = albunsCalculados
-            .sort((a, b) => b.streams - a.streams)
-            .slice(0, 10);
-
-        listaTop.innerHTML = ''; 
-
-        // 4. Cria os cards usando o seu padrão exato
-        top10.forEach(album => {
-            const albumCard = document.createElement('div');
-            // Usando EXATAMENTE as suas classes
-            albumCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
+            // 1. Preenchimento do Header
+            document.getElementById('album-title-detail').textContent = data.title;
+            document.getElementById('artist-name-detail').textContent = data.artistName || "Artista";
+            document.getElementById('album-cover-detail').src = data.cover;
+            document.getElementById('album-cover-bg').style.backgroundImage = `url(${data.cover})`;
             
-            albumCard.addEventListener('click', () => {
-                // Usando a sua função de navegação
-                loadContent('album', album.id);
-            });
+            // Exibe o total de streams formatado (ex: 1.500.200 streams)
+            const streamsEl = document.getElementById('music-streams-count');
+            if (streamsEl) {
+                streamsEl.textContent = `${(data.streams || 0).toLocaleString()} streams`;
+            }
 
-            albumCard.innerHTML = `
-                <div class="relative w-full pb-[100%] rounded-md">
-                    <img src="${album.cover || 'https://placehold.co/150x150/333333/FFFFFF?text=Sem+Capa'}" 
-                         alt="Capa do Álbum: ${album.album}" 
-                         class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
-                </div>
-                <div class="mt-2 w-full">
-                    <h3 class="text-sm font-semibold text-white truncate">${album.album}</h3>
-                    <p class="text-gray-400 text-xs truncate">${album.artist}</p>
+            if (data.explicit) {
+                document.getElementById('explicit-badge')?.classList.remove('hidden');
+            }
+
+            // 2. Lógica de Bloqueio
+            const now = new Date();
+            const scheduledDate = data.scheduledTime && data.scheduledTime !== "Imediato" 
+                                  ? new Date(data.scheduledTime) : null;
+            const isLocked = scheduledDate && scheduledDate > now;
+
+            // 3. Renderização da Lista
+            const tracksContainer = document.getElementById('tracks-container');
+            if (tracksContainer) {
+                const lockClass = isLocked ? "opacity-30 pointer-events-none" : "hover:bg-white/10 cursor-pointer";
                 
-                </div>
-            `;
-            
-            listaTop.appendChild(albumCard);
-        });
+                tracksContainer.innerHTML = `
+                    <div class="track-item ${lockClass}">
+                        <div class="track-number-display text-gray-500 text-xs">1</div>
+                        <img src="${data.cover}" class="track-cover ${isLocked ? 'grayscale' : ''}">
+                        <div class="track-info-container">
+                            <div class="flex items-center gap-1.5 overflow-hidden">
+                                <span class="track-name text-white">${data.title}</span>
+                                ${data.explicit ? '<span class="explicit-tag">E</span>' : ''}
+                            </div>
+                            <span class="artist-name text-gray-400 text-[11px]">${data.artistName}</span>
+                        </div>
+                        <div class="track-duration text-gray-400 text-xs">
+                            ${isLocked ? "<i class='bx bxs-lock-alt text-[10px]'></i>" : (data.duration || '0:00')}
+                        </div>
+                    </div>
+                `;
 
-        // Configuração do Scroll Lateral
-        document.getElementById('top-albuns-scroll-left').onclick = () => 
-            listaTop.scrollBy({ left: -300, behavior: 'smooth' });
-        document.getElementById('top-albuns-scroll-right').onclick = () => 
-            listaTop.scrollBy({ left: 300, behavior: 'smooth' });
+                if (!isLocked) {
+                    tracksContainer.querySelector('.track-item').onclick = () => {
+                        checkAndResetMonthlyStreams(musicId); // Incrementa o contador
+                        window.playTrackGlobal(data);
+                    };
+                }
+            }
 
-    } catch (erro) {
-        console.error("Erro ao carregar Top Álbuns:", erro);
-    }
-}
-
-
-
-
-
-// ⭐ FUNÇÃO PARA ANITTA: idêntica à de Taylor Swift, mas com IDs da Anitta ⭐
-async function setupAnittaSection(artistUid) {
-    const listContainer = document.getElementById('anitta-list');
-    const loadingMessage = document.getElementById('anitta-loading-message');
-    const artistHeader = document.getElementById('anitta-header');
-    const artistHeaderImg = document.getElementById('anitta-header-img');
-    const artistHeaderName = document.getElementById('anitta-header-name');
-
-    // Se um dos elementos não existir, a seção Anitta não será renderizada.
-    if (!listContainer || !artistHeader || !artistHeaderImg || !artistHeaderName) {
-        console.error("Elementos HTML da seção de Anitta não encontrados.");
-        return;
-    }
-
-    if (loadingMessage) loadingMessage.style.display = 'block';
-    
-    let artistContent = [];
-    let artistData = null;
-
-    // Passo 1: Buscar os dados do perfil do artista para o cabeçalho
-    try {
-        const artistDocRef = doc(db, "usuarios", artistUid);
-        const artistDocSnap = await getDoc(artistDocRef);
-        if (artistDocSnap.exists()) {
-            artistData = { id: artistDocSnap.id, ...artistDocSnap.data() };
-            // ATUALIZA O CABEÇALHO DA SEÇÃO
-            artistHeaderImg.src = artistData.foto || "/assets/default-artist.png";
-            artistHeaderName.textContent = artistData.nomeArtistico || artistData.apelido || "Artista";
-            
-            // Adiciona evento de clique no cabeçalho
-            artistHeader.addEventListener('click', () => {
-                loadContent('artist', artistUid); // Supondo que 'artist' é a página do artista
-            });
-
-        } else {
-            console.warn(`Artista com UID ${artistUid} não encontrado.`);
-            artistHeaderName.textContent = "Artista Desconhecido";
-            if (loadingMessage) loadingMessage.style.display = 'none';
-            if (listContainer) listContainer.innerHTML = `<p class="flex-shrink-0 text-gray-400">Nenhum conteúdo encontrado para este artista.</p>`;
-            return;
+            // 4. Controle do Botão Play Principal
+            const mainPlayBtn = document.getElementById('main-play-btn');
+            if (mainPlayBtn) {
+                if (isLocked) {
+                    mainPlayBtn.style.opacity = "0.3";
+                    mainPlayBtn.style.cursor = "default";
+                    mainPlayBtn.onclick = null;
+                    if (document.getElementById('countdown-wrapper')) {
+                        document.getElementById('countdown-wrapper').classList.remove('hidden');
+                        iniciarCronometroMusica(scheduledDate, musicId);
+                    }
+                } else {
+                    mainPlayBtn.style.opacity = "1";
+                    mainPlayBtn.style.cursor = "pointer";
+                    mainPlayBtn.onclick = () => {
+                        checkAndResetMonthlyStreams(musicId); // Incrementa o contador
+                        window.playTrackGlobal(data);
+                    };
+                }
+            }
         }
     } catch (error) {
-        console.error("Erro ao buscar dados do artista Anitta:", error);
-        artistHeaderName.textContent = "Erro ao carregar artista";
-        if (loadingMessage) loadingMessage.style.display = 'none';
-        if (listContainer) listContainer.innerHTML = `<p class="flex-shrink-0 text-gray-400">Erro ao carregar conteúdo do artista.</p>`;
-        return;
-    }
-    
-    // Passo 2: Buscar Playlists (Stations) da artista
-    try {
-        const playlistsQuery = query(collection(db, "playlists"), where('uidars', '==', artistUid));
-        const playlistsSnapshot = await getDocs(playlistsQuery);
-        playlistsSnapshot.forEach(doc => {
-            const playlistData = doc.data();
-            artistContent.push({ id: doc.id, type: 'playlist', name: playlistData.name, ...playlistData });
-        });
-    } catch (error) {
-        console.error("Erro ao buscar stations da artista:", error);
-    }
-
-    // Passo 3: Buscar Álbuns da artista
-    try {
-        const albumsQuery = query(collection(db, "albuns"), where('uidars', '==', artistUid));
-        const albumsSnapshot = await getDocs(albumsQuery);
-        albumsSnapshot.forEach(doc => {
-            const albumData = doc.data();
-            artistContent.push({ id: doc.id, type: 'album', name: albumData.album, ...albumData });
-        });
-    } catch (error) {
-        console.error("Erro ao buscar álbuns da artista:", error);
-    }
-
-    // Ordenar o restante do conteúdo por nome (de A a Z)
-    artistContent.sort((a, b) => {
-        const nameA = a.name.toLowerCase();
-        const nameB = b.name.toLowerCase();
-        if (nameA < nameB) return -1;
-        if (nameA > nameB) return 1;
-        return 0;
-    });
-
-    // Oculta a mensagem de carregamento
-    if (loadingMessage) loadingMessage.style.display = 'none';
-
-    // Limpa a lista existente antes de renderizar
-    if (listContainer) listContainer.innerHTML = '';
-    
-    if (artistContent.length === 0) {
-        if (listContainer) listContainer.innerHTML = `<p class="flex-shrink-0 text-gray-400">Nenhum álbum ou playlist encontrado para ${artistData.nomeArtistico || artistData.apelido}.</p>`;
-    } else {
-        artistContent.forEach(item => {
-            let card;
-            if (item.type === 'album') {
-                // Supondo que você tem a função createAlbumCard
-                card = createAlbumCard(item, item.id);
-            } else { // playlist ou station
-                // Supondo que você tem a função createPlaylistCard
-                card = createPlaylistCard(item, item.id);
-            }
-            if (listContainer) listContainer.appendChild(card);
-        });
+        console.error("Erro no setupMusicPage:", error);
     }
 }
+
+// Função auxiliar para o Countdown
+function iniciarCronometroMusica(targetDate) {
+    const display = document.getElementById('countdown-display');
+    if (!display) return;
+
+    const interval = setInterval(() => {
+        const diff = targetDate - new Date();
+        if (diff <= 0) {
+            clearInterval(interval);
+            display.innerHTML = "<h2 class='text-[#00FF5B] font-bold'>LANÇAMENTO DISPONÍVEL!</h2>";
+            setTimeout(() => loadContent('music', musicId), 2000); // Recarrega a SPA
+            return;
+        }
+
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+
+        display.innerHTML = `
+            <div class="countdown-segment"><span class="countdown-value">${d}</span><span class="countdown-label">Dias</span></div>
+            <div class="countdown-separator"></div>
+            <div class="countdown-segment"><span class="countdown-value">${h}</span><span class="countdown-label">Horas</span></div>
+            <div class="countdown-separator"></div>
+            <div class="countdown-segment"><span class="countdown-value">${m}</span><span class="countdown-label">Min</span></div>
+            <div class="countdown-separator"></div>
+            <div class="countdown-segment"><span class="countdown-value">${s}</span><span class="countdown-label">Seg</span></div>
+        `;
+    }, 1000);
+}
+
+
+
 
 // ============================================
 // ⭐ FUNÇÕES PARA A PÁGINA 'LIKED' ⭐
@@ -2611,7 +2555,49 @@ function checkAuthAndLoadLikedItems() {
     });
 }
 
+// Função única para validar e mostrar o card
+async function validarCardArtista() {
+    if (!currentUserUid) return;
 
+    try {
+        const userDoc = await getDoc(doc(db, "usuarios", currentUserUid));
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+            
+            // Verifica se é a STRING "true"
+            if (data.artista === "true") {
+                // Tenta encontrar o card repetidamente por 3 segundos (timing safe)
+                let tentativas = 0;
+                const verificarNoDOM = setInterval(() => {
+                    const card = document.querySelector('.artist-promo-container');
+                    if (card) {
+                        card.style.setProperty('display', 'block', 'important');
+                        console.log("✅ Card de artista exibido na Library");
+                        clearInterval(verificarNoDOM);
+                    }
+                    tentativas++;
+                    if (tentativas > 30) clearInterval(verificarNoDOM); // Para após 3s
+                }, 100);
+            }
+        }
+    } catch (e) {
+        console.error("Erro ao validar artista:", e);
+    }
+}
+
+// Escuta a mudança de estado de autenticação
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUserUid = user.uid;
+        // Se a página atual já for a library ao logar, valida
+        validarCardArtista();
+        
+        if (typeof populateUserProfile === "function") populateUserProfile(user);
+        hideLoadingAndShowContent();
+    } else {
+        window.location.href = "/index";
+    }
+});
 
 
 // 3. Listener de estado de autenticação
@@ -2798,25 +2784,17 @@ function createAlbumCard(item) {
 
 function setGreeting() {
     const greetingElement = document.getElementById('greeting-title');
-    if (!greetingElement) {
-        console.warn("Elemento 'greeting-title' não encontrado.");
-        return;
-    }
+    
+    // Se o elemento não existir (porque você mudou de página), sai da função sem erro
+    if (!greetingElement) return; 
 
     const now = new Date();
     const hour = now.getHours();
     let greetingText = '';
 
-    if (hour >= 5 && hour < 12) {
-        // 5:00 AM até 11:59 AM
-        greetingText = 'Bom Dia';
-    } else if (hour >= 12 && hour < 18) {
-        // 12:00 PM até 5:59 PM
-        greetingText = 'Boa Tarde';
-    } else {
-        // 6:00 PM até 4:59 AM
-        greetingText = 'Boa Noite';
-    }
+    if (hour >= 5 && hour < 12) greetingText = 'Bom Dia';
+    else if (hour >= 12 && hour < 18) greetingText = 'Boa Tarde';
+    else greetingText = 'Boa Noite';
 
     greetingElement.textContent = greetingText;
 }
@@ -2827,82 +2805,99 @@ async function fetchAndRenderNewSingles() {
     try {
         const musicasRef = collection(db, "musicas");
 
-        // --- LÓGICA DE TEMPO ---
-        const vinteEQuatroHorasAtras = new Date();
-        vinteEQuatroHorasAtras.setHours(vinteEQuatroHorasAtras.getHours() - 24);
-        
-        // Aqui usamos o objeto Date diretamente ou o Timestamp do Firestore
-        // Se o erro de "Timestamp is not defined" persistir, use: new Date(vinteEQuatroHorasAtras)
-        const dataLimite = Timestamp.fromDate(vinteEQuatroHorasAtras);
+        // 1. Define o filtro de 172 horas (aproximadamente 7 dias conforme seu código)
+        const tempoLimite = new Date();
+        tempoLimite.setHours(tempoLimite.getHours() - 172);
 
-        // 1. A consulta
+        // 2. Consulta: Apenas singles, dentro do prazo, ordenados por data
         const q = query(
-            musicasRef, 
-            where("single", "==", "true"), // String "true" conforme seu print
-            where("timestamp", ">=", dataLimite), // Filtra as últimas 24h
-            orderBy("timestamp", "desc"), // Mais recentes primeiro
-            limit(12)
-        );
+    musicasRef, 
+    where("single", "==", "true"), // Adicione as aspas para ler como string
+    where("timestamp", ">=", tempoLimite),
+    orderBy("timestamp", "desc"), 
+    limit(12)
+);
 
         const querySnapshot = await getDocs(q);
         listContainer.innerHTML = '';
 
         if (querySnapshot.empty) {
-            // OPCIONAL: Se não houver nada nas últimas 24h, você pode remover o filtro 
-            // de data para não deixar a seção vazia, ou mostrar a mensagem:
-            listContainer.innerHTML = '<p class="text-gray-500 p-4 text-xs">Nenhum lançamento nas últimas 24h.</p>';
+            listContainer.innerHTML = '<p class="text-gray-500 p-4 text-xs">Nenhum lançamento recente.</p>';
             return;
         }
 
         querySnapshot.forEach(docSnap => {
-            const track = { id: docSnap.id, ...docSnap.data() };
+    const track = { id: docSnap.id, ...docSnap.data() };
+    
+    // --- NOVA LÓGICA DE DATA MAIS ROBUSTA ---
+    const now = new Date();
+    let releaseDate;
+
+    if (track.timestamp && track.timestamp.toDate) {
+        // Se for o objeto Timestamp do Firestore
+        releaseDate = track.timestamp.toDate();
+    } else if (track.scheduledTime) {
+        // Se for a String que você mostrou (2026-02-06T00:03)
+        releaseDate = new Date(track.scheduledTime);
+    } else {
+        // Fallback para evitar erro
+        releaseDate = new Date();
+    }
+    
+    // Verificação de segurança
+    const isFuture = releaseDate > now;
+    // ---------------------------------------
+
+    const card = document.createElement('div');
+    card.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4 group';
+    
+    card.setAttribute('data-navigate', 'music');
+    card.setAttribute('data-id', track.id);
+
+    card.innerHTML = `
+        <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg bg-[#121212]">
+            <img src="${track.cover || './assets/default-cover.png'}" 
+                 class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 group-hover:scale-105 ${isFuture ? 'opacity-50 blur-[1px]' : ''}"
+                 onerror="this.src='./assets/default-cover.png'">
             
-            const card = document.createElement('div');
-            card.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4 group';
-            
-            card.innerHTML = `
-                <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg">
-                    <img src="${track.cover || track.albumCover || './assets/default-cover.png'}" 
-                         class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 group-hover:scale-105">
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div class="w-10 h-10 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl">
-                            <i class='bx bx-play text-black text-2xl ml-0.5'></i>
-                        </div>
-                    </div>
+            ${isFuture ? `
+                <div class="absolute top-2 right-2 bg-[#00FF5B] text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow-lg z-10">
+                    PRÉ-SALVE
                 </div>
-                <div class="mt-2 w-full">
-                    <h3 class="text-sm font-semibold text-white truncate">${track.title}</h3>
-                    <p class="text-gray-400 text-xs truncate artist-name-${track.id}">${track.artistName || 'Carregando...'}</p>
+            ` : ''}
+
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-2xl transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                    <i class='bx ${isFuture ? 'bx-time-five' : 'bx-play'} text-black text-2xl ${!isFuture ? 'ml-1' : ''}'></i>
                 </div>
-            `;
+            </div>
+        </div>
 
-            // Otimização: Você já tem o 'artistName' no banco, não precisa chamar getArtistName se ele existir
-            if (!track.artistName) {
-                getArtistName(track.artist).then(name => {
-                    const el = card.querySelector(`.artist-name-${track.id}`);
-                    if (el) el.textContent = name;
-                });
-            }
+        <div class="mt-3 w-full">
+            <h3 class="text-sm font-bold text-white truncate flex items-center gap-1">
+                ${track.title}
+                ${(track.explicit === true || track.explicit === "true") ? '<span class="explicit-tag" style="font-size:7px; padding: 1px 3px; scale: 0.9;">E</span>' : ''}
+            </h3>
+            <p class="text-gray-400 text-[11px] font-medium truncate mt-0.5">${track.artistName || 'Artista'}</p>
+            ${isFuture ? `<p class="text-[#00FF5B] text-[9px] font-bold mt-1 uppercase tracking-tighter">Lançamento agendado</p>` : ''}
+        </div>
+    `;
 
-            card.onclick = () => {
-                if (typeof registrarLog === 'function') {
-                    registrarLog(track.title, "Música (Novas)");
-                }
-                if (window.playTrackGlobal) {
-                    window.playTrackGlobal(track);
-                }
-            };
+    listContainer.appendChild(card);
+});
 
-            listContainer.appendChild(card);
-        });
-
-        setupScrollButtons('singles-home-scroll-left', 'singles-home-scroll-right', 'new-singles-list');
+        // Inicializa botões de scroll se a função existir
+        if (typeof setupScrollButtons === 'function') {
+            setupScrollButtons('singles-home-scroll-left', 'singles-home-scroll-right', 'new-singles-list');
+        }
 
     } catch (error) {
-        console.error("Erro ao buscar singles:", error);
-        listContainer.innerHTML = '<p class="text-red-500 p-4 text-xs">Erro ao carregar singles. Verifique o console.</p>';
+        console.error("Erro crítico ao renderizar singles:", error);
+        listContainer.innerHTML = '<p class="text-red-500 p-4 text-xs">Erro ao carregar lançamentos.</p>';
     }
 }
+
+
 
 // Função auxiliar para os botões de scroll (caso você não tenha uma genérica)
 function setupScrollButtons(leftBtnId, rightBtnId, containerId) {
@@ -3104,106 +3099,159 @@ async function loadBannerAlbum() {
     }
 }
 
+async function fetchAndRenderTopArtists() {
+    const listContainer = document.getElementById('top-artists-list');
+    if (!listContainer) return;
 
+    try {
+        const musicasRef = collection(db, "musicas");
+        const snapshotMusicas = await getDocs(musicasRef);
+        
+        const artistStreams = {};
 
+        snapshotMusicas.forEach(docSnap => {
+            const data = docSnap.data();
+            const artistUid = data.artist;
+            const streams = Number(data.streamsMensal) || 0;
 
+            if (artistUid) {
+                artistStreams[artistUid] =
+                    (artistStreams[artistUid] || 0) + streams;
+            }
+        });
 
-/**
- * Carrega playlists da categoria "Playlist Genres"
- */
-async function loadPlaylistGenresSection() {
-    // Usamos o seu sistema genérico de carrossel para facilitar
-    setupContentCarousel(
-        'playlist-genres-list',              // ID do container
-        'playlist-genres-scroll-left',       // ID botão esquerdo
-        'playlist-genres-scroll-right',      // ID botão direito
-        'playlist-genres-loading-message',   // ID mensagem loading
-        'playlists',                         // Coleção no Firestore
-        [where('category', '==', 'Playlist Genres')], // Filtro pela nova categoria
-        createPlaylistCard                   // Sua função de criar cards
-    );
+        const top5Array = Object.entries(artistStreams)
+            .map(([uid, total]) => ({ uid, total }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 5);
+
+        listContainer.innerHTML = '';
+
+        for (const item of top5Array) {
+            const userSnap = await getDoc(doc(db, "usuarios", item.uid));
+
+            if (userSnap.exists()) {
+                const profile = userSnap.data();
+                const li = document.createElement('li');
+                li.className = 'top10__item';
+
+                li.innerHTML = `
+                    <div class="top10__content">
+                        <img 
+                          class="top10__image" 
+                          src="${profile.foto || './assets/default-artist.png'}"
+                          alt="${profile.nomeArtistico || profile.apelido}"
+                        >
+                        <div class="top10__info">
+                            <h4>${profile.nomeArtistico || profile.apelido}</h4>
+                            <p>${item.total.toLocaleString()}</p>
+                        </div>
+                    </div>
+                `;
+
+                li.onclick = () =>
+                    window.location.href = `perfil.html?id=${item.uid}`;
+
+                listContainer.appendChild(li);
+            }
+        }
+
+        // ✅ CONFIGURA OS BOTÕES DE SCROLL DO TOP ARTISTAS
+        setupScrollButtons(
+            'top-artists-scroll-left',
+            'top-artists-scroll-right',
+            'top-artists-list'
+        );
+
+    } catch (error) {
+        console.error("Erro no ranking:", error);
+    }
 }
 
+async function setupHomePage() {
+  const contentArea = document.getElementById('content-area');
+  if (!contentArea) return;
 
-function setupHomePage() {
-
-    setupContentCarousel(
-        'albums-list',
-        'albums-scroll-left',
-        'albums-scroll-right',
-        'albums-loading-message',
-        'albuns',
-        [orderBy('date', 'desc')], // Verifique se o nome do campo é 'releaseDate'
-        createAlbumCard
-    );
-
-    // Carrossel de Charts
-    // Busca na coleção 'playlists' e filtra por categoria 'Charts'
-    setupContentCarousel(
-        'charts-list',
-        'charts-scroll-left',
-        'charts-scroll-right',
-        'charts-loading-message',
-        'playlists',
-        [where('category', '==', 'Charts')],
-        createPlaylistCard
-    );
-
-    // Carrossel de Artistas Populares
-    // Busca na coleção 'usuarios' e filtra por 'artista' igual a 'true'
-    setupContentCarousel(
-        'artists-list',
-        'artists-scroll-left',
-        'artists-scroll-right',
-        'artists-loading-message',
-        'usuarios',
-        [where("artista", "==", "true"), limit(undefined)],
-        createArtistCard
-    );
-
-    // NOVO: Carrossel de playlists da categoria "Stations"
-    setupContentCarousel(
-        'stations-list',
-        'stations-scroll-left',
-        'stations-scroll-right',
-        'stations-loading-message',
-        'playlists',
-        [where('category', '==', 'Stations')], // Filtra por category 'Stations'
-        createPlaylistCard
-    );
-
-    setupPopSection();
-    // setupPopSection(); // Chamada duplicada removida
-    setupLatinSection();
-    loadPlaylistGenresSection();
+  // 1. VERIFICAÇÃO DE CACHE: Se já carregou, restaura o HTML e mata a execução
+  if (window.__HOME_CACHE__ && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
+    console.log("🏠 Home restaurada do cache (Economia de leituras Firestore)");
     
-    setupArtistSection('lFxIUcsTaiaQYfirY9Jp78hFqyM2'); 
-    fetchAndRenderTrendingSongs();
-    loadTopStreamedPlaylists();
-    // Lista de IDs disponíveis
-const anittaIds = [
-  "x7xbPhbVfhVzVVgrxCod98MDwBh2",
-  "QIzquREQCndEsfstX4MOOlCLcw33",
-  "vjJXWcOgRRfrLGOhbKgRwRLPzro1",
-  "WXWPmYtmmNYgLsWSEqh4Dt7wtc32",
-  "WBOKUHDfekdTUlfuTpvkyIOi1My2"
-];
+    contentArea.innerHTML = window.__HOME_CACHE__.html;
+    
+    // Reativa os eventos de clique (Data-navigate) que se perdem ao injetar innerHTML
+    rebindHomeUI(); 
+    
+    // Opcional: Volta para a posição onde o usuário estava no scroll
+    if (window.__HOME_CACHE__.scrollPosition) {
+      window.scrollTo(0, window.__HOME_CACHE__.scrollPosition);
+    }
+    return;
+  }
 
-// Seleciona um índice aleatório de 0 a 4
-const randomIndex = Math.floor(Math.random() * anittaIds.length);
+  console.log("🔥 Primeira carga da Home: Buscando dados no Cloud...");
 
-// Executa a função com o ID sorteado
-setupAnittaSection(anittaIds[randomIndex]);
-    loadMyLikedItems();
-    fetchAndRenderNewSingles();
-    checkAuthAndLoadLikedItems();
+  try {
+    // 2. BUSCAS EM PARALELO (Otimiza o tempo de resposta inicial)
+    // Usamos Promise.all para que todas as listas comecem a carregar juntas
+    await Promise.all([
+      setupContentCarousel(
+        'albums-list', 'albums-scroll-left', 'albums-scroll-right', 
+        'albums-loading-message', 'albuns', 
+        [orderBy('date', 'desc'), limit(12)], createAlbumCard
+      ),
+      setupContentCarousel(
+        'charts-list', 'charts-scroll-left', 'charts-scroll-right', 
+        'charts-loading-message', 'playlists', 
+        [where('category', '==', 'Charts'), limit(12)], createPlaylistCard
+      ),
+      setupContentCarousel(
+        'artists-list', 'artists-scroll-left', 'artists-scroll-right', 
+        'artists-loading-message', 'usuarios', 
+        [where("artista", "==", "true"), limit(20)], createArtistCard
+      ),
+      setupContentCarousel(
+        'stations-list', 'stations-scroll-left', 'stations-scroll-right', 
+        'stations-loading-message', 'playlists', 
+        [where('category', '==', 'Stations'), limit(12)], createPlaylistCard
+      ),
+      setupContentCarousel(
+        'playlist-genres-list', 'playlist-genres-scroll-left', 'playlist-genres-scroll-right', 
+        'playlist-genres-loading-message', 'playlists', 
+        [where('category', '==', 'Playlist Genres'), limit(12)], createPlaylistCard
+      )
+    ]);
+
+    // 3. CARREGAMENTO DAS DEMAIS SEÇÕES
+    setupPopSection();
+    setupLatinSection();
     loadSertanejoSection();
     setupForroGenreSection();
-    setGreeting();
-    carregarTopAlbuns();
+    fetchAndRenderTrendingSongs();
+    fetchAndRenderNewSingles();
+    fetchAndRenderTopArtists();
     loadBannerAlbum();
-   
+    loadTopStreamedPlaylists();
+
+    // 4. PREPARAÇÃO DO USUÁRIO
+    checkAuthAndLoadLikedItems();
+    loadMyLikedItems();
+    setGreeting();
+
+    // 5. SALVAR NO CACHE APÓS O CARREGAMENTO
+    // Damos um pequeno delay para garantir que o DOM terminou de renderizar os cards
+    setTimeout(() => {
+      window.__HOME_CACHE__.html = contentArea.innerHTML;
+      window.__HOME_CACHE__.loaded = true;
+      console.log("✅ Estado da Home persistido em cache.");
+    }, 1500);
+
+  } catch (error) {
+    console.error("Erro ao popular a Home:", error);
+  }
 }
+
+
+
 
 // --- Inicialização da Aplicação ---
 
@@ -3579,11 +3627,25 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Sua função para carregar as músicas em alta
-    // ⭐ AGORA VAI FUNCIONAR POIS A FUNÇÃO FOI DEFINIDA ACIMA! ⭐
-    fetchAndRenderTrendingSongs(); 
-    
-    // Suas outras chamadas de inicialização (se houver, como setupListeners, etc.)
+  fetchAndRenderTrendingSongs();
+  handleInitialRoute();
 });
 
-
+// Este "vigia" nunca morre, não importa quantas vezes você mude o conteúdo
+document.body.addEventListener('click', (e) => {
+    // Verifica se o clique foi em um elemento com data-navigate ou dentro de um
+    const target = e.target.closest('[data-navigate]');
+    
+    if (target) {
+        e.preventDefault();
+        const page = target.getAttribute('data-navigate');
+        const id = target.getAttribute('data-id');
+        
+        console.log("Navegando para:", page, "ID:", id);
+        
+        // Se a função loadContent estiver disponível globalmente
+        if (typeof loadContent === 'function') {
+            loadContent(page, id);
+        }
+    }
+});

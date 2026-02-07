@@ -1,13 +1,11 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tune - Perfil</title>
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUNE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="./assets/favicon.png">
   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
 
   <style>
     @font-face {
@@ -35,19 +33,12 @@
       position: relative;
     }
 
-    /* No seu <style> dentro do HTML */
-#dynamic-bg {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background: #000000; /* Inicia preto total */
-    opacity: 0; /* Começa invisível para o efeito de fade */
-    transition: background 1.5s ease-in-out, opacity 2s ease-out;
-}
-
-.bg-visible {
-    opacity: 1 !important;
-}
+    #dynamic-bg {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        background: #000000;
+    }
 
     .brand {
       position: absolute;
@@ -75,44 +66,53 @@
       border: 3px solid #ffffff;
       object-fit: cover;
       margin-bottom: 20px;
-      box-shadow: 0 0 25px rgba(255,255,255,0.15);
-      background: #111; /* Cor de fundo enquanto a foto não carrega */
+      box-shadow: 0 0 25px rgba(255,255,255,0.1);
+      background: #111;
+      filter: grayscale(0.5); /* Efeito sutil de 'espera' */
     }
 
     .user-name {
       font-family: 'Nationale Black', sans-serif;
       font-size: 1.8rem;
       color: #ffffff;
-      margin-bottom: 35px;
+      margin-bottom: 10px;
       text-transform: uppercase;
       letter-spacing: 2px;
     }
 
-    #btnEditar {
-      background: #ffffff;
-      color: #000000;
-      font-family: 'Nationale Black', sans-serif;
-      padding: 16px 50px;
-      border-radius: 50px;
-      font-size: 0.9rem;
-      letter-spacing: 1.5px;
-      border: none;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    .status-badge {
+        display: inline-block;
+        background: rgb(255, 255, 255);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-family: 'Nationale Black', sans-serif;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        color: #000000;
+        margin-bottom: 30px;
     }
 
-    #btnEditar:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 20px rgba(255,255,255,0.2);
+    .analysis-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 30px;
+        border-radius: 24px;
+
     }
 
-    /* Modal Styles */
-    #editModal.hidden { display: none; }
-    
-    .modal-content {
-      background: #0a0a0a;
-      border: 1px solid #222;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 1);
+    .analysis-title {
+        color: #ffffff;
+        font-family: 'Nationale Black', sans-serif;
+        font-size: 1rem;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+
+    .analysis-text {
+        color: #888;
+        font-size: 0.85rem;
+        line-height: 1.6;
     }
 
     footer {
@@ -131,6 +131,17 @@
     }
 
     .social-media-icons a:hover { opacity: 0.6; }
+
+    /* Animação de pulso sutil no ícone de relógio */
+    .pulse {
+        animation: pulse-animation 2s infinite;
+    }
+
+    @keyframes pulse-animation {
+        0% { opacity: 1; }
+        50% { opacity: 0.4; }
+        100% { opacity: 1; }
+    }
   </style>
 </head>
 
@@ -146,39 +157,23 @@
     <div class="container">
       
       <div id="user-info" class="flex flex-col items-center">
-          <img id="user-profile-img" src="./assets/artistpfp.png" crossorigin="anonymous" alt="Perfil" class="profile-pic">
-          <h1 id="user-display-name" class="user-name"></h1>
+          <img id="user-profile-img" src="./assets/artistpfp.png" alt="Perfil" class="profile-pic">
+          <h1 id="user-display-name" class="user-name">Carregando...</h1>
+          <div class="status-badge flex items-center gap-2">
+              <i class="fas fa-clock pulse"></i> EM ANÁLISE
+          </div>
       </div>
 
-      <div class="buttons">
-        <button id="btnEditar">EDITAR PERFIL</button>
+      <div class="analysis-card">
+          <h2 class="analysis-title">Sua conta está sendo verificada</h2>
+          <p class="analysis-text">
+              Estamos revisando suas informações para garantir a segurança da plataforma. 
+              Isso geralmente leva menos de 24 horas. Avisaremos você assim que estiver tudo pronto!
+          </p>
       </div>
 
     </div>
   </main>
-
-  <div id="editModal" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-6">
-    <div class="modal-content p-8 rounded-3xl w-full max-w-sm">
-        <h2 class="text-white text-xl mb-6 text-center font-bold">AJUSTAR PERFIL</h2>
-        
-        <div class="space-y-5">
-            <div>
-                <label class="text-gray-500 text-xs uppercase font-bold block mb-2">Seu Nome</label>
-                <input type="text" id="editNameInput" class="w-full bg-[#111] text-white p-4 rounded-xl border border-gray-800 focus:outline-none focus:border-white transition">
-            </div>
-            
-            <div>
-                <label class="text-gray-500 text-xs uppercase font-bold block mb-2">Foto de Perfil</label>
-                <input type="file" id="fileInput" accept="image/*" class="w-full bg-[#111] text-white p-3 rounded-xl border border-gray-800 text-sm">
-            </div>
-        </div>
-
-        <div class="flex flex-col gap-3 mt-8">
-            <button id="btnSalvar" class="w-full bg-white text-black font-black py-4 rounded-xl hover:bg-gray-200 transition">SALVAR ALTERAÇÕES</button>
-            <button id="btnCancelar" class="w-full text-gray-400 font-bold py-2 text-sm hover:text-white transition">CANCELAR</button>
-        </div>
-    </div>
-  </div>
 
   <footer>
     <div class="social-media-icons">
@@ -186,7 +181,53 @@
       <a href="https://www.instagram.com/tunedks/" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
     </div>
   </footer>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
-  <script type="module" src="./js/conta.js"></script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
+        authDomain: "tune-8cafb.firebaseapp.com",
+        projectId: "tune-8cafb",
+        storageBucket: "tune-8cafb.firebasestorage.app",
+        messagingSenderId: "599729070480",
+        appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Carregar dados do usuário
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const docRef = doc(db, "usuarios", user.uid);
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            document.getElementById('user-display-name').textContent = data.nomeArtistico || data.apelido || "Usuário";
+            
+            if (data.foto) {
+              document.getElementById('user-profile-img').src = data.foto;
+            }
+
+            // Se o usuário for aprovado enquanto estiver com a página aberta, redireciona
+            if (data.aprovado === "true") {
+                window.location.href = "index.html";
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao carregar perfil:", error);
+        }
+      } else {
+        // Se não houver usuário logado, volta para o login
+        window.location.href = "login.html";
+      }
+    });
+  </script>
+ <script type="module" src="./js/ccart.js"></script>
 </body>
 </html>

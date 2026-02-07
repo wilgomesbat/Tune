@@ -1,7 +1,7 @@
 // search.js
 
-// Importações: 'db' vem do main.js, eliminando a necessidade de re-inicializar o Firebase aqui.
-import { collection, getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { collection, getDocs, query, where, limit } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+// Se estão na mesma pasta (js/), use ./
 import { db } from './main.js';
 
 

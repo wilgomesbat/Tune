@@ -1,187 +1,344 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciamento de Músicas - TuneArts</title>
     <style>
-        /* Estilos básicos para os botões de aba se não estiverem no seu CSS principal */
-        .tab-button {
-            padding: 10px 15px;
+        :root {
+            --bg-page: hsl(0, 0%, 100%); /* Fundo Branco conforme solicitado */
+            --card-dark: #e4e4e4;
+            --border-light: rgba(160, 160, 160, 0.291);
+            --text-dark: #000000;
+            --text-light: #000000;
+            --text-dim: #212121;
+        }
+
+        @font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+        body {
+            background-color: var(--bg-page);
+            margin: 0;
+            font-family: 'Nationale Regular';
+        }
+
+        .main-container {
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        /* Painéis Negros Estilo Dashboard */
+        .glass-panel {
+            background: var(--card-dark);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            color: var(--text-light);
+        }
+
+        /* Inputs Escuros */
+        .input-noir {
+            background: #e3e3e3 !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            color: rgb(0, 0, 0) !important;
+            border-radius: 12px !important;
+            padding: 12px !important;
+            font-size: 13px;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .input-noir:focus {
+            border-color: #9f9f9f !important;
+            outline: none;
+        }
+
+        /* Dropzone de Capa */
+        .upload-zone {
+            border: 2px dashed rgba(199, 199, 199, 0.434);
+            border-radius: 20px;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            border-bottom: 2px solid transparent;
-            color: #6b7280; /* gray-500 */
-            font-weight: 500;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            background: #ffffff;
         }
-        .tab-button:hover {
-            color: #1f2937; /* gray-800 */
+
+        .upload-zone:hover {
+            border-color: #ffffff;
+            background: #dddddd;
         }
-        .active-tab {
-            color: #1f2937; /* Cor do texto ativo */
-            border-bottom-color: #2563eb; /* blue-600 */
-        }
-        /* Estilos do Modal (Tailwind) */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
+
+        #preview-img {
+            position: absolute;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.75);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
+            object-fit: cover;
+            display: none;
+            z-index: 10;
         }
-        .modal-content {
-            background-color: #1f2937; /* bg-gray-800 */
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            max-width: 400px;
-            width: 90%;
-            color: #f3f4f6; /* text-gray-100 */
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+        /* Botão Principal */
+        .btn-submit {
+            background: #000000;
+            color: #ffffff;
+            font-weight: 800;
+
+            letter-spacing: 1px;
+            padding: 16px;
+            border-radius: 12px;
+            width: 100%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
+
+        .btn-submit:hover {
+            transform: scale(1.01);
+            background: #f0f0f0;
+        }
+
+        .label-noir {
+            font-size: 10px;
+            font-weight: 700;
+
+            letter-spacing: 1px;
+            color: #111111;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+/* Estilo para os Toasts */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    min-width: 250px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: #fff;
+    font-family: sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: slideIn 0.3s ease-out;
+}
+
+.toast-success { background-color: #10b981; } /* Verde */
+.toast-error { background-color: #ef4444; }   /* Vermelho */
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+
+.top-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* 🔑 esquerda x direita */
+    width: 100%;
+    padding-bottom: 20px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.top-header-left {
+    display: flex;
+    align-items: center;
+}
+
+.top-header-right {
+    text-align: right; /* 🔑 textos pra direita */
+}
+
+.tune-logo-img {
+    width: 108px;
+    height: auto;
+    display: block;
+}
+
+/* textos */
+.top-header-right h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    color: var(--text-dark);
+}
+
+.top-header-right p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-dim);
+}
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999; /* Valor altíssimo para ficar na frente de tudo */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none; /* Não atrapalha cliques no site */
+}
+
+.toast {
+    pointer-events: auto; /* Permite interagir com o toast se necessário */
+    min-width: 280px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
+    animation: toastSlideIn 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    transition: all 0.3s ease;
+}
+
+.toast-success { background: rgba(16, 185, 129, 0.9); border-left: 6px solid #059669; }
+.toast-error { background: rgba(239, 68, 68, 0.9); border-left: 6px solid #dc2626; }
+
+@keyframes toastSlideIn {
+    from { transform: translateX(110%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toastFadeOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(110%); opacity: 0; }
+}
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
     </style>
-</head>
-<body>
+ <div id="toast-container" class="toast-container"></div>
 
-    <div class="py-10 px-6 sm:px-8 lg:px-10 bg-white text-black min-h-full">
+<div class="main-container">
+    <div class="max-w-5xl mx-auto" style="max-width: 1000px; margin: 0 auto;">
         
-        <header class="mb-8 border-b border-gray-200 pb-4">
-            <h1 class="text-3xl sm:text-4xl font-bold text-black">Gerenciamento de Músicas</h1>
-            <p class="text-gray-500 mt-1">Gerencie suas faixas e adicione-as a álbuns existentes.</p>
-        </header>
+<div class="top-header">
+    <div class="top-header-left">
+        <img src="../assets/tunelogohblack.png" alt="Tune" class="tune-logo-img">
+    </div>
 
-        <div class="flex border-b border-gray-300 mb-8 max-w-4xl mx-auto md:mx-0">
-            <button id="tabMusicList" data-tab="music-list" class="tab-button active-tab">
-                Minhas Músicas
-            </button>
-           
+    <div class="top-header-right">
+        <h2>Singles</h2>
+
+    </div>
+</div>
+
+
+
         </div>
 
-        <div id="tabContentMusicList" class="tab-content max-w-4xl mx-auto md:mx-0" style="display: block;">
-            <div id="music-list-container">
-                <p id="loading-music" class="text-center text-gray-500 p-8">Carregando suas músicas...</p>
+<form id="mainReleaseForm" onsubmit="window.handleReleaseSubmission(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+    
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div class="glass-panel">
+            <span class="label-noir">Capa do Lançamento</span>
+            <label for="relCover" class="upload-zone">
+                <img id="preview-img" src="" alt="Preview">
+                <div style="text-align: center;">
+                    <span style="font-size: 24px;">+</span>
+                    <p style="font-size: 9px; font-weight: 700; margin-top: 10px;">ADICIONAR ARTE</p>
                 </div>
+                <input type="file" id="relCover" accept="image/*" style="display: none;" onchange="handleImagePreview(this)">
+            </label>
         </div>
-        
-        <div id="tabContentAddNewMusic" class="tab-content max-w-4xl mx-auto md:mx-0" style="display: none;">
-            <form id="addMusicForm" class="space-y-6">
-                
-                <div>
-                    <label for="title" class="block text-sm font-medium text-gray-500">Título da Música</label>
-                    <input type="text" id="title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-black focus:ring-blue-500 focus:border-blue-500">
-                </div>
 
-                <div>
-                    <label for="artist" class="block text-sm font-medium text-gray-500">Artista (Proprietário do UID)</label>
-                    <input type="text" id="artist" disabled value="Carregando..." class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-100 text-gray-600">
-                </div>
-
-                <div>
-                    <label for="audioFile" class="block text-sm font-medium text-gray-500">Arquivo de Áudio (MP3, WAV)</label>
-                    <input type="file" id="audioFile" accept="audio/*" required class="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white">
-                </div>
-
-                <div>
-                    <label for="coverImage" class="block text-sm font-medium text-gray-500">Capa da Música (Opcional)</label>
-                    <input type="file" id="coverImage" accept="image/*" class="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white">
-                </div>
-
-                <fieldset>
-                    <legend class="text-sm font-medium text-gray-500">Tipo de Lançamento</legend>
-                    <div class="mt-2 space-y-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-10">
-                        <div class="flex items-center">
-                            <input id="isSingle" name="releaseType" type="radio" value="single" checked class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
-                            <label for="isSingle" class="ml-3 block text-sm font-medium text-gray-700">Single</label>
-                        </div>
-                        <div class="flex items-center">
-                            <input id="isAlbumTrack" name="releaseType" type="radio" value="albumTrack" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
-                            <label for="isAlbumTrack" class="ml-3 block text-sm font-medium text-gray-700">Faixa de Álbum</label>
-                        </div>
-                    </div>
-                </fieldset>
-
-                <div id="albumSelection" style="display: none;" class="p-4 border border-blue-200 rounded-lg bg-blue-50 space-y-4">
-                    <div>
-                        <label for="album" class="block text-sm font-medium text-gray-700">Selecionar Álbum (Seus álbuns)</label>
-                        <select id="album" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-black focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Carregando seus álbuns...</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="trackNumber" class="block text-sm font-medium text-gray-700">Número da Faixa no Álbum</label>
-                        <input type="number" id="trackNumber" min="1" value="1" class="mt-1 block w-1/3 border border-gray-300 rounded-md shadow-sm p-2 text-black focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                </div>
-
-                <div class="flex space-x-4">
-                    <div class="flex-1">
-                        <label for="genre" class="block text-sm font-medium text-gray-500">Gênero</label>
-                        <input type="text" id="genre" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-black focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div class="flex items-end">
-                        <div class="flex items-center h-5">
-                            <input id="explicit" type="checkbox" class="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="explicit" class="font-medium text-gray-700">Conteúdo Explícito?</label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div>
-                    <button type="submit" id="submitButton" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
-                        Enviar Música
-                    </button>
-                    <p id="message" class="mt-3 text-sm text-center font-medium text-green-600"></p>
-                    <p id="error" class="mt-3 text-sm text-center font-medium text-red-600"></p>
-                </div>
-            </form>
+        <div class="glass-panel" style="display: flex; gap: 15px; align-items: center;">
+            <div style="flex: 1;">
+                <span class="label-noir">Duração (mm:ss)</span>
+                <input type="text" id="relDuration" placeholder="03:45" class="input-noir" v-mask="'##:##'">
             </div>
-
-    </div>
-
-    <div id="addToAlbumModal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h3 class="modal-title mb-4 text-xl font-bold">Adicionar Música ao Álbum</h3>
-            <p class="text-gray-400 mb-6">Música: <strong id="modalMusicTitle" class="text-white"></strong></p>
-            
-            <form id="addToAlbumForm">
-                <input type="hidden" id="modalMusicId" name="musicId"> 
-
-                <div class="mb-4">
-                    <label for="modalSelectAlbum" class="block text-sm font-medium text-gray-300 mb-2 text-left">Selecionar Álbum</label>
-                    <select id="modalSelectAlbum" name="albumId" 
-                            class="w-full p-2 border border-gray-600 rounded-lg bg-gray-700 text-white" 
-                            onchange="window.updateModalTrackNumberOptions()">
-                        <option value="">Carregando...</option>
-                    </select>
-                </div>
-
-                <div class="mb-6">
-                    <label for="modalMusicTrackNumber" class="block text-sm font-medium text-gray-300 mb-2 text-left">Posição da Faixa</label>
-                    <select id="modalMusicTrackNumber" name="trackNumber" 
-                            class="w-full p-2 border border-gray-600 rounded-lg bg-gray-700 text-white">
-                        <option value="">Selecione um Álbum primeiro</option>
-                    </select>
-                </div>
-
-                <div class="flex justify-end space-x-3">
-                    <button type="button" onclick="window.hideAddToAlbumModal()" class="px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition">
-                        Adicionar
-                    </button>
-                </div>
-            </form>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 15px;">
+                <input type="checkbox" id="relExplicit" style="width: 18px; height: 18px; accent-color: #000;">
+                <span class="label-noir" style="margin-bottom: 0;">Explícito?</span>
+            </div>
         </div>
     </div>
 
-    <script type="module" src="tunearts.js"></script> 
-</body>
-</html>
+    <div class="glass-panel" style="display: flex; flex-direction: column; gap: 20px;">
+        <div>
+            <span class="label-noir">Título da Música</span>
+            <input type="text" id="relTitle" placeholder="Ex: Nome da Música" required class="input-noir">
+        </div>
+
+        <div>
+            <span class="label-noir">Gênero Musical</span>
+            <select id="relGenre" class="input-noir">
+                <option value="Pop">Pop</option>
+                <option value="Funk">Funk</option>
+                <option value="Rap">Rap/Trap</option>
+                <option value="Eletrônica">Eletrônica</option>
+                <option value="R&B">R&B</option>
+                <option value="Outro">Outro</option>
+            </select>
+        </div>
+
+        <div id="audioSection">
+            <span class="label-noir">Link do YouTube</span>
+            <input type="url" id="relAudioLink" placeholder="https://www.youtube.com/watch?v=..." class="input-noir">
+        </div>
+
+        <div>
+    <span class="label-noir">Status de Lançamento</span>
+    <select id="relStatus" class="input-noir" onchange="toggleDateInfo(this.value)">
+        <option value="publico">Lançar Agora (Público)</option>
+        <option value="agendado">Agendar Lançamento</option>
+        <option value="arquivado">Privado (Rascunho)</option>
+    </select>
+</div>
+
+<div id="dateField" style="display: none;">
+    <span class="label-noir">Data e Horário do Lançamento</span>
+    <input type="datetime-local" id="relReleaseDate" class="input-noir">
+    <p style="font-size: 9px; color: #666; margin-top: 5px;">
+        A música ficará disponível automaticamente neste horário.
+    </p>
+</div>
+
+        <div style="margin-top: auto; padding-top: 20px;">
+            <button type="submit" id="btnSubmit" class="btn-submit">
+                Publicar Single
+            </button>
+        </div>
+    </div>
+</form>
