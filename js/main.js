@@ -1414,11 +1414,11 @@ let isContextLoading = false;
 async function setupArtistPage(artistId) {
     if (isContextLoading) return;
     isContextLoading = true;
+
     // 1. Referências dos Elementos
     const artistCoverBg = document.getElementById('artist-cover-bg');
     const artistNameElement = document.getElementById('artist-name');
     const artistListeners = document.getElementById('artist-listeners');
-    const mainHeader = document.getElementById('artist-header');
     const banIndicator = document.getElementById('ban-indicator');
     
     // Containers
@@ -1428,12 +1428,14 @@ async function setupArtistPage(artistId) {
     const albumsContainer = document.getElementById('albums-container');
     const stationsContainer = document.getElementById('stations-container');
 
-    const fallbackBackground = 'linear-gradient(to bottom, #1a1a1a, #121212)';
     const bannedImageURL = 'https://i.ibb.co/fzqH088Z/Captura-de-tela-2025-10-06-230858.png';
 
-    if (!artistId) return;
+    if (!artistId) {
+        isContextLoading = false;
+        return;
+    }
 
-    // LIMPEZA INICIAL (Evita duplicação ao trocar de artista)
+    // LIMPEZA INICIAL
     if (singlesContainer) singlesContainer.innerHTML = "";
     if (topTracksContainer) topTracksContainer.innerHTML = "";
     if (albumsContainer) albumsContainer.innerHTML = "";
@@ -1443,21 +1445,27 @@ async function setupArtistPage(artistId) {
         const artistRef = doc(db, "usuarios", artistId);
         const docSnap = await getDoc(artistRef);
 
-        if (!docSnap.exists() || docSnap.data().artista !== "true") return;
+        if (!docSnap.exists() || docSnap.data().artista !== "true") {
+            isContextLoading = false;
+            return;
+        }
 
         const artistData = docSnap.data();
         const artistName = artistData.nomeArtistico || "Nome Desconhecido";
+        const now = new Date(); // Referência de tempo atual
         
         // Lógica de Banimento
         if (artistData.banido === "true") {
             if (banIndicator) banIndicator.style.display = 'flex'; 
             artistNameElement.textContent = `${artistName} (Banido)`;
             if (artistCoverBg) artistCoverBg.style.backgroundImage = `url('${bannedImageURL}')`;
+            isContextLoading = false;
             return; 
         }
 
         // Nome e Capa
-        artistNameElement.innerHTML = `<span>${artistName}</span>` + (artistData.gravadora?.toLowerCase() === 'shark' ? `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
+        artistNameElement.innerHTML = `<span>${artistName}</span>` + 
+            (artistData.gravadora?.toLowerCase() === 'shark' ? `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
         if (artistData.foto && artistCoverBg) artistCoverBg.style.backgroundImage = `url('${artistData.foto}')`;
 
         // Ouvintes
@@ -1467,151 +1475,98 @@ async function setupArtistPage(artistId) {
         const musicasRef = collection(db, "musicas");
 
         // -----------------------------------------------------------
-// 7. RENDERIZAR SINGLES (COM TRAVA DE AGENDAMENTO)
-// -----------------------------------------------------------
-const qSingles = query(musicasRef, where("artist", "==", artistId), where("single", "==", "true"));
-const singlesSnap = await getDocs(qSingles);
+        // 7. RENDERIZAR SINGLES (COM BLOQUEIO VISUAL)
+        // -----------------------------------------------------------
+        const qSingles = query(musicasRef, where("artist", "==", artistId), where("single", "==", "true"));
+        const singlesSnap = await getDocs(qSingles);
 
-if (!singlesSnap.empty && singlesContainer) {
-    singlesSection.classList.remove('hidden');
-    
-    const now = new Date(); // Data atual para comparação
-
-    singlesSnap.forEach(d => {
-        const trackData = d.data();
-        const track = { id: d.id, ...trackData, artistName };
-        
-        // Lógica de Bloqueio (Agendamento)
-        const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
-                              ? new Date(track.scheduledTime) : null;
-        const isLocked = scheduledDate && scheduledDate > now;
-
-        // Criando o card
-        const card = document.createElement('div');
-        
-        // Se estiver bloqueado: opacidade baixa, sem eventos de mouse e cursor padrão
-        // Se estiver liberado: cursor pointer e efeitos de group-hover
-        card.className = `flex flex-col items-start text-left flex-shrink-0 w-[160px] transition-all duration-300 
-            ${isLocked ? 'opacity-40 pointer-events-none grayscale-[0.3]' : 'cursor-pointer group'}`;
-
-        card.innerHTML = `
-            <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg bg-[#282828]">
-                <img src="${track.cover || './assets/default-cover.png'}" 
-                     class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 ${!isLocked ? 'group-hover:scale-105' : ''}">
+        if (!singlesSnap.empty && singlesContainer) {
+            singlesSection.classList.remove('hidden');
+            
+            singlesSnap.forEach(d => {
+                const trackData = d.data();
+                const track = { id: d.id, ...trackData, artistName };
                 
-                ${isLocked ? `
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <i class='bx bxs-lock-alt text-white text-4xl opacity-70'></i>
-                    </div>
-                ` : `
-                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-4 group-hover:translate-y-0 transition-transform">
-                            <i class='bx bx-play text-black text-3xl ml-1'></i>
-                        </div>
-                    </div>
-                `}
-            </div>
-            <div class="mt-2 w-full">
-                <h3 class="text-white font-bold truncate text-sm" style="font-family: 'Nationale Bold';">${track.title}</h3>
-                <p class="text-gray-400 text-xs truncate">
-                    ${isLocked ? `<span class="text-orange-400">${scheduledDate.toLocaleDateString()}</span>` : artistName}
-                </p>
-            </div>
-        `;
+                // Lógica de Bloqueio
+                const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
+                                      ? new Date(track.scheduledTime) : null;
+                const isLocked = scheduledDate && scheduledDate > now;
 
-        // Ação de Play (Apenas se não estiver bloqueado)
-        if (!isLocked) {
-            card.onclick = () => {
-                if (window.playTrackGlobal) {
-                    checkAndResetMonthlyStreams(track.id);
-                    window.playTrackGlobal(track);
+                const card = document.createElement('div');
+                card.className = `flex flex-col items-start text-left flex-shrink-0 w-[160px] transition-all duration-300 
+                    ${isLocked ? 'opacity-40 pointer-events-none grayscale-[0.3]' : 'cursor-pointer group'}`;
+
+                card.innerHTML = `
+                    <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg bg-[#282828]">
+                        <img src="${track.cover || './assets/default-cover.png'}" 
+                             class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 ${!isLocked ? 'group-hover:scale-105' : ''}">
+                        ${isLocked ? `
+                            <div class="absolute inset-0 flex items-center justify-center bg-black/40">
+                                <i class='bx bxs-lock-alt text-white text-4xl opacity-70'></i>
+                            </div>
+                        ` : `
+                            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-4 group-hover:translate-y-0 transition-transform">
+                                    <i class='bx bx-play text-black text-3xl ml-1'></i>
+                                </div>
+                            </div>
+                        `}
+                    </div>
+                    <div class="mt-2 w-full">
+                        <h3 class="text-white font-bold truncate text-sm" style="font-family: 'Nationale Bold';">${track.title}</h3>
+                        <p class="text-gray-400 text-xs truncate">
+                            ${isLocked ? `<span class="text-orange-400">${scheduledDate.toLocaleDateString()}</span>` : artistName}
+                        </p>
+                    </div>
+                `;
+
+                if (!isLocked) {
+                    card.onclick = () => {
+                        if (window.playTrackGlobal) {
+                            checkAndResetMonthlyStreams(track.id);
+                            window.playTrackGlobal(track);
+                        }
+                    };
                 }
-            };
+                singlesContainer.appendChild(card);
+            });
         }
 
-        singlesContainer.appendChild(card);
-    });
-}
-
         // -----------------------------------------------------------
-        // 8. RENDERIZAR POPULARES (LISTA SPOTIFY)
+        // 8. RENDERIZAR POPULARES (FILTRANDO AGENDADOS)
         // -----------------------------------------------------------
-        const qPopulares = query(musicasRef, where("artist", "==", artistId), orderBy("streams", "desc"), limit(5));
+        const qPopulares = query(musicasRef, where("artist", "==", artistId), orderBy("streams", "desc"), limit(10));
         const popularesSnap = await getDocs(qPopulares);
-        const topTracks = [];
-        popularesSnap.forEach(d => topTracks.push({ id: d.id, ...d.data(), artistName }));
+        
+        const validTopTracks = [];
+
+        popularesSnap.forEach(d => {
+            const trackData = d.data();
+            const scheduledDate = trackData.scheduledTime && trackData.scheduledTime !== "Imediato" 
+                                  ? new Date(trackData.scheduledTime) : null;
+
+            // FILTRO: Só adiciona à lista de Populares se já tiver sido lançada
+            if (!scheduledDate || scheduledDate <= now) {
+                if (validTopTracks.length < 5) {
+                    validTopTracks.push({ id: d.id, ...trackData, artistName });
+                }
+            }
+        });
         
         if (topTracksContainer) {
-            // Usamos a função de lista para populares
-            renderTop5Tracks(topTracks, "top-tracks-container"); 
+            renderTop5Tracks(validTopTracks, "top-tracks-container"); 
         }
 
-        // 9. Carregar Álbuns e Estações originais (sem duplicar)
+        // 9. Outros carregamentos
         if (typeof loadArtistAlbums === 'function') await loadArtistAlbums(artistId);
         if (typeof loadArtistStations === 'function') await loadArtistStations(artistId);
 
     } catch (error) {
-        console.error("Erro:", error);
-    }
-    
-}
-
-// Manter a função fetchAndRenderTrendingSongs exatamente como está no seu prompt original
-async function fetchAndRenderTrendingSongs() {
-    const containerId = 'trending-songs-list';
-    const loadingMessageId = 'trending-songs-loading-message';
-    const listContainer = document.getElementById(containerId);
-    const loadingMessage = document.getElementById(loadingMessageId);
-
-    if (!listContainer) return;
-    if (loadingMessage) loadingMessage.style.display = 'block';
-    listContainer.innerHTML = `<p class="text-gray-400">A carregar músicas em alta...</p>`;
-
-    try {
-        const musicasRef = collection(db, "musicas");
-        const q = query(musicasRef, orderBy("streamsMensal", "desc"), limit(10));
-        const querySnapshot = await getDocs(q);
-        const tracks = [];
-        const artistUidsToFetch = new Set();
-        
-        querySnapshot.forEach(docSnap => {
-            const trackData = docSnap.data();
-            const track = { id: docSnap.id, ...trackData, cover: trackData.cover || trackData.albumCover };
-            if (track.artist && !track.artistName) artistUidsToFetch.add(track.artist);
-            tracks.push(track);
-        });
-        
-        const artistNameMap = new Map();
-        if (artistUidsToFetch.size > 0) {
-            const artistPromises = Array.from(artistUidsToFetch).map(uid => getDoc(doc(db, "usuarios", uid)));
-            const artistSnapshots = await Promise.all(artistPromises);
-            artistSnapshots.forEach(snap => {
-                if (snap.exists()) {
-                    const data = snap.data();
-                    artistNameMap.set(snap.id, data.nomeArtistico || data.apelido);
-                }
-            });
-        }
-
-        listContainer.innerHTML = ''; 
-        if (tracks.length === 0) {
-            listContainer.innerHTML = `<p class="text-gray-400">Nenhuma música em alta encontrada.</p>`;
-        } else {
-            tracks.forEach((track, index) => {
-                const rank = index + 1;
-                let finalArtistName = track.artistName || artistNameMap.get(track.artist) || track.artist;
-                const trackToRender = { ...track, artistName: finalArtistName };
-                const card = createTrendingSongCard(trackToRender, trackToRender.id, rank); 
-                listContainer.appendChild(card);
-            });
-        }
-    } catch (error) {
-        console.error("ERRO:", error);
+        console.error("Erro na setupArtistPage:", error);
     } finally {
-        if (loadingMessage) loadingMessage.style.display = 'none';
+        isContextLoading = false;
     }
 }
-
 function navigateTo(pageName, id = null, updateHistory = true) {
     // 1. Renderiza o conteúdo
     loadContent(pageName, id);
