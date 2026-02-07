@@ -607,16 +607,18 @@ window.handleReleaseSubmission = async (e) => {
         return;
     }
 
-    // 3. Validação de URL do YouTube (Padrão: youtube.com/watch?v=...)
-    const ytRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/;
-    if (!youtubeUrl) {
-        window.showToast("O link do YouTube é obrigatório!", "error");
-        return;
-    }
-    if (!ytRegex.test(youtubeUrl)) {
-        window.showToast("Link inválido! Use: youtube.com/watch?v=...", "error");
-        return;
-    }
+if (!youtubeUrl) {
+    window.showToast("O link do YouTube é obrigatório!", "error");
+    return;
+}
+
+// Verifica se a string contém os domínios básicos do YouTube
+const isValidYt = youtubeUrl.includes("youtube.com") || youtubeUrl.includes("youtu.be");
+
+if (!isValidYt) {
+    window.showToast("Link inválido! Por favor, insira um link do YouTube.", "error");
+    return;
+}
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
