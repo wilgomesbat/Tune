@@ -1706,20 +1706,36 @@ function createArtistCard(docData, docId) {
     const card = document.createElement("div");
     card.className = "w-27 flex-shrink-0 text-center cursor-pointer hover:opacity-80 transition";
     
-    // CORREÇÃO: Atributos de navegação em vez de click listener
     card.setAttribute('data-navigate', 'artist');
     card.setAttribute('data-id', docId);
 
     const fotoUrl = docData.foto || "";
-    const imgSrc = fotoUrl.startsWith("https://firebasestorage.googleapis.com") ? "/assets/artistpfp.png" : (fotoUrl || "/assets/default-artist.png");
+    
+    // DEFINIÇÃO DA IMAGEM
+    let imgSrc;
+    if (fotoUrl.includes("cloudinary.com")) {
+        // Se for Cloudinary, usa a URL da foto real
+        imgSrc = fotoUrl;
+    } else if (fotoUrl.includes("firebasestorage.googleapis.com")) {
+        // Se for Firebase, usa a foto padrao dos seus assets
+        imgSrc = "/assets/artistpfp.png";
+    } else {
+        // Se não tiver nada, usa um fallback
+        imgSrc = "/assets/default-artist.png";
+    }
 
     card.innerHTML = `
-        <img src="${imgSrc}" alt="${docData.nomeArtistico}" class="w-24 h-24 rounded-full object-cover mx-auto mb-0">
+        <div class="relative mx-auto w-24 h-24">
+            <img src="${imgSrc}" alt="${docData.nomeArtistico}" 
+                 class="w-24 h-24 rounded-full object-cover shadow-lg border-2 ${fotoUrl.includes('cloudinary.com') ? 'border-[#1ed760]' : 'border-transparent'}">
+        </div>
         <p class="text-white text-xs font-bold truncate mt-3">${docData.nomeArtistico || "Artista"}</p>
     `;
 
     return card;
 }
+
+
 
 function createTrendingSongCard(songData, docId, rank) {
     const songItem = document.createElement('div');
