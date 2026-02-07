@@ -833,7 +833,7 @@ async function renderTracksSpotifyStyle(tracks, playlist) {
                     <span class="text-white text-base font-bold" style="font-family: 'Nationale Bold';">
                         ${track.title || 'Sem título'}
                     </span>
-                    <div class="text-gray-400 text-xs artist-name-field" style="font-family: 'Nationale Regular';">
+                    <div class="text-gray-400 text-sm artist-name-field" style="font-family: 'Nationale Regular';">
                         ${track.artistName || 'Carregando...'}
                     </div>
                 </div>
@@ -1401,7 +1401,11 @@ function renderTop5Tracks(tracks, containerId) {
     });
 }
 
+let isContextLoading = false;
+
 async function setupArtistPage(artistId) {
+    if (isContextLoading) return;
+    isContextLoading = true;
     // 1. Referências dos Elementos
     const artistCoverBg = document.getElementById('artist-cover-bg');
     const artistNameElement = document.getElementById('artist-name');
@@ -1479,7 +1483,7 @@ async function setupArtistPage(artistId) {
                     </div>
                     <div class="mt-2 w-full">
                         <h3 class="text-white font-bold truncate text-sm" style="font-family: 'Nationale Bold';">${track.title}</h3>
-                        <p class="text-gray-400 text-xs truncate">${artistName}</p>
+                        <p class="text-gray-400 text-sm truncate">${artistName}</p>
                     </div>
                 `;
 
@@ -1514,6 +1518,7 @@ async function setupArtistPage(artistId) {
     } catch (error) {
         console.error("Erro:", error);
     }
+    
 }
 
 // Manter a função fetchAndRenderTrendingSongs exatamente como está no seu prompt original
@@ -2308,7 +2313,7 @@ async function setupMusicPage(musicId) {
                                 <span class="track-name text-white">${data.title}</span>
                                 ${data.explicit ? '<span class="explicit-tag">E</span>' : ''}
                             </div>
-                            <span class="artist-name text-gray-400 text-[11px]">${data.artistName}</span>
+
                         </div>
                         <div class="track-duration text-gray-400 text-xs">
                             ${isLocked ? "<i class='bx bxs-lock-alt text-[10px]'></i>" : (data.duration || '0:00')}
