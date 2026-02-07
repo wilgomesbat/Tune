@@ -1682,40 +1682,90 @@ async function setupLibraryPage() {
 
 }
 
+
+async function setupArtistsCarousel() {
+    const listContainer = document.getElementById('artists-list');
+    const loadingMessage = document.getElementById('artists-loading-message');
+    if (!listContainer) return;
+
+    try {
+        const musicasRef = collection(db, "usuarios");
+        // Busca os artistas (limite de 40 para ter margem de manobra na ordenação)
+        const q = query(musicasRef, where("artista", "==", "true"), limit(40));
+        const querySnapshot = await getDocs(q);
+        
+        let artistas = [];
+        querySnapshot.forEach(doc => {
+            artistas.push({ id: doc.id, ...doc.data() });
+        });
+
+        // ⭐ ORDENAÇÃO: Cloudinary primeiro, depois o resto
+        artistas.sort((a, b) => {
+            const aFoto = a.foto || "";
+            const bFoto = b.foto || "";
+            const aIsCloudinary = aFoto.includes("cloudinary.com");
+            const bIsCloudinary = bFoto.includes("cloudinary.com");
+
+            if (aIsCloudinary && !bIsCloudinary) return -1;
+            if (!aIsCloudinary && bIsCloudinary) return 1;
+            return 0;
+        });
+
+        // Limpa o container e o loading
+        if (loadingMessage) loadingMessage.style.display = 'none';
+        listContainer.innerHTML = '';
+
+        // Renderiza apenas os primeiros 20 (já ordenados)
+        artistas.slice(0, 20).forEach(docData => {
+            const card = createArtistCard(docData, docData.id);
+            listContainer.appendChild(card);
+        });
+
+        // Configura os botões de scroll
+        setupScrollButtons('artists-scroll-left', 'artists-scroll-right', 'artists-list');
+
+    } catch (error) {
+        console.error("Erro ao carregar artistas prioritários:", error);
+    }
+}
+
 function createArtistCard(docData, docId) {
     const card = document.createElement("div");
-    card.className = "w-27 flex-shrink-0 text-center cursor-pointer hover:opacity-80 transition";
+    card.className = "w-27 flex-shrink-0 text-center cursor-pointer hover:scale-105 transition-transform duration-300 group";
     
     card.setAttribute('data-navigate', 'artist');
     card.setAttribute('data-id', docId);
 
     const fotoUrl = docData.foto || "";
+    const isCloudinary = fotoUrl.includes("cloudinary.com");
     
-    // DEFINIÇÃO DA IMAGEM
-    let imgSrc;
-    if (fotoUrl.includes("cloudinary.com")) {
-        // Se for Cloudinary, usa a URL da foto real
+    // Fallbacks de imagem
+    let imgSrc = "/assets/default-artist.png";
+    if (isCloudinary) {
         imgSrc = fotoUrl;
     } else if (fotoUrl.includes("firebasestorage.googleapis.com")) {
-        // Se for Firebase, usa a foto padrao dos seus assets
         imgSrc = "/assets/artistpfp.png";
-    } else {
-        // Se não tiver nada, usa um fallback
-        imgSrc = "/assets/default-artist.png";
     }
 
     card.innerHTML = `
         <div class="relative mx-auto w-24 h-24">
             <img src="${imgSrc}" alt="${docData.nomeArtistico}" 
-                 class="w-24 h-24 rounded-full object-cover shadow-lg border-2 ${fotoUrl.includes('cloudinary.com') ? 'border-[#1ed760]' : 'border-transparent'}">
+                 class="w-24 h-24 rounded-full object-cover shadow-lg border-2 
+                 ${isCloudinary ? 'border-[#00FF5B] ring-4 ring-[#00FF5B]/10' : 'border-zinc-800'}">
+            
+            ${isCloudinary ? `
+                <div class="absolute bottom-0 right-1 bg-[#00FF5B] w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">
+                    <i class='bx bxs-check-shield text-black text-[10px]'></i>
+                </div>
+            ` : ''}
         </div>
-        <p class="text-white text-xs font-bold truncate mt-3">${docData.nomeArtistico || "Artista"}</p>
+        <p class="text-white text-[11px] font-bold truncate mt-3 group-hover:text-[#00FF5B] transition-colors">
+            ${docData.nomeArtistico || "Artista"}
+        </p>
     `;
 
     return card;
 }
-
-
 
 function createTrendingSongCard(songData, docId, rank) {
     const songItem = document.createElement('div');
@@ -2806,17 +2856,18 @@ async function fetchAndRenderNewSingles() {
     try {
         const musicasRef = collection(db, "musicas");
 
-        // 1. Define o filtro de 172 horas (aproximadamente 7 dias conforme seu código)
-        const tempoLimite = new Date();
-        tempoLimite.setHours(tempoLimite.getHours() - 172);
+// 1. Aumente o tempo para teste (ex: 7 dias = 168 horas)
+const tempoLimite = new Date();
+tempoLimite.setHours(tempoLimite.getHours() - 24); 
 
-        // 2. Consulta: Apenas singles, dentro do prazo, ordenados por data
-        const q = query(
+// 2. Query ajustada
+const q = query(
     musicasRef, 
-    where("single", "==", "true"), // Adicione as aspas para ler como string
+    where("single", "==", "true"), // Mantido como string, conforme seu print
+    where("status", "==", "publico"), // Garante que só pega as públicas
     where("timestamp", ">=", tempoLimite),
     orderBy("timestamp", "desc"), 
-    limit(12)
+    limit(20)
 );
 
         const querySnapshot = await getDocs(q);
@@ -2828,22 +2879,19 @@ async function fetchAndRenderNewSingles() {
         }
 
         querySnapshot.forEach(docSnap => {
+            
     const track = { id: docSnap.id, ...docSnap.data() };
     
     // --- NOVA LÓGICA DE DATA MAIS ROBUSTA ---
     const now = new Date();
-    let releaseDate;
-
-    if (track.timestamp && track.timestamp.toDate) {
-        // Se for o objeto Timestamp do Firestore
-        releaseDate = track.timestamp.toDate();
-    } else if (track.scheduledTime) {
-        // Se for a String que você mostrou (2026-02-06T00:03)
-        releaseDate = new Date(track.scheduledTime);
-    } else {
-        // Fallback para evitar erro
-        releaseDate = new Date();
-    }
+let releaseDate;
+if (track.timestamp && track.timestamp.toDate) {
+    releaseDate = track.timestamp.toDate();
+} else if (track.scheduledTime && track.scheduledTime !== "Imediato") {
+    releaseDate = new Date(track.scheduledTime);
+} else {
+    releaseDate = new Date(); // Se for "Imediato", considera como "agora"
+}
     
     // Verificação de segurança
     const isFuture = releaseDate > now;
@@ -2885,6 +2933,8 @@ async function fetchAndRenderNewSingles() {
     `;
 
     listContainer.appendChild(card);
+
+    
 });
 
         // Inicializa botões de scroll se a função existir
@@ -3024,9 +3074,8 @@ function createDefaultCard(item) {
     };
     return div;
 }
-
-// Substitua pelo ID do álbum que você quer destacar
-const ALBUM_DESTAQUE_ID = "5Z4Z3uUxgOYYWdjkydpT"; 
+// Substitua pelo ID da MÚSICA que você quer destacar
+const MUSICA_DESTAQUE_ID = "bj3HJDbtkzXLc1kBrOPB"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
@@ -3035,22 +3084,20 @@ async function loadBannerAlbum() {
     if (!banner || !coverImg) return;
 
     try {
-        const albumRef = doc(db, "albuns", ALBUM_DESTAQUE_ID);
-        const albumSnap = await getDoc(albumRef);
+        // Busca na coleção de MÚSICAS usando o ID de destaque
+        const musicRef = doc(db, "musicas", MUSICA_DESTAQUE_ID);
+        const musicSnap = await getDoc(musicRef);
 
-        if (albumSnap.exists()) {
-            const albumData = albumSnap.data();
+        if (musicSnap.exists()) {
+            const musicData = musicSnap.data();
             
-            // 1. Preenche os textos
-            document.getElementById('banner-title').textContent = albumData.album;
-            document.getElementById('banner-artist-name').textContent = albumData.artist;
-            
+            // 1. Preenche os textos usando os campos de música (title e artistName)
+            document.getElementById('banner-title').textContent = musicData.title;
+            document.getElementById('banner-artist-name').textContent = musicData.artistName || "Artista";
 
             // 2. Configura a imagem para extração de cor (CORS)
-            // IMPORTANTE: Definir Anonymous ANTES do src
             coverImg.crossOrigin = "Anonymous";
             
-            // Função que extrai a cor
             const extrairCor = () => {
                 try {
                     const colorThief = new ColorThief();
@@ -3058,45 +3105,48 @@ async function loadBannerAlbum() {
                     const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
                     banner.style.background = `linear-gradient(135deg, ${rgb} 0%, #121212 100%)`;
                 } catch (e) {
-                    console.warn("CORS bloqueou a extração de cor ou imagem inválida.");
-                    // Fallback: cor padrão caso falhe
                     banner.style.background = `linear-gradient(135deg, #282828 0%, #121212 100%)`;
                 }
             };
 
-            banner.classList.add('loaded');
-            
-
-            // Se a imagem já estiver no cache, o onload não dispara, então verificamos 'complete'
             if (coverImg.complete) {
                 extrairCor();
             } else {
                 coverImg.onload = extrairCor;
             }
 
-            coverImg.src = albumData.cover;
+            // Define a capa da música
+            coverImg.src = musicData.cover || "./assets/default-cover.png";
 
-            // 3. Busca foto do artista
-            if (albumData.uidars) {
-                const artistRef = doc(db, "usuarios", albumData.uidars);
+            // 3. Busca foto do artista (usando o UID do artista da música)
+            const artistId = musicData.artist || musicData.uidars;
+            if (artistId) {
+                const artistRef = doc(db, "usuarios", artistId);
                 const artistSnap = await getDoc(artistRef);
                 if (artistSnap.exists()) {
-                    document.getElementById('banner-artist-img').src = artistSnap.data().foto || "/assets/default-artist.png";
+                    const artistImg = document.getElementById('banner-artist-img');
+                    if (artistImg) artistImg.src = artistSnap.data().foto || "/assets/default-artist.png";
                 }
             }
 
-            // 4. Ação de Clique
+            // 4. Ação de Clique: Tocar a música agora
             banner.onclick = (e) => {
                 if (e.target.closest('.action-btn')) return;
-                if (typeof loadContent === 'function') {
-                    loadContent('album', ALBUM_DESTAQUE_ID);
+                
+                // Chama seu player global passando os dados da música
+                if (window.playTrackGlobal) {
+                    window.playTrackGlobal({
+                        id: MUSICA_DESTAQUE_ID,
+                        ...musicData
+                    });
                 }
             };
 
+            banner.classList.add('loaded');
             banner.style.display = 'block';
         }
     } catch (error) {
-        console.error("Erro ao carregar banner:", error);
+        console.error("Erro ao carregar banner de música:", error);
     }
 }
 
@@ -3169,89 +3219,90 @@ async function fetchAndRenderTopArtists() {
     }
 }
 
+// 1. Inicialização do Cache (Coloque no topo do seu arquivo JS)
+window.__HOME_CACHE__ = window.__HOME_CACHE__ || { loaded: false, html: null, scrollPosition: 0 };
+
 async function setupHomePage() {
-  const contentArea = document.getElementById('content-area');
-  if (!contentArea) return;
+    const contentArea = document.getElementById('content-area');
+    if (!contentArea) return;
 
-  // 1. VERIFICAÇÃO DE CACHE: Se já carregou, restaura o HTML e mata a execução
-  if (window.__HOME_CACHE__ && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
-    console.log("🏠 Home restaurada do cache (Economia de leituras Firestore)");
-    
-    contentArea.innerHTML = window.__HOME_CACHE__.html;
-    
-    // Reativa os eventos de clique (Data-navigate) que se perdem ao injetar innerHTML
-    rebindHomeUI(); 
-    
-    // Opcional: Volta para a posição onde o usuário estava no scroll
-    if (window.__HOME_CACHE__.scrollPosition) {
-      window.scrollTo(0, window.__HOME_CACHE__.scrollPosition);
+    // 2. VERIFICAÇÃO DE CACHE (Retorno Instantâneo)
+    if (window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
+        console.log("🏠 Restaurando Home do Cache...");
+        contentArea.innerHTML = window.__HOME_CACHE__.html;
+        rebindHomeUI(); 
+        setGreeting();
+        if (window.__HOME_CACHE__.scrollPosition) window.scrollTo(0, window.__HOME_CACHE__.scrollPosition);
+        return;
     }
-    return;
-  }
 
-  console.log("🔥 Primeira carga da Home: Buscando dados no Cloud...");
+    console.log("🔥 Primeira carga da Home: Buscando dados...");
 
-  try {
-    // 2. BUSCAS EM PARALELO (Otimiza o tempo de resposta inicial)
-    // Usamos Promise.all para que todas as listas comecem a carregar juntas
-    await Promise.all([
-      setupContentCarousel(
-        'albums-list', 'albums-scroll-left', 'albums-scroll-right', 
-        'albums-loading-message', 'albuns', 
-        [orderBy('date', 'desc'), limit(12)], createAlbumCard
-      ),
-      setupContentCarousel(
-        'charts-list', 'charts-scroll-left', 'charts-scroll-right', 
-        'charts-loading-message', 'playlists', 
-        [where('category', '==', 'Charts'), limit(12)], createPlaylistCard
-      ),
-      setupContentCarousel(
-        'artists-list', 'artists-scroll-left', 'artists-scroll-right', 
-        'artists-loading-message', 'usuarios', 
-        [where("artista", "==", "true"), limit(20)], createArtistCard
-      ),
-      setupContentCarousel(
-        'stations-list', 'stations-scroll-left', 'stations-scroll-right', 
-        'stations-loading-message', 'playlists', 
-        [where('category', '==', 'Stations'), limit(12)], createPlaylistCard
-      ),
-      setupContentCarousel(
-        'playlist-genres-list', 'playlist-genres-scroll-left', 'playlist-genres-scroll-right', 
-        'playlist-genres-loading-message', 'playlists', 
-        [where('category', '==', 'Playlist Genres'), limit(12)], createPlaylistCard
-      )
-    ]);
+    try {
+        // 3. PRIORIDADE MÁXIMA (Interface e Banner)
+        setGreeting();
+        await loadBannerAlbum();
 
-    // 3. CARREGAMENTO DAS DEMAIS SEÇÕES
-    setupPopSection();
-    setupLatinSection();
-    loadSertanejoSection();
-    setupForroGenreSection();
-    fetchAndRenderTrendingSongs();
-    fetchAndRenderNewSingles();
-    fetchAndRenderTopArtists();
-    loadBannerAlbum();
-    loadTopStreamedPlaylists();
+        // 4. BLOCO DE CARREGAMENTO 1 (O que aparece no topo)
+        // Usamos await aqui para garantir que essas seções carreguem juntas e rápido
+        await Promise.all([
+            fetchAndRenderNewSingles(), // Seus Singles agora têm prioridade
+            setupContentCarousel(
+                'albums-list', 'albums-scroll-left', 'albums-scroll-right', 
+                'albums-loading-message', 'albuns', 
+                [orderBy('date', 'desc'), limit(15)], createAlbumCard
+            ),
 
-    // 4. PREPARAÇÃO DO USUÁRIO
-    checkAuthAndLoadLikedItems();
-    loadMyLikedItems();
-    setGreeting();
+            setupForroGenreSection(),   // Carregando Forró no primeiro bloco
+            setupPopSection()           // Carregando Pop no primeiro bloco
+        ]);
 
-    // 5. SALVAR NO CACHE APÓS O CARREGAMENTO
-    // Damos um pequeno delay para garantir que o DOM terminou de renderizar os cards
-    setTimeout(() => {
-      window.__HOME_CACHE__.html = contentArea.innerHTML;
-      window.__HOME_CACHE__.loaded = true;
-      console.log("✅ Estado da Home persistido em cache.");
-    }, 1500);
+        // 5. BLOCO DE CARREGAMENTO 2 (Conteúdo secundário e pesado)
+        // Não usamos 'await' para que o site não fique "congelado" esperando essas listas
+        Promise.all([
+            fetchAndRenderTopArtists(), 
+            loadTopStreamedPlaylists(),
+            loadSertanejoSection(),
+            setupLatinSection(),
+            setupContentCarousel(
+                'charts-list', 'charts-scroll-left', 'charts-scroll-right', 
+                'charts-loading-message', 'playlists', 
+                [where('category', '==', 'Charts'), limit(12)], createPlaylistCard
+            ),
+            setupContentCarousel(
+                'artists-list', 'artists-scroll-left', 'artists-scroll-right', 
+                'artists-loading-message', 'usuarios', 
+                [where("artista", "==", "true"), limit(20)], createArtistCard
+            ),
+            setupContentCarousel(
+                'stations-list', 'stations-scroll-left', 'stations-scroll-right', 
+                'stations-loading-message', 'playlists', 
+                [where('category', '==', 'Stations'), limit(12)], createPlaylistCard
+            ),
+            setupContentCarousel(
+                'playlist-genres-list', 'playlist-genres-scroll-left', 'playlist-genres-scroll-right', 
+                'playlist-genres-loading-message', 'playlists', 
+                [where('category', '==', 'Playlist Genres'), limit(12)], createPlaylistCard
+            )
+        ]);
 
-  } catch (error) {
-    console.error("Erro ao popular a Home:", error);
-  }
+        // 6. FINALIZAÇÃO E LOGIN
+        checkAuthAndLoadLikedItems();
+        loadMyLikedItems();
+
+        // 7. SALVAR NO CACHE (Aguardar renderização completa)
+        setTimeout(() => {
+            if (contentArea.innerHTML.length > 500) {
+                window.__HOME_CACHE__.html = contentArea.innerHTML;
+                window.__HOME_CACHE__.loaded = true;
+                console.log("✅ Cache da Home gerado.");
+            }
+        }, 3000);
+
+    } catch (error) {
+        console.error("Erro crítico ao carregar a Home:", error);
+    }
 }
-
-
 
 
 // --- Inicialização da Aplicação ---
