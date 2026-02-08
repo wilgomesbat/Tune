@@ -1682,53 +1682,6 @@ async function setupLibraryPage() {
 
 }
 
-
-async function setupArtistsCarousel() {
-    const listContainer = document.getElementById('artists-list');
-    const loadingMessage = document.getElementById('artists-loading-message');
-    if (!listContainer) return;
-
-    try {
-        const musicasRef = collection(db, "usuarios");
-        // Busca os artistas (limite de 40 para ter margem de manobra na ordenação)
-        const q = query(musicasRef, where("artista", "==", "true"), limit(40));
-        const querySnapshot = await getDocs(q);
-        
-        let artistas = [];
-        querySnapshot.forEach(doc => {
-            artistas.push({ id: doc.id, ...doc.data() });
-        });
-
-        // ⭐ ORDENAÇÃO: Cloudinary primeiro, depois o resto
-        artistas.sort((a, b) => {
-            const aFoto = a.foto || "";
-            const bFoto = b.foto || "";
-            const aIsCloudinary = aFoto.includes("cloudinary.com");
-            const bIsCloudinary = bFoto.includes("cloudinary.com");
-
-            if (aIsCloudinary && !bIsCloudinary) return -1;
-            if (!aIsCloudinary && bIsCloudinary) return 1;
-            return 0;
-        });
-
-        // Limpa o container e o loading
-        if (loadingMessage) loadingMessage.style.display = 'none';
-        listContainer.innerHTML = '';
-
-        // Renderiza apenas os primeiros 20 (já ordenados)
-        artistas.slice(0, 20).forEach(docData => {
-            const card = createArtistCard(docData, docData.id);
-            listContainer.appendChild(card);
-        });
-
-        // Configura os botões de scroll
-        setupScrollButtons('artists-scroll-left', 'artists-scroll-right', 'artists-list');
-
-    } catch (error) {
-        console.error("Erro ao carregar artistas prioritários:", error);
-    }
-}
-
 function createArtistCard(docData, docId) {
     const card = document.createElement("div");
     card.className = "w-27 flex-shrink-0 text-center cursor-pointer hover:scale-105 transition-transform duration-300 group";
@@ -1737,29 +1690,21 @@ function createArtistCard(docData, docId) {
     card.setAttribute('data-id', docId);
 
     const fotoUrl = docData.foto || "";
-    const isCloudinary = fotoUrl.includes("cloudinary.com");
     
-    // Fallbacks de imagem
+    // Lógica de imagem simplificada
     let imgSrc = "/assets/default-artist.png";
-    if (isCloudinary) {
+    if (fotoUrl && fotoUrl !== "") {
         imgSrc = fotoUrl;
-    } else if (fotoUrl.includes("firebasestorage.googleapis.com")) {
+    } else {
         imgSrc = "/assets/artistpfp.png";
     }
 
     card.innerHTML = `
         <div class="relative mx-auto w-24 h-24">
             <img src="${imgSrc}" alt="${docData.nomeArtistico}" 
-                 class="w-24 h-24 rounded-full object-cover shadow-lg border-2 
-                 ${isCloudinary ? 'border-[#00FF5B] ring-4 ring-[#00FF5B]/10' : 'border-zinc-800'}">
-            
-            ${isCloudinary ? `
-                <div class="absolute bottom-0 right-1 bg-[#00FF5B] w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">
-                    <i class='bx bxs-check-shield text-black text-[10px]'></i>
-                </div>
-            ` : ''}
+                 class="w-24 h-24 rounded-full object-cover shadow-md">
         </div>
-        <p class="text-white text-[11px] font-bold truncate mt-3 group-hover:text-[#00FF5B] transition-colors">
+        <p class="text-white text-[11px] font-bold truncate mt-3">
             ${docData.nomeArtistico || "Artista"}
         </p>
     `;
@@ -3075,7 +3020,7 @@ function createDefaultCard(item) {
     return div;
 }
 // Substitua pelo ID da MÚSICA que você quer destacar
-const MUSICA_DESTAQUE_ID = "bj3HJDbtkzXLc1kBrOPB"; 
+const MUSICA_DESTAQUE_ID = "6jRbEpPkjRoSpYtiVkKE"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
@@ -3150,83 +3095,58 @@ async function loadBannerAlbum() {
     }
 }
 
-async function fetchAndRenderTopArtists() {
-    const listContainer = document.getElementById('top-artists-list');
+
+
+// ⭐ FUNÇÃO PARA CARREGAR ARTISTAS COM PRIORIDADE CLOUDINARY
+async function setupArtistsCarouselPriority() {
+    const listContainer = document.getElementById('artists-list');
+    const loadingMessage = document.getElementById('artists-loading-message');
     if (!listContainer) return;
 
     try {
-        const musicasRef = collection(db, "musicas");
-        const snapshotMusicas = await getDocs(musicasRef);
+        // Busca os usuários que são artistas (limite de 40 para ordenar)
+        const musicasRef = collection(db, "usuarios");
+        const q = query(musicasRef, where("artista", "==", "true"), limit(40));
+        const querySnapshot = await getDocs(q);
         
-        const artistStreams = {};
-
-        snapshotMusicas.forEach(docSnap => {
-            const data = docSnap.data();
-            const artistUid = data.artist;
-            const streams = Number(data.streamsMensal) || 0;
-
-            if (artistUid) {
-                artistStreams[artistUid] =
-                    (artistStreams[artistUid] || 0) + streams;
-            }
+        let artistas = [];
+        querySnapshot.forEach(doc => {
+            artistas.push({ id: doc.id, ...doc.data() });
         });
 
-        const top5Array = Object.entries(artistStreams)
-            .map(([uid, total]) => ({ uid, total }))
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 5);
+        // ⭐ ORDENAÇÃO: Cloudinary primeiro, Firebase/Outros depois
+        artistas.sort((a, b) => {
+            const aIsCloudinary = (a.foto || "").includes("cloudinary.com") ? 1 : 0;
+            const bIsCloudinary = (b.foto || "").includes("cloudinary.com") ? 1 : 0;
+            return bIsCloudinary - aIsCloudinary; // Retorna 1 (a vem primeiro) ou 0
+        });
 
+        // Limpa o container e esconde o loading
+        if (loadingMessage) loadingMessage.style.display = 'none';
         listContainer.innerHTML = '';
 
-        for (const item of top5Array) {
-            const userSnap = await getDoc(doc(db, "usuarios", item.uid));
+        // Renderiza apenas os 20 primeiros após a ordenação
+        artistas.slice(0, 20).forEach(docData => {
+            const card = createArtistCard(docData, docData.id);
+            listContainer.appendChild(card);
+        });
 
-            if (userSnap.exists()) {
-                const profile = userSnap.data();
-                const li = document.createElement('li');
-                li.className = 'top10__item';
-
-                li.innerHTML = `
-                    <div class="top10__content">
-                        <img 
-                          class="top10__image" 
-                          src="${profile.foto || './assets/default-artist.png'}"
-                          alt="${profile.nomeArtistico || profile.apelido}"
-                        >
-                        <div class="top10__info">
-                            <h4>${profile.nomeArtistico || profile.apelido}</h4>
-                            <p>${item.total.toLocaleString()}</p>
-                        </div>
-                    </div>
-                `;
-
-                li.onclick = () =>
-                    window.location.href = `perfil.html?id=${item.uid}`;
-
-                listContainer.appendChild(li);
-            }
+        // Ativa os botões de scroll (Certifique-se que essa função existe no seu código)
+        if (typeof setupScrollButtons === 'function') {
+            setupScrollButtons('artists-scroll-left', 'artists-scroll-right', 'artists-list');
         }
 
-        // ✅ CONFIGURA OS BOTÕES DE SCROLL DO TOP ARTISTAS
-        setupScrollButtons(
-            'top-artists-scroll-left',
-            'top-artists-scroll-right',
-            'top-artists-list'
-        );
-
     } catch (error) {
-        console.error("Erro no ranking:", error);
+        console.error("Erro ao carregar artistas prioritários:", error);
     }
 }
 
 // 1. Inicialização do Cache (Coloque no topo do seu arquivo JS)
 window.__HOME_CACHE__ = window.__HOME_CACHE__ || { loaded: false, html: null, scrollPosition: 0 };
-
 async function setupHomePage() {
     const contentArea = document.getElementById('content-area');
     if (!contentArea) return;
 
-    // 2. VERIFICAÇÃO DE CACHE (Retorno Instantâneo)
     if (window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
         console.log("🏠 Restaurando Home do Cache...");
         contentArea.innerHTML = window.__HOME_CACHE__.html;
@@ -3236,31 +3156,25 @@ async function setupHomePage() {
         return;
     }
 
-    console.log("🔥 Primeira carga da Home: Buscando dados...");
-
     try {
-        // 3. PRIORIDADE MÁXIMA (Interface e Banner)
         setGreeting();
         await loadBannerAlbum();
 
-        // 4. BLOCO DE CARREGAMENTO 1 (O que aparece no topo)
-        // Usamos await aqui para garantir que essas seções carreguem juntas e rápido
+        // 4. BLOCO 1: Aqui a ordem está correta
         await Promise.all([
-            fetchAndRenderNewSingles(), // Seus Singles agora têm prioridade
+            fetchAndRenderNewSingles(), 
+            setupArtistsCarouselPriority(), // Prioridade Cloudinary carregada aqui
             setupContentCarousel(
                 'albums-list', 'albums-scroll-left', 'albums-scroll-right', 
                 'albums-loading-message', 'albuns', 
                 [orderBy('date', 'desc'), limit(15)], createAlbumCard
             ),
-
-            setupForroGenreSection(),   // Carregando Forró no primeiro bloco
-            setupPopSection()           // Carregando Pop no primeiro bloco
+            setupForroGenreSection(),   
+            setupPopSection()
         ]);
 
-        // 5. BLOCO DE CARREGAMENTO 2 (Conteúdo secundário e pesado)
-        // Não usamos 'await' para que o site não fique "congelado" esperando essas listas
+        // 5. BLOCO 2: REMOVIDA A DUPLICATA DE ARTISTAS DAQUI
         Promise.all([
-            fetchAndRenderTopArtists(), 
             loadTopStreamedPlaylists(),
             loadSertanejoSection(),
             setupLatinSection(),
@@ -3269,11 +3183,7 @@ async function setupHomePage() {
                 'charts-loading-message', 'playlists', 
                 [where('category', '==', 'Charts'), limit(12)], createPlaylistCard
             ),
-            setupContentCarousel(
-                'artists-list', 'artists-scroll-left', 'artists-scroll-right', 
-                'artists-loading-message', 'usuarios', 
-                [where("artista", "==", "true"), limit(20)], createArtistCard
-            ),
+            // REPETIÇÃO REMOVIDA: setupContentCarousel de 'artists-list' não deve estar aqui!
             setupContentCarousel(
                 'stations-list', 'stations-scroll-left', 'stations-scroll-right', 
                 'stations-loading-message', 'playlists', 
@@ -3286,16 +3196,14 @@ async function setupHomePage() {
             )
         ]);
 
-        // 6. FINALIZAÇÃO E LOGIN
         checkAuthAndLoadLikedItems();
         loadMyLikedItems();
 
-        // 7. SALVAR NO CACHE (Aguardar renderização completa)
         setTimeout(() => {
             if (contentArea.innerHTML.length > 500) {
                 window.__HOME_CACHE__.html = contentArea.innerHTML;
                 window.__HOME_CACHE__.loaded = true;
-                console.log("✅ Cache da Home gerado.");
+                console.log("✅ Cache da Home gerado corretamente.");
             }
         }, 3000);
 
