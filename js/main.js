@@ -950,62 +950,62 @@ countdownContainer.innerHTML = `
     updateCountdown();
     window.countdownInterval = setInterval(updateCountdown, 1600);
 }
-const lastClickCache = {};
-
-const processingStreams = new Set(); // Conjunto para travar execuções em andamento
+// 1. Controle de Spam por Usuário e Música (Memória da Sessão)
+const userStreamHistory = new Map(); 
 
 async function checkAndResetMonthlyStreams(musicId) {
     if (!musicId) return;
 
-    // 1. TRAVA DE EXECUÇÃO (Impedir múltiplos cliques enquanto o Firebase responde)
-    if (processingStreams.has(musicId)) {
-        console.warn("⏳ Já estamos processando um stream para esta música. Aguarde.");
+    // 2. Identifica o Usuário Logado
+    const user = auth.currentUser;
+    if (!user) {
+        console.warn("🚫 Apenas usuários logados podem contabilizar streams.");
         return;
     }
 
+    const userId = user.uid;
     const now = Date.now();
-    const COOLDOWN_TIME = 10000; // 10 segundos
-    const storageKey = `antispam_stream_${musicId}`;
+    const SPAM_INTERVAL = 30000; // 30 segundos (conforme solicitado)
+    
+    // Criamos uma chave única que combina o Usuário + Música
+    const trackKey = `${userId}_${musicId}`;
 
-    // 2. CAMADA ANTI-SPAM (Memória + LocalStorage)
-    const lastStreamLocal = localStorage.getItem(storageKey);
-    const isSpamMemoria = lastClickCache[musicId] && (now - lastClickCache[musicId] < COOLDOWN_TIME);
-    const isSpamLocal = lastStreamLocal && (now - parseInt(lastStreamLocal) < COOLDOWN_TIME);
+    // 3. VERIFICAÇÃO DE SPAM
+    if (userStreamHistory.has(trackKey)) {
+        const lastPlayTime = userStreamHistory.get(trackKey);
+        const timeElapsed = now - lastPlayTime;
 
-    if (isSpamMemoria || isSpamLocal) {
-        console.warn(`🚫 [Anti-Spam] Cooldown ativo para ${musicId}.`);
-        return; 
+        if (timeElapsed < SPAM_INTERVAL) {
+            const remaining = Math.ceil((SPAM_INTERVAL - timeElapsed) / 1000);
+            console.warn(`⚠️ [SPAM DETECTADO] Usuário ${userId} bloqueado para a música ${musicId}. Aguarde ${remaining}s.`);
+            return; // CANCELA A OPERAÇÃO AQUI
+        }
     }
 
-    // --- INÍCIO DA ZONA SEGURA ---
-    processingStreams.add(musicId); // Bloqueia novas execuções desta música aqui
-    lastClickCache[musicId] = now;
-    localStorage.setItem(storageKey, now.toString());
+    // 4. REGISTRO DE ATIVIDADE (Bloqueia o próximo clique pelos próximos 30s)
+    userStreamHistory.set(trackKey, now);
 
     try {
         const musicRef = doc(db, "musicas", musicId);
         
-        // Buscamos o documento com prioridade de cache/servidor
+        // Buscamos os dados atuais para verificar o mês
         const docSnap = await getDoc(musicRef);
-
-        if (!docSnap.exists()) {
-            throw new Error("Música não encontrada.");
-        }
+        if (!docSnap.exists()) return;
 
         const musicData = docSnap.data();
         const today = new Date();
         
-        // Sorteio do boost (50k a 100k)
-        const streamBoost = Math.floor(Math.random() * (1000 - 30000 + 1)) + 50000;
+        // Seu Boost de 50k a 100k
+        const streamBoost = Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000;
 
         let updateData = {};
         const lastStreamDate = musicData.lastMonthlyStreamDate?.toDate();
 
-        // Lógica de Reset Mensal
         const needsReset = !lastStreamDate || 
                            today.getMonth() !== lastStreamDate.getMonth() || 
                            today.getFullYear() !== lastStreamDate.getFullYear();
 
+        // 5. PREPARAÇÃO DOS DADOS
         if (needsReset) {
             updateData.streamsMensal = streamBoost;
         } else {
@@ -1014,20 +1014,17 @@ async function checkAndResetMonthlyStreams(musicId) {
 
         updateData.streams = increment(streamBoost);
         updateData.lastMonthlyStreamDate = today; 
-        
-        // 3. ATUALIZAÇÃO ÚNICA
+
+        // 6. ENVIO AO FIRESTORE
         await updateDoc(musicRef, updateData);
         
-        console.log(`🚀 +${streamBoost.toLocaleString()} streams aplicados!`);
+        console.log(`✅ Stream validado para o usuário ${userId.substring(0,5)}...`);
+        console.log(`🚀 +${streamBoost.toLocaleString()} adicionados à música ${musicId}.`);
 
     } catch (error) {
-        console.error("Erro crítico:", error);
-        // Em caso de erro, removemos do localStorage para permitir nova tentativa
-        localStorage.removeItem(storageKey);
-    } finally {
-        // 4. LIBERAÇÃO DA TRAVA
-        // Só removemos do Set de processamento após o Firebase terminar (sucesso ou erro)
-        processingStreams.delete(musicId);
+        console.error("Erro ao processar stream:", error);
+        // Em caso de erro, removemos o bloqueio para permitir nova tentativa
+        userStreamHistory.delete(trackKey);
     }
 }
 
