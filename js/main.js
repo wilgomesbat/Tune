@@ -952,39 +952,51 @@ countdownContainer.innerHTML = `
 }
 const lastClickCache = {};
 
+const processingStreams = new Set(); // Conjunto para travar execuções em andamento
+
 async function checkAndResetMonthlyStreams(musicId) {
     if (!musicId) return;
 
+    // 1. TRAVA DE EXECUÇÃO (Impedir múltiplos cliques enquanto o Firebase responde)
+    if (processingStreams.has(musicId)) {
+        console.warn("⏳ Já estamos processando um stream para esta música. Aguarde.");
+        return;
+    }
+
     const now = Date.now();
-    const COOLDOWN_TIME = 15000; // 8 segundos
+    const COOLDOWN_TIME = 10000; // 10 segundos
+    const storageKey = `antispam_stream_${musicId}`;
 
-    // 1. VERIFICAÇÃO DE ANTI-SPAM (Memória + LocalStorage para persistir no F5)
-    const storageKey = `last_stream_${musicId}`;
+    // 2. CAMADA ANTI-SPAM (Memória + LocalStorage)
     const lastStreamLocal = localStorage.getItem(storageKey);
+    const isSpamMemoria = lastClickCache[musicId] && (now - lastClickCache[musicId] < COOLDOWN_TIME);
+    const isSpamLocal = lastStreamLocal && (now - parseInt(lastStreamLocal) < COOLDOWN_TIME);
 
-    if (
-        (lastClickCache[musicId] && (now - lastClickCache[musicId] < COOLDOWN_TIME)) ||
-        (lastStreamLocal && (now - parseInt(lastStreamLocal) < COOLDOWN_TIME))
-    ) {
-        console.warn(`⚠️ Spam detectado para ${musicId}. Clique bloqueado pelo Cooldown.`);
+    if (isSpamMemoria || isSpamLocal) {
+        console.warn(`🚫 [Anti-Spam] Cooldown ativo para ${musicId}.`);
         return; 
     }
 
-    // Atualiza os caches para bloquear o próximo clique
+    // --- INÍCIO DA ZONA SEGURA ---
+    processingStreams.add(musicId); // Bloqueia novas execuções desta música aqui
     lastClickCache[musicId] = now;
     localStorage.setItem(storageKey, now.toString());
 
     try {
         const musicRef = doc(db, "musicas", musicId);
+        
+        // Buscamos o documento com prioridade de cache/servidor
         const docSnap = await getDoc(musicRef);
 
-        if (!docSnap.exists()) return;
+        if (!docSnap.exists()) {
+            throw new Error("Música não encontrada.");
+        }
 
         const musicData = docSnap.data();
         const today = new Date();
         
-        // Sorteio do boost: entre 50.000 e 100.000
-        const streamBoost = Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000;
+        // Sorteio do boost (50k a 100k)
+        const streamBoost = Math.floor(Math.random() * (1000 - 30000 + 1)) + 50000;
 
         let updateData = {};
         const lastStreamDate = musicData.lastMonthlyStreamDate?.toDate();
@@ -996,7 +1008,6 @@ async function checkAndResetMonthlyStreams(musicId) {
 
         if (needsReset) {
             updateData.streamsMensal = streamBoost;
-            console.log("📅 Primeiro stream do mês! Resetando contador mensal.");
         } else {
             updateData.streamsMensal = increment(streamBoost);
         }
@@ -1004,12 +1015,19 @@ async function checkAndResetMonthlyStreams(musicId) {
         updateData.streams = increment(streamBoost);
         updateData.lastMonthlyStreamDate = today; 
         
-        // Executa a atualização única no Firebase
+        // 3. ATUALIZAÇÃO ÚNICA
         await updateDoc(musicRef, updateData);
-        console.log(`🚀 +${streamBoost.toLocaleString()} streams aplicados com sucesso!`);
+        
+        console.log(`🚀 +${streamBoost.toLocaleString()} streams aplicados!`);
 
     } catch (error) {
-        console.error("Erro ao processar stream:", error);
+        console.error("Erro crítico:", error);
+        // Em caso de erro, removemos do localStorage para permitir nova tentativa
+        localStorage.removeItem(storageKey);
+    } finally {
+        // 4. LIBERAÇÃO DA TRAVA
+        // Só removemos do Set de processamento após o Firebase terminar (sucesso ou erro)
+        processingStreams.delete(musicId);
     }
 }
 
