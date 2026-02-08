@@ -591,50 +591,86 @@ async function setupPlaylistPage(playlistId) {
             }
         };
 
+        
+
+      function isPortuguese(title) {
+    if (!title) return false;
+    // Detecta acentos brasileiros e cedilha (exclusivos do PT-BR)
+    const temAcentuacao = /[áàâãéêíóôõúç]/i.test(title);
+    if (temAcentuacao) return true;
+
+    // Palavras curtas muito comuns no PT-BR
+    const palavrasBR = ["o", "a", "os", "as", "do", "da", "no", "na", "com", "para", "pra", "pro", "que", "você", "te", "meu", "amanhã", "encontro"];
+    const palavrasNoTitulo = title.toLowerCase().split(/\s+/);
+    return palavrasNoTitulo.some(p => palavrasBR.includes(p));
+}
+
+// ... dentro da sua função setupPlaylistPage ...
+
         let tracks = [];
-        // AJUSTE: Mudei de "Top 100" para "Top 50" na verificação de nomes
-        const automaticTopNames = ["Top 50", "Daily Top 50"]; 
+        const automaticTopNames = ["Top 50", "Daily Top 50", "Top 50 Brasil", "Top 50 World"]; 
         const isRecentReleases = ["Novidades da Semana", "Novidades", "Lançamentos da Semana"].includes(playlist.name);
         const isAutomaticTop = automaticTopNames.includes(playlist.name) && playlist.category === "Charts";
+        
+        const generosBR = ["Sertanejo", "Funk", "Pagode", "MPB", "Forró", "Arrocha"]; 
 
-        // A) Charts Automáticos (AJUSTADO PARA LIMITE DE 50)
+        // --- A) Charts Automáticos (Top 50 / Brasil / World) ---
         if (isAutomaticTop) {
-            const limitCount = 50; // Limite fixo em 50
+            const isBrasilChart = playlist.name.includes("Brasil");
+            const isWorldChart = playlist.name.includes("World");
+
+            // Buscamos um limite maior (ex: 200) para ter margem de filtragem no JS
             const q = query(
                 collection(db, "musicas"), 
                 orderBy("streamsMensal", "desc"), 
-                limit(limitCount)
+                limit(200) 
             );
+            
             const snap = await getDocs(q);
-            snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
+            let rawTracks = [];
+            snap.forEach((d) => rawTracks.push({ id: d.id, ...d.data() }));
+
+            if (isBrasilChart) {
+                // FILTRAGEM JS PARA O BRASIL: Gênero OU Título em Português
+                tracks = rawTracks.filter(m => {
+                    const porGenero = generosBR.includes(m.genre);
+                    const porTitulo = isPortuguese(m.title);
+                    return porGenero || porTitulo;
+                }).slice(0, 50);
+            } 
+            else if (isWorldChart) {
+                // FILTRAGEM JS PARA WORLD: Nem gênero BR nem título em Português
+                tracks = rawTracks.filter(m => {
+                    const porGenero = generosBR.includes(m.genre);
+                    const porTitulo = isPortuguese(m.title);
+                    return !porGenero && !porTitulo;
+                }).slice(0, 50);
+            } 
+            else {
+                // TOP 50 GLOBAL: Apenas as 50 mais ouvidas sem filtro
+                tracks = rawTracks.slice(0, 50);
+            }
         } 
-        // B) Lançamentos Recentes
+        
+        // --- B) Lançamentos Recentes ---
         else if (isRecentReleases) {
+            // ... (seu código de lançamentos permanece igual)
             const dataLimite = new Date();
             dataLimite.setDate(dataLimite.getDate() - 3);
-            
-            // O Firestore lida melhor com objetos Date do que toISOString em alguns casos
-            const q = query(
-                collection(db, "musicas"), 
-                where("timestamp", ">=", dataLimite), 
-                limit(50)
-            );
+            const q = query(collection(db, "musicas"), where("timestamp", ">=", dataLimite), limit(50));
             const snap = await getDocs(q);
             snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-            
-            tracks.sort((a, b) => {
-                const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-                const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-                return dateB - dateA;
-            });
+            tracks.sort((a, b) => (b.timestamp?.toDate?.() || 0) - (a.timestamp?.toDate?.() || 0));
         }
-        // C) Artist Stations
+
+        // --- C) Artist Stations ---
         else if (playlist.uidars) {
             const q = query(collection(db, "musicas"), where("artist", "==", playlist.uidars), limit(30));
             const snap = await getDocs(q);
             snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
         } 
-        // D) Playlists Manuais
+
+        // --- D) Playlists Manuais ---
         else {
             const subColRef = query(collection(db, `playlists/${playlistId}/musicas`), limit(50));
             const subSnap = await getDocs(subColRef);
@@ -643,7 +679,7 @@ async function setupPlaylistPage(playlistId) {
                 subSnap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
             } 
             else if (playlist.track_ids?.length > 0) {
-                const lotes = [playlist.track_ids.slice(0, 30)]; // Reduzido para 30 para performance
+                const lotes = [playlist.track_ids.slice(0, 30)];
                 for (const ids of lotes) {
                     const q = query(collection(db, "musicas"), where("__name__", "in", ids));
                     const snapIn = await getDocs(q);
@@ -965,7 +1001,7 @@ async function checkAndResetMonthlyStreams(musicId) {
 
     const userId = user.uid;
     const now = Date.now();
-    const SPAM_INTERVAL = 30000; // 30 segundos (conforme solicitado)
+    const SPAM_INTERVAL = 25000; // 30 segundos (conforme solicitado)
     
     // Criamos uma chave única que combina o Usuário + Música
     const trackKey = `${userId}_${musicId}`;
@@ -996,7 +1032,7 @@ async function checkAndResetMonthlyStreams(musicId) {
         const today = new Date();
         
         // Seu Boost de 50k a 100k
-        const streamBoost = Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000;
+        const streamBoost = Math.floor(Math.random() * (10000 - 100000 + 1)) + 50000;
 
         let updateData = {};
         const lastStreamDate = musicData.lastMonthlyStreamDate?.toDate();
@@ -3040,7 +3076,7 @@ function createDefaultCard(item) {
     return div;
 }
 // Substitua pelo ID da MÚSICA que você quer destacar
-const MUSICA_DESTAQUE_ID = "Wyy5GBqpMmVgpepKmoCG"; 
+const MUSICA_DESTAQUE_ID = "6jRbEpPkjRoSpYtiVkKE"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
