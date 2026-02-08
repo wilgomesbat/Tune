@@ -958,7 +958,7 @@ async function checkAndResetMonthlyStreams(musicId) {
 
     // --- Lógica Anti-Fraude (Rate Limit) ---
     const now = Date.now();
-    const COOLDOWN_TIME = 5000; // 5 segundos em milissegundos
+    const COOLDOWN_TIME = 8000; // 5 segundos em milissegundos
 
     if (lastClickCache[musicId] && (now - lastClickCache[musicId] < COOLDOWN_TIME)) {
         console.warn(`⚠️ Spam detectado para ${musicId}. Ignorando clique excessivo.`);
