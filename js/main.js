@@ -948,7 +948,7 @@ countdownContainer.innerHTML = `
 
     // Atualiza imediatamente e depois a cada segundo
     updateCountdown();
-    window.countdownInterval = setInterval(updateCountdown, 1000);
+    window.countdownInterval = setInterval(updateCountdown, 1600);
 }
 // Objeto global (fora da função) para persistir o estado entre cliques
 const lastClickCache = {};
