@@ -299,7 +299,6 @@ window.gerenciarModalNome = function (abrir) {
 export async function listarGerenciamentoLancamentos() {
     const listContainer = document.getElementById('releasesList');
     const loadingMsg = document.getElementById('loading-releases');
-    const noReleasesMsg = document.getElementById('no-releases-message');
 
     if (!listContainer || !currentUser) return;
 
@@ -307,14 +306,20 @@ export async function listarGerenciamentoLancamentos() {
     if (loadingMsg) loadingMsg.classList.remove('hidden');
 
     try {
-        // PADRONIZAÇÃO: Usando sempre 'artist' como chave de busca
+        // Query de Músicas: Usa 'artist' para o UID
         const qMusicas = query(collection(db, "musicas"), where("artist", "==", currentUser.uid));
-        const qAlbuns = query(collection(db, "albuns"), where("artist", "==", currentUser.uid));
+        
+        // Query de Álbuns: CORRIGIDA para usar 'uidars' conforme seu padrão original
+        const qAlbuns = query(collection(db, "albuns"), where("uidars", "==", currentUser.uid));
 
+        // Escuta as músicas
         onSnapshot(qMusicas, (snap) => renderizarCards(snap, 'musicas', listContainer, loadingMsg));
+        
+        // Escuta os álbuns
         onSnapshot(qAlbuns, (snap) => renderizarCards(snap, 'albuns', listContainer, loadingMsg));
+        
     } catch (e) {
-        console.error("Erro na query:", e);
+        console.error("Erro na query de lançamentos:", e);
     }
 }
 
@@ -694,7 +699,88 @@ window.showToast("Lançamento configurado!", "success");
     }
 };
 
+// ============================================
+// 3. SUBMISSÃO DE ÁLBUM (CHAVES ORIGINAIS)
+// ============================================
+window.handleAlbumSubmission = async (e) => {
+    e.preventDefault();
+    
+    const btn = document.getElementById('btnSubmitAlbum');
+    if (!currentUser) {
+        window.showToast("Erro: Usuário não autenticado.", "error");
+        return;
+    }
 
+    // Captura dos inputs do formulário
+    const albumTitle = document.getElementById('albumName').value.trim();
+    const albumOriginal = document.getElementById('albumOriginal').value.trim(); // Nome do álbum original (referência)
+    const durationValue = document.getElementById('duration').value.trim();
+    const releaseDate = document.getElementById('releaseDate').value;
+    const coverFileInput = document.getElementById('relCoverAlbum');
+
+    // Validações básicas
+    if (!albumTitle || !releaseDate || !coverFileInput.files[0]) {
+        window.showToast("Preencha os campos obrigatórios e a capa!", "error");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO...';
+
+    try {
+        // A. Busca Nome Artístico para a chave 'artist'
+        let nomeDoArtista = "N/A";
+        const userDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
+        if (userDoc.exists()) {
+            nomeDoArtista = userDoc.data().nomeArtistico || userDoc.data().nome || "N/A";
+        }
+
+        // B. Upload da Capa (Cloudinary)
+        const file = coverFileInput.files[0];
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", UPLOAD_PRESET);
+        formData.append("folder", `tune/albums/${currentUser.uid}`);
+        
+        // Transformações padrão
+        formData.append("width", 600);
+        formData.append("height", 600);
+        formData.append("crop", "fill");
+
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: "POST",
+            body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadData.secure_url) throw new Error("Erro no upload da imagem");
+
+        // C. Salvamento com as CHAVES ORIGINAIS solicitadas
+        await addDoc(collection(db, "albuns"), {
+            album: albumTitle,          // Nome do Álbum
+            artist: nomeDoArtista,      // Nome do Artista (String)
+            country: "N/A",             // Padrão solicitado
+            cover: uploadData.secure_url,
+            date: releaseDate,          // Data (YYYY-MM-DD)
+            duration: durationValue,    // Ex: "1h 11min"
+            label: "N/A",               // Padrão solicitado
+            uidars: currentUser.uid,    // ID do Artista (String)
+            status: "Em Revisão",       // Controle interno
+            album_original_ref: albumOriginal // Campo extra solicitado anteriormente
+        });
+
+        window.showToast("Álbum enviado com sucesso!", "success");
+        
+        setTimeout(() => { 
+            if (typeof loadContent === 'function') loadContent('releases'); 
+        }, 1500);
+
+    } catch (err) {
+        console.error(err);
+        window.showToast("Erro: " + err.message, "error");
+        btn.disabled = false;
+        btn.innerHTML = 'Enviar';
+    }
+};
 
 // ============================================
 // ⭐ DASHBOARD E AUXILIARES ⭐

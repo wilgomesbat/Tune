@@ -811,13 +811,18 @@ try {
                 const artistCard = document.createElement('div');
                 artistCard.className = "bg-gray-800 p-4 rounded-lg shadow-lg border border-yellow-600 relative flex flex-col items-center text-center";
                 artistCard.innerHTML = `
-                    <img src="${data.foto || 'assets/default-artist.png'}" class="w-20 h-20 rounded-full object-cover mb-3 border-2 border-yellow-500" onerror="this.src='assets/default-artist.png'">
-                    <h3 class="text-white font-bold truncate w-full">${data.nome || 'Sem Nome'}</h3>
-                    <p class="text-gray-400 text-xs mb-4">${data.email || ''}</p>
-                    <button onclick="approveArtist('${docSnap.id}')" class="w-full bg-green-600 hover:bg-green-700 text-white text-xs py-2 px-2 rounded-md font-bold transition">
-                        APROVAR CONTA
-                    </button>
-                `;
+    <img src="${data.foto || 'assets/default-artist.png'}" class="w-20 h-20 rounded-full object-cover mb-3 border-2 border-yellow-500" onerror="this.src='assets/default-artist.png'">
+    <h3 class="text-white font-bold truncate w-full">${data.nomeArtistico || 'Sem Nome'}</h3>
+    <p class="text-gray-400 text-xs mb-4">${data.email || ''}</p>
+    <div class="flex gap-2 w-full">
+        <button onclick="approveArtist('${docSnap.id}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white text-[10px] py-2 px-1 rounded-md font-bold transition">
+            APROVAR
+        </button>
+        <button onclick="rejectArtist('${docSnap.id}')" class="flex-1 bg-red-600 hover:bg-red-700 text-white text-[10px] py-2 px-1 rounded-md font-bold transition">
+            REPROVAR
+        </button>
+    </div>
+`;
                 pendingGrid.appendChild(artistCard);
             });
         } catch (error) {
@@ -837,6 +842,29 @@ try {
             showToastError("Erro ao aprovar conta.");
         }
     };
+
+    // Função para reprovar e remover status de artista
+window.rejectArtist = async function(artistId) {
+    if (!confirm("Deseja REPROVAR este usuário? Ele deixará de ser listado como artista.")) return;
+    
+    try {
+        const userRef = doc(db, "usuarios", artistId);
+        await updateDoc(userRef, { 
+            aprovado: "rejected", // ou "false", dependendo da sua lógica de filtro
+            artista: false 
+        });
+
+        showToastSuccess("Cadastro reprovado com sucesso! ❌");
+        
+        // Atualiza as listas na tela
+        fetchPendingArtists();
+        if (typeof fetchAllArtistsData === 'function') fetchAllArtistsData(); 
+        
+    } catch (error) {
+        console.error("Erro ao reprovar:", error);
+        showToastError("Erro ao reprovar conta.");
+    }
+};
 
     // ========================================
     // 3. MODAL DE EDIÇÃO E BANIMENTO
@@ -1120,87 +1148,121 @@ function setupAddPlaylistPage() {
 }
 
 
-
-// ============================================
-// ⭐ FUNÇÃO DE SETUP PARA PÁGINA DE ÁLBUM (additem.html) ⭐
-// AJUSTADA PARA USAR O ESQUEMA DE DADOS ANTIGO
-// ============================================
 function setupAddAlbumPage() {
-    const albumForm = document.querySelector("#combinedForm"); 
-    // const selectedArtistUidInput = document.getElementById("selectedArtistUid"); // REMOVIDO: Substituído por artistUidInput
-    const artistNameInput = document.getElementById("artistName"); // NOVO INPUT
-    const artistUidInput = document.getElementById("artistUid"); // NOVO INPUT
-    const cancelButton = document.getElementById("cancelButton");
+    const albumForm = document.querySelector("#combinedForm");
+    const btnPreview = document.getElementById("btnPreviewTracks");
+    const trackStatus = document.getElementById("trackStatus");
+    const previewContainer = document.getElementById("previewContainer");
+    const trackListPreview = document.getElementById("trackListPreview");
 
-    if (!albumForm) {
-        console.error("ERRO CRÍTICO: Formulário de Álbum (combinedForm) não encontrado no DOM.");
-        return; 
-    }
+    let importedTracks = []; 
 
-    // Listener para o botão Cancelar (mantido para navegação)
-    if (cancelButton) {
-        cancelButton.addEventListener('click', () => {
-            loadContent('dashboard');
-        });
-    }
+    if (!albumForm) return;
 
-    albumForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        // 1. COLETAR DADOS DO FORMULÁRIO (COM OS NOVOS CAMPOS)
-        const currentItemName = albumForm.itemName.value.trim();
-        const currentItemCover = albumForm.itemCover.value.trim();
-        const currentReleaseDate = albumForm.releaseDate.value.trim();
-        const currentDuration = albumForm.duration.value.trim();
-        
-        // NOVOS VALORES COLETADOS
-        const artistName = artistNameInput ? artistNameInput.value.trim() : "Artista Desconhecido";
-        const artistUid = artistUidInput ? artistUidInput.value.trim() : null;
+    // --- 1. BUSCA DE FAIXAS NA PLAYLIST DO YT ---
+    btnPreview.addEventListener('click', async () => {
+        const url = document.getElementById("ytPlaylistUrl").value.trim();
+        const playlistId = url.match(/[&?]list=([^&]+)/i)?.[1];
 
-        // Validação MÍNIMA
-        if (!currentItemName || !currentItemCover || !artistName) {
-            showToastError("Por favor, preencha o nome do álbum, capa e o nome do artista.");
+        if (!playlistId) {
+            alert("Por favor, cole um link de playlist válido do YouTube.");
             return;
         }
 
         try {
-            // 2. MAPEAMENTO PARA O ESQUEMA ANTIGO OBRIGATÓRIO (Renaissance)
-            const albumData = {
-                // Mapeamento de Nome do Álbum
-                album: currentItemName,
-                
-                // Mapeamento de Capa
-                cover: currentItemCover,
+            trackStatus.innerText = "⏳ Acessando YouTube...";
+            
+            const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}`, {
+                referrerPolicy: "no-referrer-when-downgrade"
+            });
+            const data = await res.json();
 
-                // Mapeamento de Data de Lançamento
+            if (data.error) throw new Error(data.error.message);
+
+            if (data.items) {
+                importedTracks = data.items;
+                trackListPreview.innerHTML = "";
+                previewContainer.classList.remove("hidden");
+
+                importedTracks.forEach((item, index) => {
+                    const li = document.createElement("li");
+                    li.innerHTML = `<span class="text-red-600 font-bold">${index + 1}.</span> ${item.snippet.title}`;
+                    trackListPreview.appendChild(li);
+                });
+
+                trackStatus.innerHTML = `<span class="text-green-500 font-bold">✅ ${importedTracks.length} faixas detectadas.</span>`;
+            }
+        } catch (e) {
+            console.error(e);
+            trackStatus.innerHTML = `<span class="text-red-500 font-bold">❌ Erro: ${e.message}</span>`;
+        }
+    });
+
+    // --- 2. SALVAMENTO EM MASSA (BATCH) ---
+    albumForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // Dados do Formulário
+        const currentItemName = albumForm.itemName.value.trim();
+        const currentItemCover = albumForm.itemCover.value.trim();
+        const currentReleaseDate = albumForm.releaseDate.value.trim();
+        const currentDuration = albumForm.duration.value.trim();
+        const selectedGenre = document.getElementById("mainGenre").value.trim() || "Pop";
+        const artistName = document.getElementById("artistName").value.trim();
+        const artistUid = document.getElementById("artistUid").value.trim();
+
+        if (importedTracks.length === 0) {
+            alert("Você precisa carregar as faixas da playlist antes de salvar.");
+            return;
+        }
+
+        try {
+            const batch = writeBatch(db);
+
+            // Criar Documento do Álbum (Esquema Antigo)
+            const albumRef = doc(collection(db, "albuns"));
+            batch.set(albumRef, {
+                album: currentItemName,
+                cover: currentItemCover,
                 date: currentReleaseDate,
-                
-                // Mapeamento de Duração
                 duration: currentDuration,
-                
-                // Mapeamento NOVO: artistName (Form) -> artist (Firestore)
                 artist: artistName,
-                
-                // Mapeamento NOVO: artistUid (Form) -> uidars (Firestore)
                 uidars: artistUid || null,
-                
-                // Campos fixos/padrão que existiam no esquema antigo
                 country: "N/A", 
                 label: "N/A"
-            };
+            });
 
-            // Salva na coleção 'albuns'
-            await addDoc(collection(db, "albuns"), albumData); 
+            // Criar Documentos das Músicas (Esquema Antigo)
+            importedTracks.forEach((track, index) => {
+                const musicRef = doc(collection(db, "musicas"));
+                batch.set(musicRef, {
+                    album: albumRef.id,                   // ID do Documento do Álbum
+                    artist: artistUid || null,            // UID do Artista (string)
+                    audioURL: track.snippet.resourceId.videoId, // ID do vídeo (string)
+                    cover: currentItemCover,              // Capa manual do álbum
+                    duration: "0:00",                     // Padrão
+                    explicit: false,
+                    genre: selectedGenre,
+                    releaseDate: currentReleaseDate,
+                    streams: 0,
+                    streamsMensal: 0,
+                    timestamp: new Date().toISOString(),
+                    title: track.snippet.title,
+                    trackNumber: index + 1
+                });
+            });
 
-            showToastSuccess("Álbum salvo com sucesso no esquema antigo!");
+            await batch.commit();
+            
+            showToastSuccess("Álbum e faixas salvas com sucesso no banco de dados!");
             albumForm.reset();
-            // Limpa os novos campos de artista também
-            if(artistNameInput) artistNameInput.value = "";
-            if(artistUidInput) artistUidInput.value = "";
-             
+            previewContainer.classList.add("hidden");
+            importedTracks = [];
+            trackStatus.innerText = "Aguardando nova importação...";
+
         } catch (error) {
-            console.error("Erro ao salvar o álbum:", error);
-            showToastError("Erro ao salvar o álbum. Tente novamente.");
+            console.error("Erro ao realizar batch:", error);
+            showToastError("Erro ao salvar. Verifique o console.");
         }
     });
 }
@@ -1264,257 +1326,202 @@ async function zerarStreamsMensais() {
 }
 
 window.zerarStreamsMensais = zerarStreamsMensais;
-
-
-// Constantes de Paginação
+// --- CONFIGURAÇÕES GERAIS ---
+const YT_API_KEY = 'AIzaSyCTy9IM54bO4CQudHJgnO_YNUSBtPrMzlU';
 const ALBUMS_PER_PAGE = 20;
 let currentPage = 1;
-let lastVisible = null; // Último documento visível (para paginação baseada em cursor)
+let importedTracks = []; 
 
-// ============================================
-// ⭐ FUNÇÃO DE SETUP PARA PÁGINA DE EDIÇÃO DE ÁLBUNS ⭐
-// ============================================
-
-function setupEditAlbumsPage() {
+async function setupEditAlbumsPage() {
     const albumsGrid = document.getElementById('albumsGrid');
-    const loadingMessage = document.getElementById('loadingAlbums');
-    const prevButton = document.getElementById('prevPageButton');
-    const nextButton = document.getElementById('nextPageButton');
-    const pageDisplay = document.getElementById('currentPageDisplay');
     const modal = document.getElementById('editAlbumModal');
-    const closeModalButton = document.getElementById('closeModalButton');
-    const modalCancelButton = document.getElementById('modalCancelButton');
-    const editForm = document.getElementById('editAlbumForm');
-
-    if (!albumsGrid || !modal) {
-        console.error("Elementos essenciais (Grid ou Modal) não encontrados na página editalbums.");
-        return;
-    }
-
-    // ========================================
-    // LÓGICA DE PAGINAÇÃO
-    // ========================================
-
-    async function fetchAlbums(skip = 0) {
-        albumsGrid.innerHTML = '';
-        loadingMessage.textContent = "Carregando álbuns...";
-        loadingMessage.style.display = 'block';
-
-        try {
-            let q;
-            // A paginação por `limit` e `startAfter` é mais eficiente para o Firestore
-            if (skip > 0) {
-                // Para simplificar a demonstração, vamos apenas pular os documentos iniciais
-                // Nota: O Firestore não tem um 'offset' nativo eficiente para skips longos.
-                // A melhor prática é usar startAfter(lastDocument).
-                // Para simular o SKIP no front-end, buscaríamos tudo ou usaríamos um sistema
-                // mais complexo de cursores (que é mais lento para avançar/voltar).
-                
-                // Vamos simplificar o `skip` aqui: sempre buscamos do início + limit
-                // Se você quiser a paginação real do Firestore, avise!
-                q = query(
-                    collection(db, "albuns"),
-                    orderBy("date", "desc"), 
-                    limit(ALBUMS_PER_PAGE)
-                );
-                
-                // Para uma paginação real com cursor (next/prev), a lógica seria:
-                // q = query(collection(db, "albuns"), orderBy("date", "desc"), startAfter(lastVisible), limit(ALBUMS_PER_PAGE));
-            } else {
-                q = query(
-                    collection(db, "albuns"),
-                    orderBy("date", "desc"),
-                    limit(ALBUMS_PER_PAGE)
-                );
-            }
-
-            // Para simular o 'skip' simples:
-            const allDocsQuery = query(collection(db, "albuns"), orderBy("date", "desc"));
-            const snapshot = await getDocs(allDocsQuery);
-            const allDocs = snapshot.docs;
-            
-            const startIndex = (currentPage - 1) * ALBUMS_PER_PAGE;
-            const endIndex = startIndex + ALBUMS_PER_PAGE;
-            const currentDocs = allDocs.slice(startIndex, endIndex);
-
-            renderAlbums(currentDocs);
-            
-            // Atualizar status dos botões
-            prevButton.disabled = currentPage === 1;
-            nextButton.disabled = endIndex >= allDocs.length;
-            pageDisplay.textContent = `Página ${currentPage}`;
-
-        } catch (error) {
-            console.error("Erro ao buscar álbuns:", error);
-            albumsGrid.innerHTML = '<p class="text-red-500 col-span-full">Erro ao carregar álbuns.</p>';
-            loadingMessage.style.display = 'none';
-        }
-    }
-
-    function renderAlbums(docs) {
-        albumsGrid.innerHTML = '';
-        if (docs.length === 0) {
-            albumsGrid.innerHTML = '<p class="text-gray-400 col-span-full">Nenhum álbum encontrado.</p>';
-        }
-
-        docs.forEach(doc => {
-            const album = doc.data();
-            const albumId = doc.id;
-            
-            // Lógica de fallback para campos antigos (album, date)
-            const albumName = album.album || "Sem Nome";
-            const artistName = album.artist || "Artista Desconhecido";
-
-            const albumCard = document.createElement('div');
-            // Mantém as classes de estilo
-            albumCard.className = 'bg-black rounded-lg shadow-xl overflow-hidden relative group'; 
-            
-            albumCard.innerHTML = `
-                <img src="${album.cover}" alt="Capa do ${albumName}" class="w-full h-40 object-cover">
-                
-                <div class="p-3">
-                    <h4 class="text-sm font-semibold text-white truncate">${albumName}</h4>
-                    <p class="text-xs text-gray-400 truncate">${artistName}</p>
-                    
-                     <div class="mt-2">
-                        <button 
-                            data-id="${albumId}" 
-                            class="edit-album-btn flex items-center justify-center space-x-1 
-                                   w-full py-1 text-xs font-medium 
-                                   bg-white text-black 
-                                   hover:bg-gray-200 rounded transition-colors duration-200"
-                        >
-                            <i class='bx bx-search-alt text-lg'></i>
-                            <span>Editar</span>
-                        </button>
-                    </div>
-                </div>
-            `;
-            albumsGrid.appendChild(albumCard);
-        });
-        
-        loadingMessage.style.display = 'none';
-        attachEditListeners();
-    }
+    const searchInput = document.getElementById('albumSearchInput');
     
-    // Adiciona a funcionalidade de clique aos botões de edição recém-criados
-    function attachEditListeners() {
-        document.querySelectorAll('.edit-album-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const albumId = e.currentTarget.getAttribute('data-id');
-                openEditModal(albumId);
+    // --- 1. FUNÇÃO DE PAGINAÇÃO (Corrigindo o ReferenceError) ---
+    function updatePaginationButtons(totalAprovados) {
+        const prevBtn = document.getElementById('prevPageButton');
+        const nextBtn = document.getElementById('nextPageButton');
+        const display = document.getElementById('currentPageDisplay');
+
+        if (prevBtn && nextBtn && display) {
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = (currentPage * ALBUMS_PER_PAGE) >= totalAprovados;
+            display.textContent = `Página ${currentPage}`;
+
+            prevBtn.onclick = () => { if(currentPage > 1) { currentPage--; fetchAlbums(); }};
+            nextBtn.onclick = () => { currentPage++; fetchAlbums(); };
+        }
+    }
+
+    // --- 2. CARREGAMENTO DOS CARDS (AJUSTADO PARA ORDENAÇÃO) ---
+async function fetchAlbums() {
+    if (!albumsGrid) return;
+    albumsGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center py-10">Carregando acervo...</p>';
+
+    try {
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+        // Busca inicial do Firestore
+        const snapshot = await getDocs(query(collection(db, "albuns"), orderBy("date", "desc")));
+        
+        let allDocs = snapshot.docs;
+
+        // 1. Aplica filtro de busca se houver
+        if (searchTerm) {
+            allDocs = allDocs.filter(d => {
+                const data = d.data();
+                return data.album?.toLowerCase().includes(searchTerm) || 
+                       data.artist?.toLowerCase().includes(searchTerm);
             });
+        }
+
+        // 2. Separa os grupos
+        const pendentes = allDocs.filter(d => d.data().status !== "Aprovado");
+        
+        // 3. Garante a ordenação dos aprovados pela data (mais recentes primeiro)
+        const aprovados = allDocs
+            .filter(d => d.data().status === "Aprovado")
+            .sort((a, b) => {
+                const dateA = new Date(a.data().date || 0);
+                const dateB = new Date(b.data().date || 0);
+                return dateB - dateA; // Descendente: mais novo no topo
+            });
+
+        albumsGrid.innerHTML = ''; 
+
+        // Renderiza Pendentes
+        if (pendentes.length > 0) {
+            renderSection("Aguardando Configuração", "text-amber-500", pendentes, true);
+        }
+
+        // Renderiza Aprovados Ordenados com Paginação
+        if (aprovados.length > 0) {
+            renderSection("Álbuns Publicados", "text-gray-500", aprovados.slice((currentPage - 1) * ALBUMS_PER_PAGE, currentPage * ALBUMS_PER_PAGE), false);
+        }
+
+        updatePaginationButtons(aprovados.length);
+    } catch (error) {
+        console.error("Erro:", error);
+        albumsGrid.innerHTML = '<p class="text-red-500 col-span-full text-center">Erro ao carregar álbuns.</p>';
+    }
+}
+
+    // --- 3. RENDERIZAÇÃO ---
+    function renderSection(title, color, docs, isPendente) {
+        const h = document.createElement('h2');
+        h.className = `col-span-full font-bold text-xs uppercase tracking-widest mt-6 mb-2 ${color}`;
+        h.textContent = title;
+        albumsGrid.appendChild(h);
+
+        docs.forEach(docSnap => {
+            const album = docSnap.data();
+            const card = document.createElement('div');
+            card.className = `bg-black rounded-lg overflow-hidden border ${isPendente ? 'border-amber-500/50' : 'border-gray-900'} relative group shadow-lg`;
+            card.innerHTML = `
+                <div class="relative h-44 overflow-hidden">
+                    <img src="${album.cover}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${isPendente ? 'opacity-50' : ''}">
+                    ${isPendente ? '<span class="absolute top-2 left-2 bg-amber-500 text-black text-[10px] font-bold px-2 py-1 rounded">PENDENTE</span>' : ''}
+                    <button onclick="openEditModal('${docSnap.id}')" class="absolute bottom-2 right-2 bg-white text-black w-10 h-10 rounded-full shadow-2xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all transform hover:scale-110 z-20">
+                        <i class='bx bxs-pencil text-xl'></i>
+                    </button>
+                </div>
+                <div class="p-3">
+                    <h4 class="text-white text-xs font-bold truncate uppercase">${album.album || "Sem Nome"}</h4>
+                    <p class="text-gray-500 text-[10px] truncate">${album.artist || "Artista"}</p>
+                </div>`;
+            albumsGrid.appendChild(card);
         });
     }
 
-    // Botões de Paginação
-    prevButton.addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
+    // --- 4. LOGICA DO MODAL (Exposta globalmente) ---
+    window.openEditModal = async (albumId) => {
+        try {
+            const snap = await getDoc(doc(db, "albuns", albumId));
+            if (!snap.exists()) return;
+            const data = snap.data();
+
+            document.getElementById('albumDocId').value = albumId;
+            document.getElementById('modalItemName').value = data.album || '';
+            document.getElementById('modalItemCover').value = data.cover || '';
+            document.getElementById('modalReleaseDate').value = data.date || '';
+            document.getElementById('modalDuration').value = data.duration || '';
+            document.getElementById('modalArtistName').value = data.artist || '';
+            document.getElementById('modalArtistUid').value = data.uidars || '';
+            document.getElementById('modalCountry').value = data.country || '';
+            document.getElementById('modalLabel').value = data.label || '';
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        } catch (e) { console.error(e); }
+    };
+
+    // --- 5. EVENTOS DE BUSCA E BOTÕES ---
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            currentPage = 1;
             fetchAlbums();
-        }
-    });
-
-    nextButton.addEventListener('click', () => {
-        currentPage++;
-        fetchAlbums();
-    });
-
-    // ========================================
-    // LÓGICA DO MODAL DE EDIÇÃO
-    // ========================================
-    
-    async function openEditModal(albumId) {
-        // Limpar e bloquear o formulário enquanto carrega
-        editForm.reset();
-        modal.style.display = 'flex';
-        const docRef = doc(db, "albuns", albumId);
-        
-        try {
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                
-                // Preencher o formulário com os dados do álbum
-                document.getElementById('albumDocId').value = albumId; // ID do documento
-                document.getElementById('modalTitle').textContent = `Editar Álbum: ${data.album || data.name}`;
-                
-                // Mapeamento de chaves antigas (album, date) para os IDs dos inputs do modal
-                document.getElementById('modalItemName').value = data.album || '';
-                document.getElementById('modalItemCover').value = data.cover || '';
-                document.getElementById('modalReleaseDate').value = data.date || ''; // Mapeia 'date'
-                document.getElementById('modalDuration').value = data.duration || '';
-                document.getElementById('modalArtistName').value = data.artist || '';
-                document.getElementById('modalArtistUid').value = data.uidars || '';
-                document.getElementById('modalCountry').value = data.country || '';
-                document.getElementById('modalLabel').value = data.label || '';
-                
-            } else {
-                showToastError("Documento do álbum não encontrado.");
-                modal.style.display = 'none';
-            }
-        } catch (error) {
-            console.error("Erro ao carregar dados para edição:", error);
-            showToastError("Erro ao carregar dados do álbum.");
-            modal.style.display = 'none';
-        }
+        });
     }
 
-    function closeModal() {
-        modal.style.display = 'none';
-        editForm.reset();
-    }
-    
-    // Listeners para fechar o modal
-    closeModalButton.addEventListener('click', closeModal);
-    modalCancelButton.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeModal();
-        }
-    });
+    const btnPreview = document.getElementById('btnPreviewTracks');
+    if (btnPreview) {
+        btnPreview.onclick = async () => {
+            const url = document.getElementById("ytPlaylistUrl").value.trim();
+            const playlistId = url.match(/[&?]list=([^&]+)/i)?.[1];
+            if (!playlistId) return alert("Playlist inválida!");
 
-
-    // ========================================
-    // LÓGICA DE SALVAR EDIÇÃO
-    // ========================================
-
-    editForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const docId = document.getElementById('albumDocId').value;
-        const docRef = doc(db, "albuns", docId);
-
-        // Coletar novos dados do formulário do modal
-        const updatedData = {
-            // Mapeamento para o esquema antigo
-            album: document.getElementById('modalItemName').value.trim(),
-            cover: document.getElementById('modalItemCover').value.trim(),
-            date: document.getElementById('modalReleaseDate').value.trim(),
-            duration: document.getElementById('modalDuration').value.trim(),
-            artist: document.getElementById('modalArtistName').value.trim(),
-            uidars: document.getElementById('modalArtistUid').value.trim() || null,
-            country: document.getElementById('modalCountry').value.trim() || null,
-            label: document.getElementById('modalLabel').value.trim() || null,
-            // Adicionar timestamp de atualização se necessário (opcional)
-            // dataAtualizacao: new Date() 
+            try {
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}`);
+                const data = await res.json();
+                importedTracks = data.items || [];
+                document.getElementById('trackListPreview').innerHTML = importedTracks.map((t, i) => `<li class="py-1 border-b border-gray-800">${i+1}. ${t.snippet.title}</li>`).join('');
+                document.getElementById('previewContainer').classList.remove('hidden');
+                document.getElementById('trackStatus').innerHTML = `<span class="text-green-500">${importedTracks.length} faixas.</span>`;
+            } catch (e) { alert("Erro ao acessar YouTube"); }
         };
+    }
 
-        try {
-            await updateDoc(docRef, updatedData);
-            showToastSuccess("Álbum atualizado com sucesso!");
-            closeModal();
-            // Recarrega a lista para mostrar a alteração
-            fetchAlbums(); 
-        } catch (error) {
-            console.error("Erro ao salvar a edição do álbum:", error);
-            showToastError("Erro ao salvar. Tente novamente.");
-        }
-    });
+    const btnFinalize = document.getElementById('btnFinalizeImport');
+    if (btnFinalize) {
+        btnFinalize.onclick = async () => {
+            const albumId = document.getElementById('albumDocId').value;
+            const batch = writeBatch(db);
+            const albumData = {
+                album: document.getElementById('modalItemName').value,
+                cover: document.getElementById('modalItemCover').value,
+                date: document.getElementById('modalReleaseDate').value,
+                duration: document.getElementById('modalDuration').value,
+                artist: document.getElementById('modalArtistName').value,
+                uidars: document.getElementById('modalArtistUid').value,
+                status: "Aprovado" 
+            };
 
-    // Inicia o carregamento dos álbuns
+            batch.update(doc(db, "albuns", albumId), albumData);
+            importedTracks.forEach((t, i) => {
+                const mRef = doc(collection(db, "musicas"));
+                batch.set(mRef, {
+                    album: albumId,
+                    artist: albumData.uidars,
+                    artistName: albumData.artist,
+                    audioURL: t.snippet.resourceId.videoId,
+                    cover: albumData.cover,
+                    title: t.snippet.title,
+                    trackNumber: i + 1,
+                    streams: 0,
+                    timestamp: serverTimestamp()
+                });
+            });
+            await batch.commit();
+            location.reload();
+        };
+    }
+
+    document.getElementById('closeModalButton').onclick = () => modal.classList.add('hidden');
+    document.getElementById('modalCancelButton').onclick = () => modal.classList.add('hidden');
+    
     fetchAlbums();
 }
+
+setupEditAlbumsPage();
 // Adicione esta função ao seu arquivo tt.js
 async function setupAddSinglePage() {
     const singleForm = document.getElementById('singleMusicForm');
