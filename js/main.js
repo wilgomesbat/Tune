@@ -950,49 +950,53 @@ countdownContainer.innerHTML = `
     updateCountdown();
     window.countdownInterval = setInterval(updateCountdown, 1600);
 }
-// Objeto global (fora da função) para persistir o estado entre cliques
 const lastClickCache = {};
 
 async function checkAndResetMonthlyStreams(musicId) {
     if (!musicId) return;
 
-    // --- Lógica Anti-Fraude (Rate Limit) ---
     const now = Date.now();
-    const COOLDOWN_TIME = 8000; // 5 segundos em milissegundos
+    const COOLDOWN_TIME = 15000; // 8 segundos
 
-    if (lastClickCache[musicId] && (now - lastClickCache[musicId] < COOLDOWN_TIME)) {
-        console.warn(`⚠️ Spam detectado para ${musicId}. Ignorando clique excessivo.`);
-        return; // Sai da função sem executar nada no banco de dados
+    // 1. VERIFICAÇÃO DE ANTI-SPAM (Memória + LocalStorage para persistir no F5)
+    const storageKey = `last_stream_${musicId}`;
+    const lastStreamLocal = localStorage.getItem(storageKey);
+
+    if (
+        (lastClickCache[musicId] && (now - lastClickCache[musicId] < COOLDOWN_TIME)) ||
+        (lastStreamLocal && (now - parseInt(lastStreamLocal) < COOLDOWN_TIME))
+    ) {
+        console.warn(`⚠️ Spam detectado para ${musicId}. Clique bloqueado pelo Cooldown.`);
+        return; 
     }
 
-    // Atualiza o timestamp do último clique permitido
+    // Atualiza os caches para bloquear o próximo clique
     lastClickCache[musicId] = now;
-    // ---------------------------------------
+    localStorage.setItem(storageKey, now.toString());
 
     try {
         const musicRef = doc(db, "musicas", musicId);
         const docSnap = await getDoc(musicRef);
 
-        if (!docSnap.exists()) {
-            console.warn(`Música com ID ${musicId} não encontrada.`);
-            return;
-        }
+        if (!docSnap.exists()) return;
 
         const musicData = docSnap.data();
         const today = new Date();
         
-        // Sorteio do boost (Corrigi sua lógica de random que estava invertida)
+        // Sorteio do boost: entre 50.000 e 100.000
         const streamBoost = Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000;
 
         let updateData = {};
         const lastStreamDate = musicData.lastMonthlyStreamDate?.toDate();
 
+        // Lógica de Reset Mensal
         const needsReset = !lastStreamDate || 
                            today.getMonth() !== lastStreamDate.getMonth() || 
                            today.getFullYear() !== lastStreamDate.getFullYear();
 
         if (needsReset) {
             updateData.streamsMensal = streamBoost;
+            console.log("📅 Primeiro stream do mês! Resetando contador mensal.");
         } else {
             updateData.streamsMensal = increment(streamBoost);
         }
@@ -1000,8 +1004,9 @@ async function checkAndResetMonthlyStreams(musicId) {
         updateData.streams = increment(streamBoost);
         updateData.lastMonthlyStreamDate = today; 
         
+        // Executa a atualização única no Firebase
         await updateDoc(musicRef, updateData);
-        console.log(`🚀 +${streamBoost.toLocaleString()} streams aplicados!`);
+        console.log(`🚀 +${streamBoost.toLocaleString()} streams aplicados com sucesso!`);
 
     } catch (error) {
         console.error("Erro ao processar stream:", error);
