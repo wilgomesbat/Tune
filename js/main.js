@@ -3076,7 +3076,7 @@ function createDefaultCard(item) {
     return div;
 }
 // Substitua pelo ID da MÚSICA que você quer destacar
-const MUSICA_DESTAQUE_ID = "6jRbEpPkjRoSpYtiVkKE"; 
+const MUSICA_DESTAQUE_ID = "tiOkRzpMCIpt8PL9uJ9r"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
