@@ -1,5 +1,41 @@
 // main.js
 
+function initializeRouting() {
+    const pathname = window.location.pathname;
+    const urlParams = new URLSearchParams(window.location.search);
+
+    let page = 'home';
+    let id = null;
+
+    // 1. Identifica a página e o ID pelo caminho (Ex: /album/123)
+    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html");
+
+    if (pathParts.length > 0) {
+        page = pathParts[0]; 
+        id = pathParts[1] || null;
+    } 
+    // 2. Fallback para Localhost (?page=home)
+    else if (urlParams.has('page')) {
+        page = urlParams.get('page');
+        id = urlParams.get('id');
+    }
+
+    // Limpeza de segurança
+    if (page.includes('.html')) page = page.replace('.html', '');
+    if (page === 'menu' || !page) page = 'home';
+
+    // Chama a sua função loadContent que você postou acima
+    loadContent(page, id, false);
+}
+
+// Escuta o carregamento inicial
+document.addEventListener('DOMContentLoaded', initializeRouting);
+
+// Escuta o botão voltar/avançar do navegador
+window.onpopstate = (e) => {
+    if (e.state) loadContent(e.state.page, e.state.id, false);
+};
+
 // Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { getFirestore, Timestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
@@ -1656,56 +1692,18 @@ window.addEventListener('popstate', (event) => {
     }
 });
 
-// js/main.js
+// Captura todos os links que têm o atributo data-page
+document.querySelectorAll('[data-page]').forEach(link => {
+    link.addEventListener('click', (e) => {
+        // Se for um link real (<a>), evita o refresh
+        e.preventDefault();
+        
+        const page = link.getAttribute('data-page');
+        const id = link.getAttribute('data-id') || null;
 
-// js/main.js
-
-/**
- * Analisa a URL atual e decide qual página carregar dentro do menu.html
- */
-function initializeRouting() {
-    const pathname = window.location.pathname; // Ex: /album/bcvn6W...
-    const urlParams = new URLSearchParams(window.location.search);
-
-    let page = 'home';
-    let id = null;
-
-    // 1. LÓGICA DE URL LIMPA (Netlify / Produção)
-    // O split('/') divide a URL. Ex: "/album/123" vira ["", "album", "123"]
-    // O filter remove partes vazias e o "menu.html"
-    const pathParts = pathname.split('/').filter(part => part !== "" && part !== "menu.html");
-
-    if (pathParts.length > 0) {
-        page = pathParts[0]; // Primeira parte é a página (ex: album)
-        id = pathParts[1] || null; // Segunda parte é o ID (ex: 123)
-    } 
-    
-    // 2. LÓGICA DE LOCALHOST (Fallback para ?page=...)
-    // Caso você ainda esteja testando via parâmetros
-    else if (urlParams.has('page')) {
-        page = urlParams.get('page');
-        id = urlParams.get('id');
-    }
-
-    // Segurança: se cair no nome do arquivo principal, manda para a home
-    if (page === 'menu.html' || !page) page = 'home';
-
-    console.log(`🎯 Roteador Inteligente: Abrindo [${page}] com ID [${id}]`);
-
-    // Carrega o conteúdo sem criar um novo histórico (pois já estamos na URL certa)
-    loadContent(page, id, false);
-}
-
-// Inicia o roteamento assim que o script carregar
-document.addEventListener('DOMContentLoaded', initializeRouting);
-
-// Escuta quando o usuário clica nos botões "Voltar" ou "Avançar" do navegador
-window.addEventListener('popstate', (event) => {
-    if (event.state && event.state.page) {
-        loadContent(event.state.page, event.state.id, false);
-    } else {
-        initializeRouting();
-    }
+        console.log(`🖱️ Navegando para: ${page}`);
+        loadContent(page, id, true);
+    });
 });
 
 // Chame a função quando o DOM estiver pronto
