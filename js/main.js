@@ -538,6 +538,9 @@ async function getArtistName(artistUid) {
         return "Erro ao carregar";
     }
 }
+
+
+
 // --- Setup Página Playlist Completo (Versão Atualizada para Top 50) ---
 async function setupPlaylistPage(playlistId) {
     const playlistImgDetail = document.getElementById("playlist-cover-detail");
@@ -545,6 +548,7 @@ async function setupPlaylistPage(playlistId) {
     const playlistDescriptionDetail = document.getElementById("playlist-description-detail");
     const tracksContainer = document.getElementById("tracks-container");
     const playlistBg = document.getElementById("playlist-bg"); 
+    const priorityNames = ["Top 50 Brasil", "Top 50", "Top 50 World", "Daily Top 50"];
     
     const fallbackBackground = 'linear-gradient(to bottom, #1a1a1a, #030303)';
     const fallbackImage = 'https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png'; 
@@ -1660,71 +1664,104 @@ function initializeRouting() {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
 
-    loadContent(page, id);
+    // Chamamos com false porque o navegador já está na URL correta
+    loadContent(page, id, false); 
 }
 
 
-async function loadContent(pageName, id = null) {
+async function loadContent(pageName, id = null, shouldPushState = true) {
     const contentArea = document.getElementById('content-area');
+    
+    // Proteção básica para garantir que o elemento de destino existe
     if (!contentArea || !pageName) return;
 
-    // 1. CHECAGEM DE CACHE
-    if (pageName === 'home' && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
+    // 1. CHECAGEM DE CACHE (Específico para a Home)
+    if (pageName === 'home' && window.__HOME_CACHE__ && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
         contentArea.innerHTML = window.__HOME_CACHE__.html;
         
-        // Atualiza apenas a saudação, os cliques agora são globais e automáticos
-        setGreeting(); 
+        // Funções de interface da home
+        if (typeof setGreeting === 'function') setGreeting(); 
         
-        const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-        const newUrl = isDev ? `menu.html?page=home` : `/home`;
-        window.history.pushState({ page: 'home' }, '', newUrl);
+        if (shouldPushState) {
+            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+            const newUrl = isDev ? `menu.html?page=home` : `/home`;
+            window.history.pushState({ page: 'home' }, '', newUrl);
+        }
         return; 
     }
 
     try {
+        // 2. BUSCA O CONTEÚDO HTML
         const filePath = `${pageName}.html`;
         const response = await fetch(filePath);
-        if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
+        
+        if (!response.ok) {
+            throw new Error(`Não foi possível carregar ${filePath}. Status: ${response.status}`);
+        }
         
         const html = await response.text();
+        
+        // 3. RENDERIZA NO DOM
         contentArea.innerHTML = html;
         
-        const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-        const newUrl = isDev ? `menu.html?page=${pageName}${id ? `&id=${id}` : ''}` : `/${pageName}${id ? `?id=${id}` : ''}`;
-        window.history.pushState({ page: pageName, id: id }, '', newUrl);
+        // 4. ATUALIZA A URL (Apenas se não for carregamento inicial/F5)
+        if (shouldPushState) {
+            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+            // Formata a URL: No PC/Dev usa ?page=, no Netlify usa URL limpa /page
+            const newUrl = isDev 
+                ? `menu.html?page=${pageName}${id ? `&id=${id}` : ''}` 
+                : `/${pageName}${id ? `?id=${id}` : ''}`;
+            
+            window.history.pushState({ page: pageName, id: id }, '', newUrl);
+        }
 
-        // Garantimos que o DOM foi atualizado antes de chamar as funções de setup
+        // 5. DISPARA SETUPS DAS PÁGINAS (Com pequeno delay para garantir que o DOM renderizou)
         setTimeout(() => {
-            if (pageName === 'album') {
-                setupAlbumPage(id);
-            } else if (pageName === 'home') { 
-                setupHomePage();
-            } else if (pageName === 'loginartists') {
-                setupLoginartistsPage(id);
-            } else if (pageName === 'artist') 
-            { 
-                setupArtistPage(id);
-            } else if (pageName === 'search') {
-                // Importação dinâmica para a página de busca
-                import('./search.js').then(module => { 
-                    module.setupSearchPage();
-                }).catch(err => console.error("Erro ao importar search.js:", err));
-            } else if (pageName === 'playlist') { 
-                setupPlaylistPage(id);
-                } else if (pageName === 'music') { // ⬅️ ADICIONE ESTE BLOCO
-    setupMusicPage(id);
-            } else if (pageName === 'liked') { // ⬅️ NOVO: Chama a função de setup da página de curtidas
-                setupLikedPage();
-            } else if (pageName === 'library') { // ⬅️ NOVO: Chama a função de setup da página de curtidas
-                setupLibraryPage();
-                validarCardArtista();
-                checkAuthAndLoadLikedItems();
+            switch (pageName) {
+                case 'album':
+                    if (typeof setupAlbumPage === 'function') setupAlbumPage(id);
+                    break;
+                case 'home':
+                    if (typeof setupHomePage === 'function') setupHomePage();
+                    break;
+                case 'loginartists':
+                    if (typeof setupLoginartistsPage === 'function') setupLoginartistsPage(id);
+                    break;
+                case 'artist':
+                    if (typeof setupArtistPage === 'function') setupArtistPage(id);
+                    break;
+                case 'playlist':
+                    if (typeof setupPlaylistPage === 'function') setupPlaylistPage(id);
+                    break;
+                case 'music':
+                    if (typeof setupMusicPage === 'function') setupMusicPage(id);
+                    break;
+                case 'liked':
+                    if (typeof setupLikedPage === 'function') setupLikedPage();
+                    break;
+                case 'library':
+                    if (typeof setupLibraryPage === 'function') {
+                        setupLibraryPage();
+                        if (typeof validarCardArtista === 'function') validarCardArtista();
+                        if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
+                    }
+                    break;
+                case 'search':
+                    import('./search.js')
+                        .then(module => module.setupSearchPage())
+                        .catch(err => console.error("Erro ao importar search.js:", err));
+                    break;
             }
         }, 50);
 
     } catch (error) {
         console.error("Erro ao carregar conteúdo da página:", error);
-        contentArea.innerHTML = `<p class="text-red-500 text-center">Erro ao carregar a página: ${pageName}.html</p>`;
+        contentArea.innerHTML = `
+            <div class="flex flex-col items-center justify-center p-10">
+                <p class="text-red-500 font-bold">Erro ao carregar a página: ${pageName}</p>
+                <button onclick="location.reload()" class="mt-4 bg-white text-black px-4 py-2 rounded-full">Tentar novamente</button>
+            </div>
+        `;
     }
 }
 
@@ -1830,6 +1867,7 @@ function createPlaylistCard(playlist, playlistId) {
 
     playlistCard.innerHTML = `
         <div class="relative w-full pb-[100%] rounded-md">
+        
             <img src="${playlist.cover || '/assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
         </div>
         <div class="mt-2 w-full">
@@ -3076,7 +3114,7 @@ function createDefaultCard(item) {
     return div;
 }
 // Substitua pelo ID da MÚSICA que você quer destacar
-const MUSICA_DESTAQUE_ID = "tiOkRzpMCIpt8PL9uJ9r"; 
+const MUSICA_DESTAQUE_ID = "6jRbEpPkjRoSpYtiVkKE"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
