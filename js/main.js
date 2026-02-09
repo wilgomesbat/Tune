@@ -5,34 +5,40 @@ function initializeRouting() {
     let page = 'home';
     let id = null;
 
-    // 1. Identifica a página e o ID pelo caminho (Ex: /album/123)
+    // 1. Divide o caminho em partes (ex: ["album", "123"])
     const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html");
 
     if (pathParts.length > 0) {
         page = pathParts[0]; 
         id = pathParts[1] || null;
     } 
-    // 2. Fallback para Localhost (?page=home)
+    // 2. Fallback para ?page= (Localhost)
     else if (urlParams.has('page')) {
         page = urlParams.get('page');
         id = urlParams.get('id');
     }
 
-    // Limpeza de segurança
+    // Limpeza de segurança para evitar loops ou carregar arquivos errados
     if (page.includes('.html')) page = page.replace('.html', '');
-    if (page === 'menu' || !page) page = 'home';
+    if (page === 'menu' || page === 'index' || !page) page = 'home';
 
-    // Chama a sua função loadContent que você postou acima
+    console.log(`🚀 Roteamento inicial detectado: Página [${page}] ID [${id}]`);
+    
+    // Carrega o conteúdo sem criar um novo histórico (false)
     loadContent(page, id, false);
 }
 
-// Escuta o carregamento inicial
-document.addEventListener('DOMContentLoaded', initializeRouting);
-
-// Escuta o botão voltar/avançar do navegador
-window.onpopstate = (e) => {
-    if (e.state) loadContent(e.state.page, e.state.id, false);
-};
+/**
+ * Escuta o botão voltar/avançar do navegador.
+ */
+window.addEventListener('popstate', (e) => {
+    if (e.state && e.state.page) {
+        loadContent(e.state.page, e.state.id, false);
+    } else {
+        // Se voltar até o início onde não há estado salvo, reinicializa
+        initializeRouting();
+    }
+});
 
 // Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
@@ -93,49 +99,7 @@ export async function uploadImageToCloudinary(file) {
     return data.secure_url;
 }
 
-controlarFluxoManutencaoFirestore();
 
-function controlarFluxoManutencaoFirestore() {
-    console.log("Iniciando monitor de manutenção via Firestore...");
-
-    // Referência para o documento dentro da coleção 'config' e documento 'status'
-    const manutencaoDocRef = doc(db, 'config', 'status');
-
-    onSnapshot(manutencaoDocRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const dados = snapshot.data();
-            const estaEmManutencao = dados.manutencao; // Pega o campo 'manutencao'
-            
-            console.log("Status Manutenção Firestore:", estaEmManutencao);
-
-            const path = window.location.pathname;
-            const paginaAtual = path.substring(path.lastIndexOf('/') + 1);
-            const tela = document.getElementById('maintenance-screen');
-
-            if (estaEmManutencao === true) {
-                if (paginaAtual !== "main" && paginaAtual !== "main") {
-                    window.location.href = "main";
-                    return;
-                }
-                if (tela) {
-                    tela.style.display = 'flex';
-                    tela.classList.remove('maintenance-hidden');
-                    document.body.style.overflow = 'hidden';
-                }
-            } else {
-                if (tela) {
-                    tela.style.display = 'none';
-                    tela.classList.add('maintenance-hidden');
-                    document.body.style.overflow = '';
-                }
-            }
-        } else {
-            console.warn("⚠️ Documento 'config/status' não encontrado no Firestore!");
-        }
-    }, (error) => {
-        console.error("Erro ao ouvir Firestore:", error);
-    });
-}
 
 // UID do usuário atual (apenas referência, sem bloqueio)
 let currentUserUid = null;
@@ -251,7 +215,49 @@ function hideLoadingAndShowContent() {
     }
 }
 
+controlarFluxoManutencaoFirestore();
 
+function controlarFluxoManutencaoFirestore() {
+    console.log("Iniciando monitor de manutenção via Firestore...");
+
+    // Referência para o documento dentro da coleção 'config' e documento 'status'
+    const manutencaoDocRef = doc(db, 'config', 'status');
+
+    onSnapshot(manutencaoDocRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const dados = snapshot.data();
+            const estaEmManutencao = dados.manutencao; // Pega o campo 'manutencao'
+            
+            console.log("Status Manutenção Firestore:", estaEmManutencao);
+
+            const path = window.location.pathname;
+            const paginaAtual = path.substring(path.lastIndexOf('/') + 1);
+            const tela = document.getElementById('maintenance-screen');
+
+            if (estaEmManutencao === true) {
+                if (paginaAtual !== "main" && paginaAtual !== "main") {
+                    window.location.href = "main";
+                    return;
+                }
+                if (tela) {
+                    tela.style.display = 'flex';
+                    tela.classList.remove('maintenance-hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            } else {
+                if (tela) {
+                    tela.style.display = 'none';
+                    tela.classList.add('maintenance-hidden');
+                    document.body.style.overflow = '';
+                }
+            }
+        } else {
+            console.warn("⚠️ Documento 'config/status' não encontrado no Firestore!");
+        }
+    }, (error) => {
+        console.error("Erro ao ouvir Firestore:", error);
+    });
+}
 
 /**
  * 2. Função para preencher a interface com os dados do usuário.
@@ -573,7 +579,36 @@ async function getArtistName(artistUid) {
     }
 }
 
+function getTrendIndicator(lastStreamDate) {
+    // Se não houver data, tratamos como música nova (NEW)
+    if (!lastStreamDate) {
+        return '<span style="color: #60a5fa; font-size: 9px; font-weight: bold; display: block; line-height: 1;">NEW</span>';
+    }
 
+    try {
+        const now = new Date();
+        // Converte o Timestamp do Firestore com segurança
+        const lastDate = (typeof lastStreamDate.toDate === 'function') 
+                         ? lastStreamDate.toDate() 
+                         : new Date(lastStreamDate);
+        
+        const diffInMs = now - lastDate;
+        
+        // --- NOVA LÓGICA: 7 HORAS ---
+        const sevenHoursInMs = 7 * 60 * 60 * 1000;
+
+        if (diffInMs < sevenHoursInMs) {
+            // Reproduzida há menos de 7h: Verde (Subindo)
+            return '<span style="color: #4ade80; font-size: 10px; display: block; line-height: 1;">▲</span>';
+        } else {
+            // NÃO reproduzida nas últimas 7h: Vermelha (Caindo)
+            return '<span style="color: #f87171; font-size: 10px; display: block; line-height: 1;">▼</span>';
+        }
+    } catch (e) {
+        console.error("Erro ao calcular tendência:", e);
+        return '';
+    }
+}
 
 // --- Setup Página Playlist Completo (Versão Atualizada para Top 50) ---
 async function setupPlaylistPage(playlistId) {
@@ -731,7 +766,7 @@ async function setupPlaylistPage(playlistId) {
             tracks.sort((a, b) => (a.trackNumber || 99) - (b.trackNumber || 99));
         }
 
-        renderTracksSpotifyStyle(tracks, playlist);
+        renderTracksSpotifyStyle(tracks, playlist, isAutomaticTop);
 
     } catch (error) {
         console.error("Erro ao carregar playlist:", error);
@@ -876,7 +911,7 @@ function showToast(message, type = 'default') {
     }, 5000);
 }
 
-async function renderTracksSpotifyStyle(tracks, playlist) { 
+async function renderTracksSpotifyStyle(tracks, playlist, isChart = false) { 
     const tracksContainer = document.getElementById("tracks-container");
     tracksContainer.innerHTML = "";
 
@@ -888,7 +923,7 @@ async function renderTracksSpotifyStyle(tracks, playlist) {
     const listWrapper = document.createElement("div");
     listWrapper.className = "flex flex-col w-full space-y-1"; 
 
-    const now = new Date(); // Data de referência para o bloqueio
+    const now = new Date();
 
     for (const [index, track] of tracks.entries()) {
         try {
@@ -902,44 +937,51 @@ async function renderTracksSpotifyStyle(tracks, playlist) {
 
             const coverUrl = track.cover || playlist.cover || './assets/default-cover.png';
             
+            // 2. Lógica da Seta (Só aparece se for um Chart e não estiver bloqueado)
+            const trendIcon = (isChart && !isLocked) ? getTrendIndicator(track.lastMonthlyStreamDate) : "";
+
             const trackRow = document.createElement("div");
-            
-            // 2. Aplica classes de estilo (Opacidade e desativa eventos se estiver bloqueado)
-            trackRow.className = `track-item group ${isLocked ? 'opacity-30 pointer-events-none grayscale-[0.5]' : 'hover:bg-white/10 cursor-pointer'}`;
+            trackRow.className = `track-item group ${isLocked ? 'opacity-30 pointer-events-none grayscale-[0.5]' : 'hover:bg-white/10 cursor-pointer'} flex items-center py-2 px-2 rounded-md transition duration-200`;
 
             trackRow.innerHTML = `
-                <div class="text-gray-500 text-sm text-center font-reg flex items-center justify-center">
-                    ${isLocked ? "<i class='bx bxs-lock-alt text-xs'></i>" : (index + 1)}
+                <div class="flex flex-col items-center justify-center w-10 min-w-[40px] mr-2">
+                    <span class="text-gray-500 text-sm group-hover:text-white font-medium">
+                        ${isLocked ? "<i class='bx bxs-lock-alt text-xs'></i>" : (index + 1)}
+                    </span>
+                    ${trendIcon}
                 </div>
-                <img src="${coverUrl}" class="w-12 h-12 rounded object-cover ${isLocked ? 'brightness-50' : ''}">
-                <div class="track-info-container">
-                    <span class="text-white text-base font-bold flex items-center gap-2" style="font-family: 'Nationale Bold';">
+
+                <div class="relative flex-shrink-0">
+                    <img src="${coverUrl}" class="w-12 h-12 rounded object-cover ${isLocked ? 'brightness-50' : 'shadow-lg'}">
+                </div>
+
+                <div class="track-info-container flex flex-col justify-center min-w-0 ml-4 flex-grow">
+                    <span class="text-white text-base font-bold flex items-center gap-2 truncate" style="font-family: 'Nationale Bold';">
                         ${track.title || 'Sem título'}
                         ${isLocked ? '<span class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-gray-400 font-normal">EM BREVE</span>' : ''}
                     </span>
-                    <div class="text-gray-400 text-sm artist-name-field" style="font-family: 'Nationale Regular';">
+                    <div class="text-gray-400 text-sm artist-name-field truncate" style="font-family: 'Nationale Regular';">
                         ${track.artistName || 'Carregando...'}
                     </div>
                 </div>
-                <div class="text-gray-400 text-xs text-right font-mono">
+
+                <div class="text-gray-400 text-xs text-right font-mono ml-4">
                     ${isLocked ? '--:--' : (track.duration || '--:--')}
                 </div>
             `;
 
+            // Carregamento assíncrono do nome do artista
             getArtistName(track.artist).then(name => {
                 const nameField = trackRow.querySelector('.artist-name-field');
                 if (nameField) nameField.textContent = name;
             });
 
-            // 3. Só adiciona o evento de clique se NÃO estiver bloqueado
+            // 3. Evento de Clique
             if (!isLocked) {
                 trackRow.addEventListener("click", (e) => {
+                    // Impede o clique se for no botão de curtir (se você adicionar um depois)
                     if (e.target.closest('.track-like-button')) return;
 
-                    if (typeof registrarLog === 'function') {
-                        registrarLog(track.title || "Sem título", "Música");
-                    }
-                    
                     if (typeof checkAndResetMonthlyStreams === 'function') {
                         checkAndResetMonthlyStreams(track.id); 
                     }
@@ -953,7 +995,7 @@ async function renderTracksSpotifyStyle(tracks, playlist) {
             listWrapper.appendChild(trackRow);
 
         } catch (error) {
-            console.error("Erro na renderização:", error);
+            console.error("Erro na renderização da faixa:", error);
         }
     }
     tracksContainer.appendChild(listWrapper);
@@ -1030,7 +1072,7 @@ const userStreamHistory = new Map();
 async function checkAndResetMonthlyStreams(musicId) {
     if (!musicId) return;
 
-    // 2. Identifica o Usuário Logado
+    // 1. Identifica o Usuário Logado
     const user = auth.currentUser;
     if (!user) {
         console.warn("🚫 Apenas usuários logados podem contabilizar streams.");
@@ -1039,69 +1081,80 @@ async function checkAndResetMonthlyStreams(musicId) {
 
     const userId = user.uid;
     const now = Date.now();
-    const SPAM_INTERVAL = 25000; // 30 segundos (conforme solicitado)
+    const SPAM_INTERVAL = 25000; // 25 segundos
     
-    // Criamos uma chave única que combina o Usuário + Música
+    // Chave única para o par Usuário + Música
     const trackKey = `${userId}_${musicId}`;
 
-    // 3. VERIFICAÇÃO DE SPAM
+    // 2. VERIFICAÇÃO DE SPAM (Memória Local)
     if (userStreamHistory.has(trackKey)) {
         const lastPlayTime = userStreamHistory.get(trackKey);
         const timeElapsed = now - lastPlayTime;
 
         if (timeElapsed < SPAM_INTERVAL) {
             const remaining = Math.ceil((SPAM_INTERVAL - timeElapsed) / 1000);
-            console.warn(`⚠️ [SPAM DETECTADO] Usuário ${userId} bloqueado para a música ${musicId}. Aguarde ${remaining}s.`);
-            return; // CANCELA A OPERAÇÃO AQUI
+            console.warn(`⚠️ [SPAM] Aguarde ${remaining}s para computar novo stream desta música.`);
+            return; 
         }
     }
 
-    // 4. REGISTRO DE ATIVIDADE (Bloqueia o próximo clique pelos próximos 30s)
+    // 3. REGISTRO TEMPORÁRIO DE ATIVIDADE
     userStreamHistory.set(trackKey, now);
 
     try {
         const musicRef = doc(db, "musicas", musicId);
-        
-        // Buscamos os dados atuais para verificar o mês
         const docSnap = await getDoc(musicRef);
-        if (!docSnap.exists()) return;
+        
+        if (!docSnap.exists()) {
+            console.error("❌ Música não encontrada no banco de dados.");
+            return;
+        }
 
         const musicData = docSnap.data();
         const today = new Date();
         
-        // Seu Boost de 50k a 100k
-        const streamBoost = Math.floor(Math.random() * (10000 - 100000 + 1)) + 50000;
+        // --- CÁLCULO DO BOOST (50k a 300k) ---
+        const minBoost = 50000;
+        const maxBoost = 300000;
+        // O resultado será um inteiro entre 50.000 e 300.000
+        const streamBoost = Math.floor(Math.random() * (maxBoost - minBoost + 1)) + minBoost;
 
         let updateData = {};
+        
+        // Converte o Timestamp do Firestore para objeto Date do JS
         const lastStreamDate = musicData.lastMonthlyStreamDate?.toDate();
 
+        // Verifica se é um novo mês ou se nunca houve um stream
         const needsReset = !lastStreamDate || 
                            today.getMonth() !== lastStreamDate.getMonth() || 
                            today.getFullYear() !== lastStreamDate.getFullYear();
 
-        // 5. PREPARAÇÃO DOS DADOS
+        // 4. PREPARAÇÃO DA ATUALIZAÇÃO
         if (needsReset) {
+            // Novo mês: substitui o valor antigo pelo novo boost inicial
             updateData.streamsMensal = streamBoost;
         } else {
+            // Mesmo mês: soma o boost ao valor atual
             updateData.streamsMensal = increment(streamBoost);
         }
 
+        // Incrementa o total geral de streams
         updateData.streams = increment(streamBoost);
+        // Atualiza a data do último stream para controle mensal futuro
         updateData.lastMonthlyStreamDate = today; 
 
-        // 6. ENVIO AO FIRESTORE
+        // 5. ENVIO AO FIRESTORE
         await updateDoc(musicRef, updateData);
         
-        console.log(`✅ Stream validado para o usuário ${userId.substring(0,5)}...`);
-        console.log(`🚀 +${streamBoost.toLocaleString()} adicionados à música ${musicId}.`);
+        console.log(`✅ Stream validado! Usuário: ${userId.substring(0, 5)}...`);
+        console.log(`🚀 +${streamBoost.toLocaleString()} plays na música ${musicId}.`);
 
     } catch (error) {
-        console.error("Erro ao processar stream:", error);
-        // Em caso de erro, removemos o bloqueio para permitir nova tentativa
+        console.error("❌ Erro ao processar stream:", error);
+        // Em caso de erro na rede/banco, removemos a trava para permitir tentar de novo
         userStreamHistory.delete(trackKey);
     }
 }
-
 // Função para carregar e exibir as playlists com mais streams
 async function loadTopStreamedPlaylists() {
     const listElement = document.getElementById('top-playlists-list');
@@ -1707,124 +1760,58 @@ document.querySelectorAll('[data-page]').forEach(link => {
 // Chame a função quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', initializeRouting);
 
-/**
- * Função completa para carregar conteúdo dinâmico.
- * @param {string} pageName - Nome do arquivo em /pages (ex: 'album', 'music').
- * @param {string|null} id - ID opcional (ex: id do álbum ou artista).
- * @param {boolean} shouldPushState - Se deve atualizar a URL no navegador.
- */
 async function loadContent(pageName, id = null, shouldPushState = true) {
     const contentArea = document.getElementById('content-area');
-    
-    // 1. Validação básica
-    if (!contentArea || !pageName) {
-        console.warn("❌ Erro: content-area ou pageName não definidos.");
-        return;
-    }
-
-    // 2. Sistema de Cache para a Home (Opcional, mas melhora a performance)
-    if (pageName === 'home' && window.__HOME_CACHE__ && window.__HOME_CACHE__.loaded) {
-        contentArea.innerHTML = window.__HOME_CACHE__.html;
-        if (typeof setGreeting === 'function') setGreeting();
-        
-        if (shouldPushState) {
-            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-            const newUrl = isDev ? `menu.html?page=home` : `/home`;
-            window.history.pushState({ page: 'home' }, '', newUrl);
-        }
-        return;
-    }
+    if (!contentArea || !pageName) return;
 
     try {
-        // 3. Busca o fragmento HTML dentro da pasta /pages
-        // Isso garante que o Netlify não abra o arquivo solo
-        const filePath = `pages/${pageName}.html`; 
-        const response = await fetch(filePath);
-
-        if (!response.ok) {
-            throw new Error(`Não foi possível localizar o arquivo: ${filePath}`);
-        }
+        // 1. Busca o arquivo HTML na pasta /pages
+        const response = await fetch(`/pages/${pageName}.html`);
+        if (!response.ok) throw new Error(`Página ${pageName} não encontrada.`);
 
         const html = await response.text();
-        
-        // 4. Injeta o conteúdo no HTML principal
         contentArea.innerHTML = html;
 
-        // 5. Atualiza a URL (Estilo Spotify: /pagina/id)
+        // 2. Gerencia o Histórico do Navegador (URLs Limpas)
         if (shouldPushState) {
             const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
             
-            // Formato limpo: /album/ID_AQUI
+            // Define o caminho: /album/123 ou apenas /search
             const cleanPath = id ? `/${pageName}/${id}` : `/${pageName}`;
             
-            // No Localhost mantemos ?page= para compatibilidade com servidores simples
+            // Localhost usa ? para evitar problemas com servidores simples sem rewrite
             const newUrl = isDev 
-                ? `menu.html?page=${pageName}${id ? `&id=${id}` : ''}` 
+                ? `?page=${pageName}${id ? `&id=${id}` : ''}` 
                 : cleanPath;
             
             window.history.pushState({ page: pageName, id: id }, '', newUrl);
         }
 
-        // 6. Dispara os Setups de cada página (Scripts específicos)
-        // O timeout de 50ms garante que o DOM foi processado pelo navegador
+        // 3. Setup específico de cada página
         setTimeout(() => {
+            console.log(`🛠️ Executando setup para: ${pageName}`);
             switch (pageName) {
-                case 'home':
-                    if (typeof setupHomePage === 'function') setupHomePage();
+                case 'home': if (typeof setupHomePage === 'function') setupHomePage(); break;
+                case 'album': if (typeof setupAlbumPage === 'function') setupAlbumPage(id); break;
+                case 'artist': if (typeof setupArtistPage === 'function') setupArtistPage(id); break;
+                case 'playlist': if (typeof setupPlaylistPage === 'function') setupPlaylistPage(id); break;
+                case 'liked': if (typeof setupLikedPage === 'function') setupLikedPage(); break;
+                case 'search': 
+                    import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
                     break;
-                case 'album':
-                    if (typeof setupAlbumPage === 'function') setupAlbumPage(id);
-                    break;
-                case 'artist':
-                    if (typeof setupArtistPage === 'function') setupArtistPage(id);
-                    break;
-                case 'playlist':
-                    if (typeof setupPlaylistPage === 'function') setupPlaylistPage(id);
-                    break;
-                case 'music':
-                    if (typeof setupMusicPage === 'function') setupMusicPage(id);
-                    break;
-                case 'search':
-                    // Importação dinâmica do módulo de busca
-                    import('./search.js')
-                        .then(m => m.setupSearchPage())
-                        .catch(err => console.error("Erro ao carregar search.js:", err));
-                    break;
-                case 'library':
-                    if (typeof setupLibraryPage === 'function') {
-                        setupLibraryPage();
-                        if (typeof validarCardArtista === 'function') validarCardArtista();
-                        if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
-                    }
-                    break;
-                case 'liked':
-                    if (typeof setupLikedPage === 'function') setupLikedPage();
-                    break;
-                case 'loginartists':
-                    if (typeof setupLoginartistsPage === 'function') setupLoginartistsPage(id);
-                    break;
-                default:
-                    console.log(`Página ${pageName} carregada, mas sem função de setup específica.`);
+                // Adicione os outros casos aqui conforme necessário...
             }
-            
-            // Sobe o scroll para o topo suavemente
             window.scrollTo({ top: 0, behavior: 'smooth' });
-
         }, 50);
 
     } catch (error) {
-        console.error("❌ Erro no loadContent:", error);
-        contentArea.innerHTML = `
-            <div class="flex flex-col items-center justify-center p-20 text-center">
-                <h2 class="text-2xl font-bold text-red-500 mb-2">Erro de Carregamento</h2>
-                <p class="text-gray-400">A página <b>${pageName}</b> não pôde ser exibida.</p>
-                <button onclick="loadContent('home')" class="mt-6 bg-white text-black px-6 py-2 rounded-full font-bold">
-                    Voltar ao Início
-                </button>
-            </div>
-        `;
+        console.error("❌ Erro ao carregar página:", error);
+        loadContent('home', null, false); // Fallback para home em caso de erro crítico
     }
 }
+
+// Inicializa tudo quando o DOM carregar
+document.addEventListener('DOMContentLoaded', initializeRouting);
 
 async function setupLibraryPage() {
     console.log("🔧 Carregando página Library...");
@@ -2019,8 +2006,6 @@ async function registrarLog(itemTitle, type) {
 }
 
 
-
-
 async function setupContentCarousel(
   listId,
   leftBtnId,
@@ -2030,20 +2015,27 @@ async function setupContentCarousel(
   queryConfig,
   contentCallback
 ) {
-  const listWrapper = document.getElementById(listId)?.parentElement;
   const listContainer = document.getElementById(listId);
+  const listWrapper = listContainer?.parentElement;
   const loadingMessage = document.getElementById(loadingMsgId);
   const btnLeft = document.getElementById(leftBtnId);
   const btnRight = document.getElementById(rightBtnId);
 
   if (!listContainer || !listWrapper || !btnLeft || !btnRight) return;
 
-  btnLeft.classList.add('hidden');
-  btnRight.classList.add('hidden');
+  // --- CORREÇÃO 1: REMOVER EVENTOS ANTIGOS (Clone do Botão) ---
+  // Isso mata qualquer listener acumulado de visitas anteriores à página
+  const newBtnLeft = btnLeft.cloneNode(true);
+  const newBtnRight = btnRight.cloneNode(true);
+  btnLeft.parentNode.replaceChild(newBtnLeft, btnLeft);
+  btnRight.parentNode.replaceChild(newBtnRight, btnRight);
+
+  newBtnLeft.classList.add('hidden');
+  newBtnRight.classList.add('hidden');
 
   try {
     const q = query(collection(db, collectionName), ...queryConfig);
-    const querySnapshot = await getDocs(q); // ✅ leitura única (barata)
+    const querySnapshot = await getDocs(q);
 
     listContainer.innerHTML = '';
     if (loadingMessage) loadingMessage.style.display = 'none';
@@ -2062,52 +2054,54 @@ async function setupContentCarousel(
     console.error('Erro ao carregar carrossel:', err);
   }
 
+  // --- LÓGICA DE VISIBILIDADE ---
   function updateArrowVisibility() {
     const scrollLeft = listContainer.scrollLeft;
     const maxScrollLeft = listContainer.scrollWidth - listContainer.clientWidth;
-    btnLeft.classList.toggle('hidden', scrollLeft <= 0);
-    btnRight.classList.toggle('hidden', scrollLeft >= maxScrollLeft - 1);
+    // Usamos um pequeno offset de 5px para evitar bugs de arredondamento
+    newBtnLeft.classList.toggle('hidden', scrollLeft <= 5);
+    newBtnRight.classList.toggle('hidden', scrollLeft >= maxScrollLeft - 5);
   }
 
-  listWrapper.addEventListener('mouseenter', updateArrowVisibility);
-  listWrapper.addEventListener('mouseleave', () => {
-    btnLeft.classList.add('hidden');
-    btnRight.classList.add('hidden');
-  });
+  // MouseEnter no Wrapper para mostrar setas
+  listWrapper.onmouseenter = updateArrowVisibility; 
+  listWrapper.onmouseleave = () => {
+    newBtnLeft.classList.add('hidden');
+    newBtnRight.classList.add('hidden');
+  };
 
-  listContainer.addEventListener('scroll', updateArrowVisibility);
-  window.addEventListener('resize', updateArrowVisibility);
+  // Scroll e Resize
+  listContainer.onscroll = updateArrowVisibility;
+  window.onresize = updateArrowVisibility;
 
-  btnLeft.addEventListener('click', () =>
-    listContainer.scrollBy({ left: -300, behavior: 'smooth' })
-  );
-  btnRight.addEventListener('click', () =>
-    listContainer.scrollBy({ left: 300, behavior: 'smooth' })
-  );
+  // Clique nos NOVOS botões (Clonados)
+  newBtnLeft.onclick = () => listContainer.scrollBy({ left: -400, behavior: 'smooth' });
+  newBtnRight.onclick = () => listContainer.scrollBy({ left: 400, behavior: 'smooth' });
 
-  // Drag
+  // --- LÓGICA DE DRAG (MOUSE) ---
   let isDown = false;
   let startX;
   let scrollLeftStart;
 
-  listContainer.addEventListener('mousedown', (e) => {
+  listContainer.onmousedown = (e) => {
     isDown = true;
+    listContainer.classList.add('active'); // Opcional: mudar cursor
     startX = e.pageX - listContainer.offsetLeft;
     scrollLeftStart = listContainer.scrollLeft;
-  });
+  };
 
-  listContainer.addEventListener('mouseup', () => (isDown = false));
-  listContainer.addEventListener('mouseleave', () => (isDown = false));
+  window.onmouseup = () => { isDown = false; }; // Window garante que solte mesmo fora do carrossel
+  listContainer.onmouseleave = () => { isDown = false; };
 
-  listContainer.addEventListener('mousemove', (e) => {
+  listContainer.onmousemove = (e) => {
     if (!isDown) return;
     e.preventDefault();
     const x = e.pageX - listContainer.offsetLeft;
-    const walk = (x - startX) * 1.5;
+    const walk = (x - startX) * 2; // Velocidade do arraste
     listContainer.scrollLeft = scrollLeftStart - walk;
-  });
+    updateArrowVisibility(); // Atualiza setas enquanto arrasta
+  };
 }
-
 
 // ⭐ NOVO: Função para buscar e renderizar a seção de Pop unificada ⭐
 async function setupPopSection() {
@@ -3742,7 +3736,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  fetchAndRenderTrendingSongs();
   handleInitialRoute();
 });
 
