@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil do Usuário</title>
+    <link rel="stylesheet" href="style.css"> 
+    <link rel="stylesheet" href="rodape.css"> 
+</head>
+<body>
+    <div class="container">
+        <header class="profile-header">
+            <img src="./assets/beyonce_profile.png" alt="" class="profile-pic"> 
+            <h1 class="profile-name"></h1>
+        </header>
+
+            
+            <div class="detail-item email-item">
+                <div class="email-info">
+                    <span class="detail-label">E-mail</span>
+                    <span class="detail-value"></span>
+                </div> 
+            </div>
+        </section>
+
+        
+<div class="artist-promo-container" style="display: none;">
+    <div class="artist-promo-content"> 
+        <div class="promo-left">
+            <img src="assets/logotunearts.png" alt="Tune Logo" class="promo-logo">
+           
+        </div>
+        <div class="promo-right">
+            <button class="promo-button" onclick="window.location.href='tuneartists.html'">
+                Acessar
+            </button>
+        </div>
+    </div>
+</div>
+
+<section class="your-plan">
+    <h2>Itens curtidos</h2>
+    
+    <div id="my-liked-items-list" class="library-grid-container">
+        </div>
+</section>
+
+    
+
+<script type="module" src="./js/main.js"></script>
+<script type="module" src="./js/iflog.js"></script>
+<script type="module" src="./js/like.js"></script>
+    </div>
+    
+</body>
+</html>

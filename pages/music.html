@@ -1,0 +1,454 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUNE</title>
+         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css"
+        crossorigin="anonymous">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="icon" href="./assets/favicon.png">
+    <script type="module" src="./js/like.js"></script>
+    <script type="module" src="./js/tailwind.config.js"></script>
+    <script src="./dropdown.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta property="og:title" content="TUNE - Música">
+<meta property="og:description" content="Ouça músicas de artistas independentes na TUNE.">
+<meta property="og:image" content="https://seusite.com/assets/default-cover.png">
+<meta property="og:url" content="https://seusite.com/album.html?id=[ID_DO_ALBUM]">
+<meta property="og:type" content="music.album">
+
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+
+  /* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+ body {
+            background-color: #030303;
+            font-family: 'Nationale Regular';
+            color: white;
+            margin: 0;
+            padding-bottom: 100px; /* Espaço para o player fixo se houver */
+        }
+
+  /* NOVO: Estilo para alinhar o número da faixa */
+.track-number-display {
+    /* Define uma largura fixa para o número, garantindo consistência */
+    width: 20px; 
+    /* Força o alinhamento do texto para a direita dentro dessa largura de 20px */
+    text-align: right; 
+}
+
+.track-item {
+    display: grid;
+    /* Colunas fixas no mobile: ID(35px) | Capa(48px) | Texto(1fr) | Tempo(50px) */
+    grid-template-columns: 20px 48px 1fr 50px;
+    align-items: center;
+    gap: 12px;
+
+    height: 64px; /* Altura fixa impede o erro da imagem fdcfcc */
+    width: 100%;
+    border-radius: 8px;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+/* Garante que o texto ocupe o meio sem empurrar as colunas fixas */
+.track-info-container {
+    min-width: 0; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Força as reticências (...) sem quebrar a linha */
+.track-info-container span, 
+.track-info-container div {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-cover {
+    width: 48px;
+    height: 48px;
+    border-radius: 4px;
+
+    flex-shrink: 0;
+}
+
+
+.track-duration {
+    width: 50px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+        .track-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .track-item:active {
+            transform: scale(0.98);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Capa com Glow */
+        .playlist-glow {
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
+        }
+
+        .playlist-glow:hover {
+            transform: scale(1.02);
+        }
+
+        /* Aplicando nos IDs específicos */
+#playlist-title-detail {
+    font-family: 'Nationale Black', sans-serif; /* Título bem pesado */
+}
+
+#playlist-description-detail {
+    font-family: 'Nationale Regular', sans-serif; /* Descrição leve */
+}
+
+.track-name {
+    font-family: 'Nationale Bold', sans-serif; /* Nome da música em negrito */
+}
+
+.artist-name {
+    font-family: 'Nationale Regular', sans-serif; /* Artista leve */
+}
+
+  .explicit-tag {
+    font-family: 'Nationale Regular';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px; /* Tamanho da fonte 'E' */
+    font-weight: bold;
+    color: #141414; /* Cor do texto (cinza claro) */
+    background-color: #a7a7a7;
+    border: 1px solid #a7a7a7; /* Borda cinza clara */
+    border-radius: 2px;
+    padding: 1px 3px;
+    margin-left: 6px;
+    line-height: 1; /* Alinhamento vertical */
+    vertical-align: middle;
+}
+
+     #album-title-detail {
+      font-family: 'Nationale Black';
+        /* Garante que o texto se adapte à largura */
+        word-break: break-word;
+        overflow-wrap: break-word;
+        font-size: 5.6rem;
+    }
+
+/* --- ADAPTAÇÃO MOBILE (MEDIA QUERY) --- */
+@media (max-width: 768px) {
+
+       #album-title-detail {
+      font-family: 'Nationale Black';
+        /* Garante que o texto se adapte à largura */
+        word-break: break-word;
+        overflow-wrap: break-word;
+        font-size: 1.6rem;
+    }
+
+    /* ⭐ NOVO: Ajusta o contêiner do texto (<div> que contém o <p> e <h1>) ⭐ */
+    .flex.flex-col > div:last-child {
+        width: 100%; /* Garante que o texto ocupe toda a largura */
+    }
+
+    /* Ajusta o padding do cabeçalho para telas muito pequenas */
+    .main-header {
+        padding: 24px !important; /* Padrão 6 (24px) */
+    }
+}
+
+/* Opcional: Efeito hover na linha toda */
+.group:hover .explicit-tag {
+    border-color: white;
+    color: white;
+}
+
+
+.album-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* espaço entre os botões */
+  margin-top: 26px;
+  margin-left: 26px;
+}
+/* Tamanho dos ícones */
+.album-actions .play img {
+  width: 30px;   /* ícone play maior */
+  height: 30px;
+}
+
+.album-actions .like img,
+.album-actions .repeat img {
+  width: 30px;   /* ícones menores */
+  height: 30px;
+}
+
+.album-actions .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.album-actions .btn img {
+  display: block;
+}
+
+/* Play button maior e verde */
+.album-actions .play {
+  width: 48px;
+  height: 48px;
+  margin-left: 10px;
+  border-radius: 50%;
+  background-color: #ffffff; /* verde Spotify */
+}
+
+.album-actions .play:hover {
+  transform: scale(1.1);
+}
+
+/* Like e Repeat menores e cinza */
+.album-actions .like,
+.album-actions .share {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #9d9d9d23;
+}
+
+.album-actions .like:hover,
+.album-actions .repeat:hover {
+  background-color: #010101;
+}
+.countdown-wrapper {
+    /* Contêiner principal para posicionamento do botão Pre-Save */
+    position: relative;
+    margin-top: 25px;
+    margin-bottom: 20px;
+    max-width: fit-content;
+}
+
+.countdown-box {
+    font-family: 'Nationale Bold';
+    display: flex;
+    align-items: center;
+    
+    /* Voltando para o estilo compacto com fundo sólido e bordas suaves */
+    background-color: rgba(10, 10, 10, 0.252); 
+    backdrop-filter: blur(10px); /* Efeito de vidro esfumaçado */
+-webkit-backdrop-filter: blur(10px);-webkit-backdrop-filter:none;
+    margin-top: 25px;
+    padding: 10px 16px; /* Padding ajustado */
+    border-radius: 8px; /* Cantos menos arredondados para o estilo compacto */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+ /* ⭐ CORREÇÃO DE ALTURA: Fixa para que o separador funcione ⭐ */
+    height: 90px; 
+    width: fit-content; /* Garante que a caixa só ocupe o espaço necessário */
+}
+
+.countdown-image-wrapper {
+    margin-right: 15px; 
+    width: 65px; 
+    height: 65px;
+    overflow: hidden;
+    border-radius: 4px; 
+    flex-shrink: 0; 
+}
+
+.countdown-segment {
+    /* ⭐ CORREÇÃO: Removendo min-width para que o padding controle o espaçamento ⭐ */
+    /* min-width: 60px; <-- Removido */ 
+    
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    font-family: sans-serif; 
+    
+    /* O padding é a margem de segurança. Deve ser igual nos lados. */
+    padding: 0 10px; 
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.countdown-separator {
+    width: 1px; 
+    height: 20%; 
+    
+    /* ⭐ CORREÇÃO DA VISIBILIDADE: Cor mais clara para o separador ⭐ */
+    background-color: #888888; 
+    
+    align-self: center; 
+    /* Margem para separar o segmento. Ajustado para ser mais compacto */
+    margin: 0 4px; 
+    
+    flex-shrink: 0;
+}
+
+.countdown-value {
+    font-family: 'Nationale Bold';
+    font-size: 2.8rem; /* Tamanho do número maior */
+    font-weight: 700; /* Bold */
+    line-height: 1.1;
+    letter-spacing: -1px; /* Para parecer mais compacto */
+}
+
+.countdown-label {
+      font-family: 'Nationale Regular';
+    font-size: 0.85rem; /* Tamanho do label (Days, Hours...) */
+    color: #a7a7a7;
+    margin-top: 5px;
+    text-transform: uppercase; /* Opcional: Labels em maiúsculas */
+    font-weight: 500;
+}
+
+/* 3. Estilo para o Botão Pre-Save */
+.pre-save-button {
+    position: absolute;
+    top: -15px; /* Levanta o botão acima do topo do contêiner */
+    right: 0;
+    display: flex;
+    align-items: center;
+    padding: 8px 15px;
+    border-radius: 9999px; /* Totalmente arredondado */
+    background-color: #00FF5B; /* Verde vibrante (Ditto) */
+    color: #121212;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s;
+}
+
+.pre-save-button:hover {
+    transform: scale(1.05);
+}
+
+.pre-save-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+    margin-right: 5px;
+}
+
+/* --- ADAPTAÇÃO MOBILE (MEDIA QUERY) --- */
+@media (max-width: 768px) {
+    /* 1. Ajuste do Container Principal */
+    .countdown-box {
+        padding: 10px; 
+        width: 100%; 
+        box-sizing: border-box; 
+    }
+
+    /* 2. Redução da Imagem */
+    .countdown-image-wrapper {
+        width: 50px; 
+        height: 50px; 
+        margin-right: 10px; 
+    }
+
+    /* 3. Ajuste dos Valores e Labels */
+    .countdown-segment {
+        padding: 0 15px; 
+    }
+
+    .countdown-value {
+        font-size: 1.8rem; 
+        line-height: 1;
+    }
+
+    .countdown-label {
+        font-size: 0.7rem; 
+    }
+    
+    .pre-save-button {
+        top: -10px;
+        right: 10px;
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+
+}
+
+/* Estilos dos ícones (shuffle, add, download, mais) */
+
+</style>
+<div id="album" class="relative min-h-screen bg-[#000000] text-white">
+    <div id="album-header" class="relative main-header h-[450px] md:h-[500px] flex items-end p-6 md:p-10 rounded-[40px] overflow-hidden">
+        <div id="album-cover-bg" class="absolute inset-0 bg-cover bg-center blur-2xl opacity-40"></div>
+        <div class="absolute inset-0 album-bg-gradient bg-gradient-to-b from-transparent to-[#000000]"></div>
+        
+        <div class="relative z-10 w-full">
+            <div class="flex flex-col md:flex-row items-start md:items-end space-y-4 md:space-y-0 md:space-x-6">
+                <img id="album-cover-detail" src="./assets/default-cover.png" alt="Capa" 
+                     class="w-32 h-32 md:w-56 md:h-56 rounded-md shadow-2xl object-cover playlist-glow">
+                
+                <div class="flex-1">
+
+                    <h1 id="album-title-detail" class="text-4xl md:text-6xl font-extrabold leading-tight"></h1>
+                    
+                    <div class="flex items-center flex-wrap gap-x-2 text-sm text-gray-300 mt-4">
+                                                <span id="artist-name-detail" class="font-semibold hover:underline cursor-pointer">Artista</span>
+                        <span id="album-year-detail">2026</span>
+
+                    </div>
+
+                    <div id="countdown-wrapper" class="hidden mt-6">
+
+                        <div id="countdown-display" class="countdown-box">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="album-actions">
+        <button id="main-play-btn" class="btn play">
+            <img src="assets/play_arrow_50dp_000000_FILL1_wght400_GRAD0_opsz48.svg" alt="Play">
+        </button>
+
+        <button class="btn share">
+            <img src="assets/share-2.svg" alt="Share">
+        </button>
+    </div>
+
+    <div id="tracks-container" class="w-full p-4 md:p-10 mt-8">
+        </div>
+</div>
+
+

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Página do Artista</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    @font-face { font-family: 'Nationale Regular'; src: url('./fonts/Nationale-Regular.woff2') format('woff2'); font-weight: normal; }
+    @font-face { font-family: 'Nationale Bold'; src: url('./fonts/Nationale-Bold.woff2') format('woff2'); font-weight: bold; }
+    @font-face { font-family: 'Nationale Black'; src: url('./fonts/Nationale-Black.woff2') format('woff2'); font-weight: 900; }
+
+    body { font-family: 'Nationale Regular', sans-serif; background-color: #121212; color: white; margin: 0; }
+    
+    .font-black { font-family: 'Nationale Black', sans-serif; }
+
+    .artist-header-overlay {
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.7) 70%, rgb(0, 0, 0) 100%);
+    }
+
+    .btn-action { transition: all 0.2s ease; }
+    .btn-action:hover { transform: scale(1.04); }
+    .btn-action:active { transform: scale(0.98); }
+
+    #ban-indicator { display: none; }
+
+    /* Container principal do status */
+#verified-status-container {
+    display: flex;
+    margin-bottom: 20px;
+    align-items: center;
+    gap: 6px; /* Espaço entre a imagem e o texto */
+    color: #e2efff; /* Azul correspondente ao text-blue-400 do Tailwind */
+    font-weight: 700;
+    font-size: 0.875rem; /* text-sm */
+    letter-spacing: 0.5px;
+    text-shadow: 0px 2px 4px rgba(0, 0, 0, 0.3); /* Melhora leitura sobre a capa */
+}
+
+.track-item {
+    display: grid !important;
+    grid-template-columns: 40px 48px 1fr 60px;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px; /* Padding igual dos dois lados */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Estilização da imagem/logo TUNE */
+.tune-logo {
+    width: 18px;  /* Tamanho ideal para ícones de verificado */
+    height: 18px;
+    object-fit: contain; /* Garante que a imagem não distorça */
+    filter: drop-shadow(0px 0px 2px rgba(96, 165, 250, 0.5)); /* Brilho suave azul */
+    user-select: none;
+    pointer-events: none;
+}
+
+  </style>
+</head>
+<body>
+
+  <div id="artist" class="relative min-h-screen mb-8 pb-24">
+    
+    <div id="artist-header" class="relative h-[61vh] md:h-[71vh] w-full overflow-hidden flex items-end">
+      <div id="artist-cover-bg" class="absolute inset-0 bg-cover bg-center transition-opacity duration-700"></div>
+      
+      <div class="absolute inset-0 artist-header-overlay z-10"></div>
+
+      <button onclick="window.history.back()" class="absolute top-6 left-6 z-30 p-2 bg-black/30 hover:bg-black/50 rounded-full backdrop-blur-md">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
+      <div class="relative z-20 w-full px-6 pb-8 flex flex-col items-center md:items-start text-center md:text-left">
+        
+        <div id="verified-status-container">
+   
+</div>
+
+        <div id="ban-indicator" class="items-center gap-2 mb-2 text-red-500 font-bold text-xs uppercase tracking-widest bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
+            Conta Restrita
+        </div>
+
+        <h1 id="artist-name" class="flex items-center justify-center md:justify-start gap-3 text-5xl md:text-7xl font-black mb-1 drop-shadow-2xl">
+  <span id="name-text"></span>
+  <span id="label-badge"></span>
+</h1>
+          
+        </h1>
+        
+        <p id="artist-listeners" class="text-gray-300 text-sm font-medium mt-2 mb-5 drop-shadow-md">
+          
+        </p>
+
+        <div class="flex gap-3 w-full md:w-auto">
+          <button class="btn-action flex-1 md:flex-none md:min-w-[140px] bg-white text-black py-2.5 px-6 rounded-full font-bold text-sm flex items-center justify-center gap-2">
+            <span class="text-base"></span> Reproduzir (soon)
+          </button>
+          
+        </div>
+      </div>
+    </div>
+
+<div class="relative z-20 px-4 mt-8 max-w-6xl mx-auto">
+
+    <div id="singles-section" class="mb-12 hidden">
+        <h2 class="text-2xl font-black mb-6 px-2 tracking-tight text-white">Singles</h2>
+        <div id="singles-container" class="flex flex-row gap-6 overflow-x-auto pb-4 scrollbar-hide">
+            </div>
+    </div>
+
+    <div id="top-tracks-section" class="mb-12">
+        <h2 class="text-2xl font-black mb-6 px-2 tracking-tight text-white"></h2>
+        <div id="top-tracks-container" class="w-full flex flex-col gap-1">
+            </div>
+    </div>
+
+    <div id="albums-container" class="mb-10"></div>
+    <div id="stations-container"></div>
+</div>
+
+</body>
+</html>

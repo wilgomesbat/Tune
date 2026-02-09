@@ -1658,15 +1658,26 @@ window.addEventListener('popstate', (event) => {
 
 
 function initializeRouting() {
+    // 1. Pega o caminho da URL. Ex: /album ou /music
     const path = window.location.pathname.replace('/', '');
-    const page = path || 'home';
-
+    
+    // 2. Pega os parâmetros da URL. Ex: id=...
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
 
-    // Chamamos com false porque o navegador já está na URL correta
-    loadContent(page, id, false); 
+    // 3. Se o caminho estiver vazio (só tunedks.com), define como home
+    // Se não, usa o próprio caminho (album, music, artist, etc)
+    const page = path || 'home';
+
+    console.log(`🚀 Roteador: Detectada página [${page}] com ID [${id}]`);
+
+    // 4. Carrega o conteúdo dentro do menu.html
+    // Passamos 'false' no shouldPushState para não criar um item duplicado no histórico ao dar F5
+    loadContent(page, id, false);
 }
+
+// Chame a função quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', initializeRouting);
 
 
 async function loadContent(pageName, id = null, shouldPushState = true) {
@@ -1692,28 +1703,29 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
 
     try {
         // 2. BUSCA O CONTEÚDO HTML
-        const filePath = `${pageName}.html`;
+        const filePath = `pages/${pageName}.html`;
         const response = await fetch(filePath);
+        if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
         
         if (!response.ok) {
             throw new Error(`Não foi possível carregar ${filePath}. Status: ${response.status}`);
         }
         
+    
         const html = await response.text();
-        
-        // 3. RENDERIZA NO DOM
         contentArea.innerHTML = html;
         
-        // 4. ATUALIZA A URL (Apenas se não for carregamento inicial/F5)
         if (shouldPushState) {
-            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-            // Formata a URL: No PC/Dev usa ?page=, no Netlify usa URL limpa /page
-            const newUrl = isDev 
-                ? `menu.html?page=${pageName}${id ? `&id=${id}` : ''}` 
-                : `/${pageName}${id ? `?id=${id}` : ''}`;
-            
-            window.history.pushState({ page: pageName, id: id }, '', newUrl);
-        }
+    const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+    
+    // No Netlify (Produção), queremos URLs limpas: /album?id=123
+    // No Localhost, mantemos menu.html?page=album para facilitar seu teste
+    const newUrl = isDev 
+        ? `menu.html?page=${pageName}${id ? `&id=${id}` : ''}` 
+        : `/${pageName}${id ? `?id=${id}` : ''}`;
+    
+    window.history.pushState({ page: pageName, id: id }, '', newUrl);
+}
 
         // 5. DISPARA SETUPS DAS PÁGINAS (Com pequeno delay para garantir que o DOM renderizou)
         setTimeout(() => {

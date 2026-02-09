@@ -1,0 +1,246 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./slide.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+
+</head>
+<body class="bg-black text-white">
+
+<div id="home-content">
+
+  </div>
+
+<h1 id="greeting-title" class="greeting-style"></h1>
+    
+
+  
+<div class="main-content-area">
+
+<div id="new-release-banner" class="release-card" style="display: none;">
+    <div class="artist-header">
+        <img id="banner-artist-img" src="/assets/default-artist.png" class="artist-thumb">
+        <div class="artist-info">
+            <span class="label">Novo lançamento de</span>
+            <h2 id="banner-artist-name" class="artist-name"></h2>
+        </div>
+    </div>
+
+    <div class="release-main">
+        <div class="cover-area">
+            <img id="banner-cover" src="/assets/default-cover.png" class="main-cover">
+        </div>
+        <div class="details-area">
+            <span id="banner-type-artists" class="type-label"></span>
+            <h1 id="banner-title" class="release-title"></h1>
+            
+            <div class="actions">
+                <button class="action-btn"><i class='bx bx-plus-circle'></i></button>
+                <button class="action-btn"><i class='bx bx-heart'></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <!-- Artistas -->
+  <div class="section">
+    <h2 class="section-title">Artistas do Tune</h2>
+    <div class="section-scroll">
+      <button id="artists-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="artists-list">
+        <div id="artists-loading-message" class="loading-text"></div>
+      </div>
+      <button id="artists-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+    <div class="section">
+  <h2 class="section-title">Novas Músicas</h2>
+  <div class="section-scroll">
+    <button id="singles-home-scroll-left" class="scroll-btn left">
+        <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+    </button>
+    
+    <div class="card-row" id="new-singles-list">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+
+    <button id="singles-home-scroll-right" class="scroll-btn right">
+        <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+    </button>
+  </div>
+</div>
+  
+  <!-- Álbuns Recentes -->
+  <div class="section">
+    <h2 class="section-title">Álbuns do Tune</h2>
+    <div class="section-scroll">
+      <button id="albums-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="albums-list">
+        <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+        <div id="albums-loading-message" class="loading-text"></div>
+      </div>
+      <button id="albums-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+  
+<div class="section">
+  <h2 class="section-title">Charts</h2>
+  <div class="section-scroll">
+    <button id="charts-scroll-left" class="scroll-btn left">
+      <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+    </button>
+    
+    <div class="card-row" id="charts-list"> 
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div id="charts-loading-message" class="loading-text"></div>
+    </div>
+
+    <button id="charts-scroll-right" class="scroll-btn right">
+      <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+    </button>
+  </div>
+</div>
+
+
+
+
+
+<div class="section">
+    <h2 class="section-title">Forró e Piseiro</h2>
+    <div class="section-scroll">
+        <button id="forro-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+        <div class="card-row" id="forro-genre-listt">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+        </div>
+        <button id="forro-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">Potência Sertaneja</h2>
+    <div class="section-scroll">
+      <button id="sertanejo-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
+      
+      <div class="card-row" id="sertanejo-list">
+        <div id="sertanejo-loading-message" class="loading-text"></div>
+      </div>
+      
+      <button id="sertanejo-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_wght400_GRAD0_opsz48.png"></button>
+    </div>
+</div>
+
+
+  <div class="section">
+    <h2 class="section-title">Gêneros</h2>
+    <div class="section-scroll">
+        <button id="playlist-genres-scroll-left" class="scroll-btn left">
+            <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+        <div class="card-row" id="playlist-genres-list">
+          <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div id="playlist-genres-loading-message" class="loading-text">Carregando gêneros...</div>
+        </div>
+        <button id="playlist-genres-scroll-right" class="scroll-btn right">
+            <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+    </div>
+</div>
+
+  <!-- Stations -->
+  <div class="section">
+    <h2 class="section-title">This Is</h2>
+    <div class="section-scroll">
+      <button id="stations-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+      <div class="card-row" id="stations-list">
+        <div id="stations-loading-message" class="loading-text"></div>
+      </div>
+      <button id="stations-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+    </div>
+  </div>
+
+
+<div class="section" style="margin-bottom: 30px;">
+    <h2 class="section-title mb-2 text-xl font-bold">Para fãs da música Pop</h2>
+    
+    <div class="section-scroll" style="margin-top: 0;">
+        <button id="pop-scroll-left" class="scroll-btn left">
+            <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+        
+        <div class="card-row" id="pop-list">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            
+            <div id="pop-loading-message" class="loading-text" style="display: none;"></div>
+        </div>
+        
+        <button id="pop-scroll-right" class="scroll-btn right">
+            <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+    </div>
+</div>
+
+
+
+
+
+<footer>
+                <div class="social-media-icons">
+                    <a href="https://x.com/tunedks" aria-label="X (Twitter)">
+                        <i class="fab fa-x-twitter"></i>
+                    </a>
+                    <a href="https://www.instagram.com/tunedks/" aria-label="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                </div>
+
+                <nav class="footer-links">
+                    <ul>
+                        <li><a href="termos.html">Política de Privacidade</a></li>
+                        <li><a href="termos.html">Termos e Condições</a></li>
+                        <li>O Tune não hospeda arquivos de áudio protegidos por direitos autorais.
+Todas as reproduções ocorrem por meio de players oficiais de terceiros.</li>
+                    </ul>
+                </nav>
+
+                <div class="copyright">
+                    <img src="assets/logotunenew.png" alt="Logo TUNE" class="tune-logo">
+
+                </div>
+            </footer>
+
+<div style="height: 90px;"></div>
+
+
+<script type="module" src="./js/main.js"></script>
+<script type="module" src="./js/iflog.js"></script>
+<script type="module" src="./js/like.js"></script>
+
+</body>
+</html>
