@@ -1,8 +1,9 @@
-# 1. Prioridade total para arquivos reais (JS, CSS, Imagens)
+# Prioridade para arquivos que existem
 /js/* /js/:splat      200
 /pages/* /pages/:splat   200
 /assets/* /assets/:splat  200
-/*.css     /*.css          200
+/*.css     /:splat         200
+/*.js      /:splat         200
 
-# 2. Tudo o que não for arquivo real, o menu.html resolve
+# O resto vai para o SPA
 /* /menu.html      200

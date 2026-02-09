@@ -6,7 +6,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
     authDomain: "tune-8cafb.firebaseapp.com",
     projectId: "tune-8cafb",
-    storageBucket: "tune-8cafb.firebasestorage.app",
+
     messagingSenderId: "599729070480",
     appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
 };

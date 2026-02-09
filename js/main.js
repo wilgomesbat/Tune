@@ -1,5 +1,3 @@
-// main.js
-
 function initializeRouting() {
     const pathname = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
@@ -7,29 +5,34 @@ function initializeRouting() {
     let page = 'home';
     let id = null;
 
-    // 1. Prioridade: URLs limpas (/playlist/123)
-    // Filtramos para ignorar "menu.html" e strings vazias
-    const parts = pathname.split('/').filter(p => p && p !== 'menu.html');
+    // 1. Identifica a página e o ID pelo caminho (Ex: /album/123)
+    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html");
 
-    if (parts.length > 0) {
-        page = parts[0];
-        id = parts[1] || null;
+    if (pathParts.length > 0) {
+        page = pathParts[0]; 
+        id = pathParts[1] || null;
     } 
-    // 2. Fallback: Parâmetros (?page=home)
+    // 2. Fallback para Localhost (?page=home)
     else if (urlParams.has('page')) {
         page = urlParams.get('page');
         id = urlParams.get('id');
     }
 
-    // Segurança: Nunca deixe carregar "menu" como página interna
+    // Limpeza de segurança
+    if (page.includes('.html')) page = page.replace('.html', '');
     if (page === 'menu' || !page) page = 'home';
 
-    console.log(`🚀 Roteador Tuned: Abrindo ${page} | ID: ${id}`);
+    // Chama a sua função loadContent que você postou acima
     loadContent(page, id, false);
 }
 
-// Inicie o roteamento no final do seu main.js
+// Escuta o carregamento inicial
 document.addEventListener('DOMContentLoaded', initializeRouting);
+
+// Escuta o botão voltar/avançar do navegador
+window.onpopstate = (e) => {
+    if (e.state) loadContent(e.state.page, e.state.id, false);
+};
 
 // Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
@@ -1705,61 +1708,65 @@ document.querySelectorAll('[data-page]').forEach(link => {
 document.addEventListener('DOMContentLoaded', initializeRouting);
 
 /**
- * FUNÇÃO COMPLETA: loadContent
- * Carrega fragmentos HTML da pasta /pages e gerencia URLs limpas.
+ * Função completa para carregar conteúdo dinâmico.
+ * @param {string} pageName - Nome do arquivo em /pages (ex: 'album', 'music').
+ * @param {string|null} id - ID opcional (ex: id do álbum ou artista).
+ * @param {boolean} shouldPushState - Se deve atualizar a URL no navegador.
  */
 async function loadContent(pageName, id = null, shouldPushState = true) {
-    // 1. LIMPEZA DE SEGURANÇA: Evita que o roteador tente carregar o arquivo principal
-    if (pageName.includes('.html')) pageName = pageName.replace('.html', '');
-    if (pageName === 'menu' || !pageName) pageName = 'home';
-
     const contentArea = document.getElementById('content-area');
-    if (!contentArea) {
-        console.error("❌ Erro: Elemento #content-area não encontrado no DOM.");
+    
+    // 1. Validação básica
+    if (!contentArea || !pageName) {
+        console.warn("❌ Erro: content-area ou pageName não definidos.");
         return;
     }
 
-    // 2. SISTEMA DE CACHE (Otimização para a Home)
+    // 2. Sistema de Cache para a Home (Opcional, mas melhora a performance)
     if (pageName === 'home' && window.__HOME_CACHE__ && window.__HOME_CACHE__.loaded) {
         contentArea.innerHTML = window.__HOME_CACHE__.html;
         if (typeof setGreeting === 'function') setGreeting();
-        this._finalizeLoad('home', id, shouldPushState);
+        
+        if (shouldPushState) {
+            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+            const newUrl = isDev ? `menu.html?page=home` : `/home`;
+            window.history.pushState({ page: 'home' }, '', newUrl);
+        }
         return;
     }
 
     try {
-        console.log(`⏳ Carregando fragmento: pages/${pageName}.html`);
-        
-        // 3. BUSCA O ARQUIVO NA PASTA /PAGES
-        // O "/" inicial é vital para que ele busque da raiz em qualquer subdiretório
-        const response = await fetch(`/pages/${pageName}.html`);
+        // 3. Busca o fragmento HTML dentro da pasta /pages
+        // Isso garante que o Netlify não abra o arquivo solo
+        const filePath = `pages/${pageName}.html`; 
+        const response = await fetch(filePath);
 
         if (!response.ok) {
-            throw new Error(`Página [${pageName}] não encontrada na pasta /pages/`);
+            throw new Error(`Não foi possível localizar o arquivo: ${filePath}`);
         }
 
         const html = await response.text();
         
-        // 4. INJETA O CONTEÚDO
+        // 4. Injeta o conteúdo no HTML principal
         contentArea.innerHTML = html;
 
-        // 5. ATUALIZA A URL (FORMATO SPOTIFY)
+        // 5. Atualiza a URL (Estilo Spotify: /pagina/id)
         if (shouldPushState) {
             const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
             
-            // Formato limpo: /album/id ou /home
+            // Formato limpo: /album/ID_AQUI
             const cleanPath = id ? `/${pageName}/${id}` : `/${pageName}`;
             
-            // No Dev usamos ?page= para evitar problemas com servidores locais simples
+            // No Localhost mantemos ?page= para compatibilidade com servidores simples
             const newUrl = isDev 
-                ? `/menu.html?page=${pageName}${id ? `&id=${id}` : ''}` 
+                ? `menu.html?page=${pageName}${id ? `&id=${id}` : ''}` 
                 : cleanPath;
             
             window.history.pushState({ page: pageName, id: id }, '', newUrl);
         }
 
-        // 6. DISPARA OS SETUPS (Lógica de cada página)
-        // O timeout garante que o navegador renderizou o HTML antes do JS agir
+        // 6. Dispara os Setups de cada página (Scripts específicos)
+        // O timeout de 50ms garante que o DOM foi processado pelo navegador
         setTimeout(() => {
             switch (pageName) {
                 case 'home':
@@ -1778,28 +1785,41 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
                     if (typeof setupMusicPage === 'function') setupMusicPage(id);
                     break;
                 case 'search':
-                    import('./search.js').then(m => m.setupSearchPage()).catch(console.error);
+                    // Importação dinâmica do módulo de busca
+                    import('./search.js')
+                        .then(m => m.setupSearchPage())
+                        .catch(err => console.error("Erro ao carregar search.js:", err));
                     break;
                 case 'library':
-                    if (typeof setupLibraryPage === 'function') setupLibraryPage();
+                    if (typeof setupLibraryPage === 'function') {
+                        setupLibraryPage();
+                        if (typeof validarCardArtista === 'function') validarCardArtista();
+                        if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
+                    }
                     break;
                 case 'liked':
                     if (typeof setupLikedPage === 'function') setupLikedPage();
                     break;
+                case 'loginartists':
+                    if (typeof setupLoginartistsPage === 'function') setupLoginartistsPage(id);
+                    break;
+                default:
+                    console.log(`Página ${pageName} carregada, mas sem função de setup específica.`);
             }
             
-            // Rola para o topo suavemente
+            // Sobe o scroll para o topo suavemente
             window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 100);
+
+        }, 50);
 
     } catch (error) {
         console.error("❌ Erro no loadContent:", error);
         contentArea.innerHTML = `
             <div class="flex flex-col items-center justify-center p-20 text-center">
-                <h2 class="text-2xl font-bold text-red-500 mb-2">Ops! Página não encontrada</h2>
-                <p class="text-gray-400">Não conseguimos carregar <b>${pageName}</b>.</p>
-                <button onclick="loadContent('home')" class="mt-6 bg-white text-black px-6 py-2 rounded-full font-bold transition hover:scale-105">
-                    Voltar para o Início
+                <h2 class="text-2xl font-bold text-red-500 mb-2">Erro de Carregamento</h2>
+                <p class="text-gray-400">A página <b>${pageName}</b> não pôde ser exibida.</p>
+                <button onclick="loadContent('home')" class="mt-6 bg-white text-black px-6 py-2 rounded-full font-bold">
+                    Voltar ao Início
                 </button>
             </div>
         `;
