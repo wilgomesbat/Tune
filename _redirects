@@ -1,1 +1,7 @@
-/* /menu.html   200
+# Não redireciona arquivos que existem fisicamente (JS, CSS, Imagens)
+/js/* /js/:splat  200
+/assets/* /assets/:splat 200
+/*.css /*.css 200
+
+# Todo o resto vai para o menu.html para o roteador assumir
+/* /menu.html 200
