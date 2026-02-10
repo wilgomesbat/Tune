@@ -33,9 +33,10 @@ function initializeRouting() {
  */
 window.addEventListener('popstate', (e) => {
     if (e.state && e.state.page) {
+        console.log("⬅️ Voltando para:", e.state.page);
         loadContent(e.state.page, e.state.id, false);
     } else {
-        // Se voltar até o início onde não há estado salvo, reinicializa
+        // Fallback: se não houver estado, tenta reconstruir pela URL atual
         initializeRouting();
     }
 });
@@ -1111,7 +1112,7 @@ async function checkAndResetMonthlyStreams(musicId) {
         // ... (resto do seu código de updateDoc igual)
         
         const minBoost = 10000;
-    const maxBoost = 80000;
+    const maxBoost = 30000;
     const streamBoost = Math.floor(Math.random() * (maxBoost - minBoost + 1)) + minBoost;
 
     await updateDoc(musicRef, {
@@ -1288,9 +1289,11 @@ async function shareAlbum(albumTitle, artistName, shareUrl, showToast) {
  * Carrega e configura a página de álbum (LOW COST Firestore)
  * @param {string} albumId
  */
+/**
+ * Carrega e configura a página de álbum mantendo o layout original
+ * @param {string} albumId
+ */
 async function setupAlbumPage(albumId) {
-
-    // ====== ELEMENTOS ======
     const detailHeader = document.querySelector('#album-header');
     const albumCoverDetail = document.getElementById('album-cover-detail');
     const albumTitleDetail = document.getElementById('album-title-detail');
@@ -1298,119 +1301,108 @@ async function setupAlbumPage(albumId) {
     const albumYearDetail = document.getElementById('album-year-detail');
     const tracksContainer = document.getElementById('tracks-container');
     const playButton = document.querySelector('.album-actions .play');
-    const likeButton = document.querySelector('.album-actions .like');
-    const shareButton = document.querySelector('.album-actions .share');
-console.count('setupAlbumPage executado');
+    
+    // ID CORRETO que você mencionou
+    const countdownContainer = document.getElementById('countdown-container');
 
-    const fallbackBackground = 'linear-gradient(to bottom, #000, #000)';
-
-    if (!albumId) {
-        console.warn("setupAlbumPage chamado sem albumId");
-        return;
-    }
+    if (!albumId) return;
 
     try {
-        // ====== BUSCA DO ÁLBUM (1 READ) ======
         const albumRef = doc(db, 'albuns', albumId);
         const albumSnap = await getDoc(albumRef);
 
-        if (!albumSnap.exists()) {
-            albumTitleDetail.textContent = "Álbum não encontrado";
-            tracksContainer.innerHTML = `<p class="text-gray-400">Álbum indisponível.</p>`;
-            if (detailHeader) detailHeader.style.background = fallbackBackground;
-            return;
+        if (!albumSnap.exists()) return;
+
+        const albumData = albumSnap.data();
+        const album = { id: albumSnap.id, ...albumData };
+
+        // ====== LÓGICA DE DATA ======
+        const now = new Date();
+        // Converte a string "2026-02-27" para objeto Date
+        const scheduledDate = albumData.date ? new Date(albumData.date + "T00:00:00") : null;
+        const isLocked = scheduledDate && scheduledDate > now;
+
+        // ====== PREENCHIMENTO DO HEADER ======
+        albumCoverDetail.src = album.cover || './assets/default-cover.png';
+        albumTitleDetail.textContent = album.album;
+        artistNameDetail.textContent = album.artist;
+        albumYearDetail.textContent = album.releaseYear || (scheduledDate ? scheduledDate.getFullYear() : '—');
+
+        // ====== BLOQUEIO E SUA FUNÇÃO DE COUNTDOWN ======
+        if (isLocked) {
+            albumCoverDetail.style.filter = "grayscale(1) brightness(0.6)";
+            
+            if (playButton) {
+                playButton.style.opacity = "0.3";
+                playButton.style.cursor = "not-allowed";
+                playButton.onclick = null;
+            }
+
+            // CHAMA A SUA FUNÇÃO ORIGINAL
+            if (countdownContainer) {
+                // Passamos a data e a capa como você definiu na sua startCountdown
+                startCountdown(albumData.date + "T00:00:00", album.cover);
+            }
+        } else {
+            albumCoverDetail.style.filter = "none";
+            if (countdownContainer) countdownContainer.classList.add('hidden');
         }
 
-        const album = { id: albumSnap.id, ...albumSnap.data() };
-
-        const albumTitle = album.album || 'Título desconhecido';
-        const artistName = album.artist || 'Artista desconhecido';
-        const coverUrl = album.cover || './assets/artistpfp.png';
-
-        // ====== ANO ======
-        let albumYear = album.releaseYear || '—';
-        if (!album.releaseYear && album.date?.toDate) {
-            albumYear = album.date.toDate().getFullYear();
-        }
-
-        // ====== DOM ======
-        albumCoverDetail.src = coverUrl;
-        albumTitleDetail.textContent = albumTitle;
-        artistNameDetail.textContent = artistName;
-        albumYearDetail.textContent = albumYear;
-        document.title = `${albumTitle} — ${artistName} | TUNE`;
-
-        // ====== FUNDO ======
-        if (albumCoverDetail && typeof applyDominantColorToHeader === 'function') {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.src = coverUrl;
-            img.onload = () => applyDominantColorToHeader(img, detailHeader);
-            img.onerror = () => detailHeader.style.background = fallbackBackground;
-        }
-
-    
-
-        // ====== METAS ======
-        if (typeof updateMetaTags === 'function') {
-            updateMetaTags(
-                `${albumTitle} - ${artistName}`,
-                `Ouça o álbum "${albumTitle}" de ${artistName} na TUNE.`,
-                coverUrl,
-                window.location.href
-            );
-        }
-
-        // ====== LIKE ======
-        if (likeButton && typeof checkAndSetLikeState === 'function') {
-            checkAndSetLikeState('album', albumId, likeButton);
-            likeButton.onclick = () =>
-                toggleLike('album', albumId, likeButton);
-        }
-
-        // ====== SHARE ======
-        if (shareButton && typeof shareAlbum === 'function') {
-            shareButton.onclick = () =>
-                shareAlbum(albumTitle, artistName, window.location.href);
-        }
-
+        // ====== BUSCA E RENDERIZAÇÃO DAS TRACKS ======
         const musicQuery = query(
-    collection(db, 'musicas'),
-    where('album', '==', albumId),
-    orderBy('trackNumber')
-);
+            collection(db, 'musicas'),
+            where('album', '==', albumId),
+            orderBy('trackNumber')
+        );
 
         const musicSnap = await getDocs(musicQuery);
         const tracks = [];
 
         musicSnap.forEach(docSnap => {
-            const data = docSnap.data();
-            tracks.push({
-                id: docSnap.id,
-                ...data,
-                artistName: data.artistName || artistName,
-                cover: data.cover || coverUrl
-            });
+            tracks.push({ id: docSnap.id, ...docSnap.data() });
         });
 
-        // ====== RENDER ======
-        if (typeof renderTracksSpotifyStyle === 'function') {
-            renderTracksSpotifyStyle(tracks, album);
-        }
+        // Chama a renderização passando o estado isLocked
+        renderAlbumTracks(tracks, isLocked);
 
-        // ====== PLAY ======
-        if (playButton && tracks.length) {
-            playButton.classList.remove('hidden');
+        // Ativa play principal se liberado
+        if (!isLocked && playButton && tracks.length) {
+            playButton.style.opacity = "1";
             playButton.onclick = () => addToQueue(tracks);
         }
 
     } catch (err) {
-        console.error("Erro crítico em setupAlbumPage:", err);
-        tracksContainer.innerHTML =
-            `<p class="text-red-500">Erro ao carregar álbum.</p>`;
+        console.error("Erro no setupAlbumPage:", err);
     }
+}
+function renderAlbumTracks(tracks, isLocked) {
+    const tracksContainer = document.getElementById('tracks-container');
+    if (!tracksContainer) return;
 
-} // 👈 FECHAMENTO FINAL — NÃO APAGUE
+    tracksContainer.innerHTML = tracks.map((track, index) => {
+        const lockClass = isLocked ? "opacity-30 cursor-default" : "hover:bg-white/10 cursor-pointer group";
+
+        return `
+            <div class="track-item flex items-center p-0 rounded-md transition-colors ${lockClass}">
+                <div class="w-8 text-gray-500 text-sm">${index + 1}</div>
+                <img src="${track.cover || './assets/default-cover.png'}" class="w-10 h-10 rounded-md mr-4 ${isLocked ? 'grayscale' : ''}">
+                <div class="flex-1 min-w-0">
+                    <div class="text-white text-sm font-medium truncate">${track.title}</div>
+                    <div class="text-gray-400 text-xs truncate">${track.artistName || 'Artista'}</div>
+                </div>
+                <div class="text-gray-500 text-xs ml-4">
+                    ${isLocked ? '<i class="bx bxs-lock-alt"></i>' : (track.duration || '--:--')}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    if (!isLocked) {
+        tracksContainer.querySelectorAll('.track-item').forEach((item, index) => {
+            item.onclick = () => window.playTrackGlobal(tracks[index]);
+        });
+    }
+}
 
 
 
@@ -1420,13 +1412,12 @@ console.count('setupAlbumPage executado');
 const backButton = document.getElementById('back-button');
 if (backButton) {
     backButton.addEventListener('click', () => {
-        // 1. Limpa as meta tags
-        if (typeof clearDynamicMetaTags === 'function') {
-             clearDynamicMetaTags();
+        if (window.history.length <= 1) {
+            // Se não houver histórico anterior no seu site, manda para a home
+            loadContent('home', null, true);
+        } else {
+            window.history.back();
         }
-        
-        // 2. Volta para a página anterior
-        window.history.back();
     });
 }
 
@@ -1584,7 +1575,8 @@ async function setupArtistPage(artistId) {
             isContextLoading = false;
             return;
         }
-
+       
+        
         const artistData = docSnap.data();
         const artistName = artistData.nomeArtistico || "Nome Desconhecido";
         const now = new Date(); // Referência de tempo atual
@@ -1607,17 +1599,23 @@ async function setupArtistPage(artistId) {
             document.documentElement.style.setProperty('--artist-dominant-color', color);
         }
 
-    // Renderização do Nome e Badge
-    artistNameElement.innerHTML = `<span>${artistName}</span>` + 
-        (artistData.gravadora?.toLowerCase() === 'shark' ? 
-        `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
+const verificadoStatus = String(artistData.verificado || "").toLowerCase().trim();
+        const isVerified = verificadoStatus === "true";
 
-        // Ouvintes
+        // --- 3. RENDERIZAÇÃO DO NOME E BADGES ---
+        if (artistNameElement) {
+            artistNameElement.innerHTML = `<span>${artistName}</span>` + 
+                (isVerified ? 
+                    `<img src="/assets/verificado.png" style="width: 35px; margin-left: 5px; display: inline-block; vertical-align: middle;" alt="Verificado">` : '') +
+                (artistData.gravadora?.toLowerCase() === 'shark' ? 
+                    `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
+        }
+
+        // --- 4. OUVINTES ---
         const totalStreams = await calculateTotalStreams(artistId); 
-        if (artistListeners) artistListeners.textContent = `${formatNumber(totalStreams)} ouvintes mensais`; 
+        if (artistListeners) artistListeners.textContent = `${formatNumber(totalStreams)} streams`; 
 
         const musicasRef = collection(db, "musicas");
-
         // -----------------------------------------------------------
         // 7. RENDERIZAR SINGLES (COM BLOQUEIO VISUAL)
         // -----------------------------------------------------------
@@ -1821,6 +1819,7 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
             console.log(`🛠️ Executando setup para: ${pageName}`);
             switch (pageName) {
                 case 'home': if (typeof setupHomePage === 'function') setupHomePage(); break;
+                case 'music': if (typeof setupMusicPage === 'function') setupMusicPage(id); break;
                 case 'album': if (typeof setupAlbumPage === 'function') setupAlbumPage(id); break;
                 case 'artist': if (typeof setupArtistPage === 'function') setupArtistPage(id); break;
                 case 'playlist': if (typeof setupPlaylistPage === 'function') setupPlaylistPage(id); break;

@@ -149,22 +149,24 @@
 
       <div class="relative z-20 w-full px-8 pb-10">
         <div id="verified-status-container" class="flex items-center gap-2 mb-2 text-blue-400 font-bold text-sm">
-                    </div>
+            </div>
 
-        <div id="ban-indicator" class="inline-flex items-center gap-2 mb-4 text-red-500 font-bold text-xs uppercase tracking-widest bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
+        <div id="ban-indicator" class="inline-flex items-center gap-2 mb-4 text-red-500 font-bold text-xs uppercase tracking-widest bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20 hidden">
             Conta Restrita
         </div>
 
-        <h1 id="artist-name" class="flex items-center gap-3 text-6xl md:text-8xl font-black mb-4 drop-shadow-2xl">
+        <h1 id="artist-name" class="flex items-center gap-3 text-5xl md:text-7xl font-black mb-4 drop-shadow-2xl text-white">
           <span id="name-text"></span>
+          
+          <img id="verified-icon" src="/assets/verificado.png" class="w-8 h-8 md:w-12 md:h-12 hidden" alt="Verificado">
+          
           <span id="label-badge"></span>
         </h1>
         
         <p id="artist-listeners" class="text-gray-200 text-base font-medium mb-6 drop-shadow-md"></p>
 
         <div class="flex gap-4">
-          
-        </div>
+          </div>
       </div>
     </div>
 
@@ -195,6 +197,11 @@
 <div id="albums-section" class="mb-12 hidden relative group">
     <h2 class="text-2xl font-bold mb-4">Álbuns</h2>
     <div id="albums-container" class="scroll-container flex overflow-x-auto gap-4 scrollbar-hide"></div>
+</div>
+
+<div id="stations-section" class="mb-12 hidden relative group">
+    <h2 class="text-2xl font-bold mb-4">Álbuns</h2>
+    <div id="stations-container" class="scroll-container flex overflow-x-auto gap-4 scrollbar-hide"></div>
 </div>
 
     </div>

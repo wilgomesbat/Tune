@@ -213,7 +213,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link" data-page="search">
+                    <a href="#" class="nav-link" data-page="/search">
                         <svg role="img" viewBox="0 0 24 24">
                             <path fill="white"
                                 d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 101.414-1.414l-4.344-4.344a9.157 9.157 0 002.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z">
@@ -355,55 +355,45 @@ const FILLED_OPACITY = '1.0';  // Ícone 'Filled' com 100% de opacidade
 // Pega todos os links de navegação
 const navLinks = document.querySelectorAll('.nav-link');
 
-// Função principal para gerenciar a navegação e a troca de opacidade
 function handleNavigation(event) {
-    // Previne o comportamento padrão do link (#)
     event.preventDefault();
-
-    // O link clicado (elemento pai do <img>)
     const clickedLink = event.currentTarget;
 
-    // Se o link já estiver ativo, não faz nada
+    // 1. Pega o caminho da página (ex: "/pages/home")
+    let pagePath = clickedLink.getAttribute('data-page'); 
+    
+    // 2. Limpa o caminho para pegar só o nome (ex: "home")
+    // Se o caminho for "/pages/home", queremos apenas "home"
+    let pageName = pagePath.replace('/pages/', '').replace('.html', '');
+
     if (clickedLink.classList.contains('active')) {
+        // Opcional: Recarregar a página se clicar no ícone ativo
+        // loadContent(pageName, null, false); 
         return;
     }
 
-   if (clickedLink.dataset.page === "library") {
-    if (typeof populateUserProfile === "function" && auth.currentUser) {
-        populateUserProfile(auth.currentUser);
-    } else {
-        console.warn("Usuário não autenticado ou função não disponível.");
-    }
-}
-
-
-
-    // 1. DESATIVA TODOS OS LINKS ANTERIORES
-    navLinks.forEach(link => {
-        // Remove a classe 'active'
-        link.classList.remove('active');
-
-        const img = link.querySelector('img');
-
-        // Troca a opacidade para o estado OUTLINE
-        if (img) {
-            img.style.opacity = OUTLINE_OPACITY; // Define a opacidade para "outline"
+    // Lógica da Library (Perfil)
+    if (pageName === "library") {
+        if (typeof populateUserProfile === "function" && auth.currentUser) {
+            populateUserProfile(auth.currentUser);
         }
+    }
+
+    // --- A PARTE QUE FALTAVA: CARREGAR O CONTEÚDO ---
+    if (typeof loadContent === 'function') {
+        loadContent(pageName); 
+    }
+
+    // 3. ATUALIZAÇÃO VISUAL (OPACIDADE)
+    navLinks.forEach(link => {
+        link.classList.remove('active');
+        const img = link.querySelector('img');
+        if (img) img.style.opacity = OUTLINE_OPACITY;
     });
 
-    // 2. ATIVA O LINK CLICADO
     clickedLink.classList.add('active');
-
     const clickedImg = clickedLink.querySelector('img');
-
-    // Troca a opacidade para o estado FILLED
-    if (clickedImg) {
-        clickedImg.style.opacity = FILLED_OPACITY; // Define a opacidade para "filled"
-    }
-
-    // Opcional: Aqui você pode adicionar a lógica para carregar o conteúdo da página, 
-    // usando clickedLink.getAttribute('data-page')
-    console.log(`Página ativada: ${clickedLink.getAttribute('data-page')}`);
+    if (clickedImg) clickedImg.style.opacity = FILLED_OPACITY;
 }
 
 // Adiciona o Event Listener a cada link
