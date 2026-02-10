@@ -1086,21 +1086,19 @@ async function checkAndResetMonthlyStreams(musicId) {
 
     // --- 1. VERIFICAÇÃO GLOBAL (DENTRO DO OBJETO PERSISTENTE) ---
     // Impede clicar em QUALQUER música em menos de 5 segundos (aumentei para garantir)
-    const GLOBAL_COOLDOWN = 5000; 
+    const GLOBAL_COOLDOWN = 20000; 
     const timeSinceLastAnyMusic = now - window.streamGuard.lastGlobalStreamTime;
 
     if (timeSinceLastAnyMusic < GLOBAL_COOLDOWN) {
-        console.error(`⚠️ [FRAUDE] Bloqueio Global: Você já clicou em uma música há ${Math.ceil(timeSinceLastAnyMusic/1000)}s.`);
-        return;
+                return;
     }
 
     // --- 2. VERIFICAÇÃO POR MÚSICA ESPECÍFICA (7 SEGUNDOS) ---
-    const MIN_CLICK_INTERVAL = 7000; 
+    const MIN_CLICK_INTERVAL = 20000; 
     if (window.streamGuard.userStreamHistory.has(trackKey)) {
         const lastPlayTime = window.streamGuard.userStreamHistory.get(trackKey);
         if (now - lastPlayTime < MIN_CLICK_INTERVAL) {
-            console.error("⚠️ [SPAM] Aguarde 7s para repetir esta música.");
-            return;
+                       return;
         }
     }
 
@@ -1112,15 +1110,15 @@ async function checkAndResetMonthlyStreams(musicId) {
         const musicRef = doc(db, "musicas", musicId);
         // ... (resto do seu código de updateDoc igual)
         
-        const minBoost = 50000;
-        const maxBoost = 300000;
-        const streamBoost = Math.floor(Math.random() * (maxBoost - minBoost + 1)) + minBoost;
+        const minBoost = 10000;
+    const maxBoost = 80000;
+    const streamBoost = Math.floor(Math.random() * (maxBoost - minBoost + 1)) + minBoost;
 
-        await updateDoc(musicRef, {
-            streams: increment(streamBoost),
-            streamsMensal: increment(streamBoost),
-            lastMonthlyStreamDate: new Date()
-        });
+    await updateDoc(musicRef, {
+        streams: increment(streamBoost),
+        streamsMensal: increment(streamBoost),
+        lastMonthlyStreamDate: new Date()
+    });
 
         console.log(`🚀 +${streamBoost.toLocaleString()} streams validados.`);
 
@@ -1351,30 +1349,7 @@ console.count('setupAlbumPage executado');
             img.onerror = () => detailHeader.style.background = fallbackBackground;
         }
 
-       // ====== FOTO E DADOS DO ARTISTA (BUSCA PRECISA POR UID) ======
-try {
-    if (album.uidars) {
-        // Busca direta pelo ID do documento (Mais rápido, seguro e barato)
-        const artistRef = doc(db, 'usuarios', album.uidars);
-        const artistSnap = await getDoc(artistRef);
-
-        if (artistSnap.exists()) {
-            const artistData = artistSnap.data();
-            
-            // 1. Atualiza a foto com a imagem real do dono do ID
-            if (artistData.foto) {
-                document.getElementById('artist-image-detail').src = artistData.foto;
-            }
-            
-            // 2. Garante que o nome exibido seja o nome artístico oficial do banco
-            if (artistData.nomeArtistico) {
-                artistNameDetail.textContent = artistData.nomeArtistico;
-            }
-        }
-    }
-} catch (err) {
-    console.warn("Erro ao buscar detalhes do artista via UID:", err);
-}
+    
 
         // ====== METAS ======
         if (typeof updateMetaTags === 'function') {
@@ -3227,7 +3202,7 @@ function createDefaultCard(item) {
     return div;
 }
 // Substitua pelo ID da MÚSICA que você quer destacar
-const MUSICA_DESTAQUE_ID = "6jRbEpPkjRoSpYtiVkKE"; 
+const MUSICA_DESTAQUE_ID = "BxAZfEhOImIqolsC3HqJ"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
