@@ -1351,24 +1351,30 @@ console.count('setupAlbumPage executado');
             img.onerror = () => detailHeader.style.background = fallbackBackground;
         }
 
-        // ====== FOTO DO ARTISTA (QUERY BARATA) ======
-        try {
-            const artistQuery = query(
-                collection(db, 'usuarios'),
-                where('nomeArtistico', '==', artistName),
-                limit(1)
-            );
+       // ====== FOTO E DADOS DO ARTISTA (BUSCA PRECISA POR UID) ======
+try {
+    if (album.uidars) {
+        // Busca direta pelo ID do documento (Mais rápido, seguro e barato)
+        const artistRef = doc(db, 'usuarios', album.uidars);
+        const artistSnap = await getDoc(artistRef);
 
-            const artistSnap = await getDocs(artistQuery);
-            if (!artistSnap.empty) {
-                const foto = artistSnap.docs[0].data().foto;
-                if (foto) {
-                    document.getElementById('artist-image-detail').src = foto;
-                }
+        if (artistSnap.exists()) {
+            const artistData = artistSnap.data();
+            
+            // 1. Atualiza a foto com a imagem real do dono do ID
+            if (artistData.foto) {
+                document.getElementById('artist-image-detail').src = artistData.foto;
             }
-        } catch (err) {
-            console.warn("Erro ao buscar artista:", err);
+            
+            // 2. Garante que o nome exibido seja o nome artístico oficial do banco
+            if (artistData.nomeArtistico) {
+                artistNameDetail.textContent = artistData.nomeArtistico;
+            }
         }
+    }
+} catch (err) {
+    console.warn("Erro ao buscar detalhes do artista via UID:", err);
+}
 
         // ====== METAS ======
         if (typeof updateMetaTags === 'function') {
