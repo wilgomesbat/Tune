@@ -1066,93 +1066,69 @@ countdownContainer.innerHTML = `
     updateCountdown();
     window.countdownInterval = setInterval(updateCountdown, 1600);
 }
-// 1. Controle de Spam por Usuário e Música (Memória da Sessão)
-const userStreamHistory = new Map(); 
+// 1. Criamos um objeto global único que sobrevive à troca de páginas no loadContent
+if (!window.streamGuard) {
+    window.streamGuard = {
+        lastGlobalStreamTime: 0,
+        userStreamHistory: new Map()
+    };
+}
 
 async function checkAndResetMonthlyStreams(musicId) {
     if (!musicId) return;
 
-    // 1. Identifica o Usuário Logado
     const user = auth.currentUser;
-    if (!user) {
-        console.warn("🚫 Apenas usuários logados podem contabilizar streams.");
-        return;
-    }
+    if (!user) return;
 
     const userId = user.uid;
     const now = Date.now();
-    const SPAM_INTERVAL = 25000; // 25 segundos
-    
-    // Chave única para o par Usuário + Música
     const trackKey = `${userId}_${musicId}`;
 
-    // 2. VERIFICAÇÃO DE SPAM (Memória Local)
-    if (userStreamHistory.has(trackKey)) {
-        const lastPlayTime = userStreamHistory.get(trackKey);
-        const timeElapsed = now - lastPlayTime;
+    // --- 1. VERIFICAÇÃO GLOBAL (DENTRO DO OBJETO PERSISTENTE) ---
+    // Impede clicar em QUALQUER música em menos de 5 segundos (aumentei para garantir)
+    const GLOBAL_COOLDOWN = 5000; 
+    const timeSinceLastAnyMusic = now - window.streamGuard.lastGlobalStreamTime;
 
-        if (timeElapsed < SPAM_INTERVAL) {
-            const remaining = Math.ceil((SPAM_INTERVAL - timeElapsed) / 1000);
-            console.warn(`⚠️ [SPAM] Aguarde ${remaining}s para computar novo stream desta música.`);
-            return; 
+    if (timeSinceLastAnyMusic < GLOBAL_COOLDOWN) {
+        console.error(`⚠️ [FRAUDE] Bloqueio Global: Você já clicou em uma música há ${Math.ceil(timeSinceLastAnyMusic/1000)}s.`);
+        return;
+    }
+
+    // --- 2. VERIFICAÇÃO POR MÚSICA ESPECÍFICA (7 SEGUNDOS) ---
+    const MIN_CLICK_INTERVAL = 7000; 
+    if (window.streamGuard.userStreamHistory.has(trackKey)) {
+        const lastPlayTime = window.streamGuard.userStreamHistory.get(trackKey);
+        if (now - lastPlayTime < MIN_CLICK_INTERVAL) {
+            console.error("⚠️ [SPAM] Aguarde 7s para repetir esta música.");
+            return;
         }
     }
 
-    // 3. REGISTRO TEMPORÁRIO DE ATIVIDADE
-    userStreamHistory.set(trackKey, now);
+    // --- 3. REGISTRO NO OBJETO GLOBAL ANTES DE ENVIAR AO BANCO ---
+    window.streamGuard.lastGlobalStreamTime = now; 
+    window.streamGuard.userStreamHistory.set(trackKey, now);
 
     try {
         const musicRef = doc(db, "musicas", musicId);
-        const docSnap = await getDoc(musicRef);
+        // ... (resto do seu código de updateDoc igual)
         
-        if (!docSnap.exists()) {
-            console.error("❌ Música não encontrada no banco de dados.");
-            return;
-        }
-
-        const musicData = docSnap.data();
-        const today = new Date();
-        
-        // --- CÁLCULO DO BOOST (50k a 300k) ---
         const minBoost = 50000;
         const maxBoost = 300000;
-        // O resultado será um inteiro entre 50.000 e 300.000
         const streamBoost = Math.floor(Math.random() * (maxBoost - minBoost + 1)) + minBoost;
 
-        let updateData = {};
-        
-        // Converte o Timestamp do Firestore para objeto Date do JS
-        const lastStreamDate = musicData.lastMonthlyStreamDate?.toDate();
+        await updateDoc(musicRef, {
+            streams: increment(streamBoost),
+            streamsMensal: increment(streamBoost),
+            lastMonthlyStreamDate: new Date()
+        });
 
-        // Verifica se é um novo mês ou se nunca houve um stream
-        const needsReset = !lastStreamDate || 
-                           today.getMonth() !== lastStreamDate.getMonth() || 
-                           today.getFullYear() !== lastStreamDate.getFullYear();
-
-        // 4. PREPARAÇÃO DA ATUALIZAÇÃO
-        if (needsReset) {
-            // Novo mês: substitui o valor antigo pelo novo boost inicial
-            updateData.streamsMensal = streamBoost;
-        } else {
-            // Mesmo mês: soma o boost ao valor atual
-            updateData.streamsMensal = increment(streamBoost);
-        }
-
-        // Incrementa o total geral de streams
-        updateData.streams = increment(streamBoost);
-        // Atualiza a data do último stream para controle mensal futuro
-        updateData.lastMonthlyStreamDate = today; 
-
-        // 5. ENVIO AO FIRESTORE
-        await updateDoc(musicRef, updateData);
-        
-        console.log(`✅ Stream validado! Usuário: ${userId.substring(0, 5)}...`);
-        console.log(`🚀 +${streamBoost.toLocaleString()} plays na música ${musicId}.`);
+        console.log(`🚀 +${streamBoost.toLocaleString()} streams validados.`);
 
     } catch (error) {
-        console.error("❌ Erro ao processar stream:", error);
-        // Em caso de erro na rede/banco, removemos a trava para permitir tentar de novo
-        userStreamHistory.delete(trackKey);
+        console.error("❌ Erro:", error);
+        // Se der erro, limpa para permitir tentar de novo
+        window.streamGuard.lastGlobalStreamTime = 0;
+        window.streamGuard.userStreamHistory.delete(trackKey);
     }
 }
 // Função para carregar e exibir as playlists com mais streams
@@ -1548,6 +1524,47 @@ function renderTop5Tracks(tracks, containerId) {
 
 let isContextLoading = false;
 
+async function getAverageColor(imageUrl) {
+    return new Promise((resolve) => {
+        if (!imageUrl) return resolve('#000000');
+        
+        const img = new Image();
+        img.crossOrigin = "Anonymous"; // Crucial para imagens do Firebase/Cloudinary
+        img.src = imageUrl;
+
+       img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Definimos o canvas para capturar apenas a área inferior
+            canvas.width = 100; // Amostra de largura maior para média melhor
+            canvas.height = 10;  // Captura apenas os 10 pixels de baixo
+            
+            // ctx.drawImage(imagem, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+            // Aqui pegamos a fatia final da imagem (img.height - 10)
+            ctx.drawImage(img, 0, img.height - 10, img.width, 10, 0, 0, 100, 10);
+            
+            const imageData = ctx.getImageData(0, 0, 100, 10).data;
+            
+            let r = 0, g = 0, b = 0;
+            const totalPixels = imageData.length / 4;
+
+            for (let i = 0; i < imageData.length; i += 4) {
+                r += imageData[i];
+                g += imageData[i+1];
+                b += imageData[i+2];
+            }
+
+            r = Math.floor(r / totalPixels);
+            g = Math.floor(g / totalPixels);
+            b = Math.floor(b / totalPixels);
+            
+            // Escurecer levemente para o modo Dark (opcional)
+            const darken = 0.8;
+            resolve(`rgb(${Math.floor(r * darken)}, ${Math.floor(g * darken)}, ${Math.floor(b * darken)})`);
+        };
+    });
+}
 async function setupArtistPage(artistId) {
     if (isContextLoading) return;
     isContextLoading = true;
@@ -1600,10 +1617,19 @@ async function setupArtistPage(artistId) {
             return; 
         }
 
-        // Nome e Capa
-        artistNameElement.innerHTML = `<span>${artistName}</span>` + 
-            (artistData.gravadora?.toLowerCase() === 'shark' ? `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
-        if (artistData.foto && artistCoverBg) artistCoverBg.style.backgroundImage = `url('${artistData.foto}')`;
+        // --- CAPA E EXTRAÇÃO DE COR DOMINANTE ---
+        if (artistData.foto && artistCoverBg) {
+            artistCoverBg.style.backgroundImage = `url('${artistData.foto}')`;
+            
+            // Agora chamando o nome correto da função
+            const color = await getAverageColor(artistData.foto);
+            document.documentElement.style.setProperty('--artist-dominant-color', color);
+        }
+
+    // Renderização do Nome e Badge
+    artistNameElement.innerHTML = `<span>${artistName}</span>` + 
+        (artistData.gravadora?.toLowerCase() === 'shark' ? 
+        `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
 
         // Ouvintes
         const totalStreams = await calculateTotalStreams(artistId); 
@@ -1620,53 +1646,47 @@ async function setupArtistPage(artistId) {
         if (!singlesSnap.empty && singlesContainer) {
             singlesSection.classList.remove('hidden');
             
-            singlesSnap.forEach(d => {
-                const trackData = d.data();
-                const track = { id: d.id, ...trackData, artistName };
-                
-                // Lógica de Bloqueio
-                const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
-                                      ? new Date(track.scheduledTime) : null;
-                const isLocked = scheduledDate && scheduledDate > now;
+           // Dentro de setupArtistPage -> singlesSnap.forEach
+singlesSnap.forEach(d => {
+    const trackData = d.data();
+    const track = { id: d.id, ...trackData, artistName };
+    const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
+                        ? new Date(track.scheduledTime) : null;
+    const isLocked = scheduledDate && scheduledDate > now;
 
-                const card = document.createElement('div');
-                card.className = `flex flex-col items-start text-left flex-shrink-0 w-[160px] transition-all duration-300 
-                    ${isLocked ? 'opacity-40 pointer-events-none grayscale-[0.3]' : 'cursor-pointer group'}`;
+    const card = document.createElement('div');
+    // IMPORTANTE: Adicionamos 'scroll-item' para manter o tamanho fixo no carrossel
+    card.className = `scroll-item flex flex-col transition-all duration-300 ${isLocked ? 'opacity-40 pointer-events-none' : 'cursor-pointer group'}`;
 
-                card.innerHTML = `
-                    <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg bg-[#282828]">
-                        <img src="${track.cover || './assets/default-cover.png'}" 
-                             class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 ${!isLocked ? 'group-hover:scale-105' : ''}">
-                        ${isLocked ? `
-                            <div class="absolute inset-0 flex items-center justify-center bg-black/40">
-                                <i class='bx bxs-lock-alt text-white text-4xl opacity-70'></i>
-                            </div>
-                        ` : `
-                            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-4 group-hover:translate-y-0 transition-transform">
-                                    <i class='bx bx-play text-black text-3xl ml-1'></i>
-                                </div>
-                            </div>
-                        `}
+    card.innerHTML = `
+        <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg">
+            <img src="${track.cover || './assets/default-cover.png'}" 
+                 class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+            ${isLocked ? `
+                <div class="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <i class='bx bxs-lock-alt text-white text-3xl opacity-70'></i>
+                </div>
+            ` : `
+                <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-2 group-hover:translate-y-0 transition-all">
+                        <i class='bx bx-play text-black text-3xl ml-1'></i>
                     </div>
-                    <div class="mt-2 w-full">
-                        <h3 class="text-white font-bold truncate text-sm" style="font-family: 'Nationale Bold';">${track.title}</h3>
-                        <p class="text-gray-400 text-xs truncate">
-                            ${isLocked ? `<span class="text-orange-400">${scheduledDate.toLocaleDateString()}</span>` : artistName}
-                        </p>
-                    </div>
-                `;
+                </div>
+            `}
+        </div>
+        <div class="mt-3">
+            <h3 class="text-white font-bold text-sm truncate">${track.title}</h3>
+            <p class="text-gray-400 text-xs mt-1">
+                ${isLocked ? scheduledDate.toLocaleDateString() : 'Single'}
+            </p>
+        </div>
+    `;
 
-                if (!isLocked) {
-                    card.onclick = () => {
-                        if (window.playTrackGlobal) {
-                            checkAndResetMonthlyStreams(track.id);
-                            window.playTrackGlobal(track);
-                        }
-                    };
-                }
-                singlesContainer.appendChild(card);
-            });
+    if (!isLocked) {
+        card.onclick = () => window.playTrackGlobal?.(track);
+    }
+    singlesContainer.appendChild(card);
+});
         }
 
         // -----------------------------------------------------------
@@ -2350,15 +2370,27 @@ async function setupArtistSection(artistUid) { // Removido artistName do parâme
         console.error("Erro ao buscar álbuns da artista:", error);
     }
 
-    // Ordenar o restante do conteúdo por nome (de A a Z)
-    artistContent.sort((a, b) => {
-        const nameA = a.name.toLowerCase();
-        const nameB = b.name.toLowerCase();
-        if (nameA < nameB) return -1;
-        if (nameA > nameB) return 1;
-        return 0;
-    });
+// Ordenar por DATA COMPLETA (mais recente primeiro)
+artistContent.sort((a, b) => {
+    const parseDate = (dateStr) => {
+        // Se a data vier do Firebase como Timestamp, converte para objeto Date
+        if (dateStr && typeof dateStr.toDate === 'function') {
+            return dateStr.toDate();
+        }
+        // Se vier como String "DD/MM/AAAA"
+        if (typeof dateStr === 'string' && dateStr.includes('/')) {
+            const [day, month, year] = dateStr.split('/').map(Number);
+            return new Date(year, month - 1, day);
+        }
+        return new Date(0); // Fundo da lista se não houver data
+    };
 
+    // Altere 'data' para o nome exato do campo que você usa no Firestore
+    const dA = parseDate(a.data || a.ano || a.dataLancamento);
+    const dB = parseDate(b.data || b.ano || b.dataLancamento);
+
+    return dB - dA; // Mais recente primeiro
+});
     // Oculta a mensagem de carregamento
     if (loadingMessage) loadingMessage.style.display = 'none';
 
@@ -2952,7 +2984,7 @@ async function fetchAndRenderNewSingles() {
 
 // 1. Aumente o tempo para teste (ex: 7 dias = 168 horas)
 const tempoLimite = new Date();
-tempoLimite.setHours(tempoLimite.getHours() - 24); 
+tempoLimite.setHours(tempoLimite.getHours() - 72); 
 
 // 2. Query ajustada
 const q = query(
@@ -3169,7 +3201,7 @@ function createDefaultCard(item) {
     return div;
 }
 // Substitua pelo ID da MÚSICA que você quer destacar
-const MUSICA_DESTAQUE_ID = "5tPjkbwvpdn1RdOISSpT"; 
+const MUSICA_DESTAQUE_ID = "6jRbEpPkjRoSpYtiVkKE"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
@@ -3522,69 +3554,46 @@ async function loadArtistData(artistId) {
   }
 }
 
+// Exemplo de como ajustar a parte dos Álbuns
 async function loadArtistAlbums(artistId) {
-  const albumsContainer = document.getElementById('albums-container');
-  albumsContainer.innerHTML = ''; // limpa container
-
-  const title = document.createElement('h2');
-  title.textContent = 'Álbuns';
-  title.className = 'text-2xl font-bold mb-4 mt-8';
-  albumsContainer.appendChild(title);
-
-  try {
-    // ⭐ MUDANÇA AQUI: Adicionado o orderBy para ordenar pela data
-    // Use 'createdAt' ou o nome exato do campo de data que você tem no Firebase
-    const q = query(
-      collection(db, 'albuns'), 
-      where('uidars', '==', artistId),
-      orderBy('date', 'desc') // 'desc' para mostrar os novos primeiro
-    );
+    const albumsContainer = document.getElementById('albums-container');
+    const albumsSection = document.getElementById('albums-section');
     
+    if (!albumsContainer) return;
+    
+    // Limpa APENAS os cards, mantendo o <h2> que está fora dele no HTML
+    albumsContainer.innerHTML = "";
+
+    const q = query(collection(db, "albuns"), where('uidars', '==', artistId));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
-      const emptyMsg = document.createElement('p');
-      emptyMsg.className = 'text-gray-400';
-      emptyMsg.textContent = 'Nenhum álbum encontrado para este artista.';
-      albumsContainer.appendChild(emptyMsg);
-      return;
+        albumsSection.classList.add('hidden');
+        return;
     }
 
-    const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4';
-    albumsContainer.appendChild(grid);
+    albumsSection.classList.remove('hidden');
 
-querySnapshot.forEach(docSnap => {
-    const album = docSnap.data();
-    const albumId = docSnap.id;
-    const card = document.createElement('div');
-    card.className = 'cursor-pointer flex flex-col items-start group';
-
-    card.innerHTML = `
-        <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg">
-            <img src="${album.cover}" class="absolute top-0 left-0 w-full h-full object-cover transition-transform group-hover:scale-105" />
-        </div>
-        <div class="mt-2 w-full">
-            <h3 class="text-sm font-semibold text-white truncate">${album.album}</h3>
-            <p class="text-gray-500 text-xs">${album.date ? album.date.split('-')[0] : ''}</p>
-        </div>
-    `;
-
-    // ⭐ MUDANÇA AQUI: Usa a função de navegação do seu sistema SPA
-    card.addEventListener('click', () => {
-        navigateTo('album', albumId); 
+    querySnapshot.forEach(doc => {
+        const album = doc.data();
+        const card = document.createElement('div');
+        card.className = "scroll-item flex-shrink-0 w-40 cursor-pointer group";
+        
+        // Renderização do Card (idêntica à imagem da Taylor Swift)
+        card.innerHTML = `
+            <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg mb-3">
+                <img src="${album.cover}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
+            </div>
+            <h3 class="text-white font-bold text-sm truncate">${album.album}</h3>
+            <p class="text-gray-400 text-xs mt-1">${album.ano || '2024'}</p>
+        `;
+        
+        card.onclick = () => loadContent('album', doc.id);
+        albumsContainer.appendChild(card);
     });
 
-    grid.appendChild(card);
-});
-
-  } catch (error) {
-    console.error('Erro ao carregar álbuns do artista:', error);
-    const errorMsg = document.createElement('p');
-    errorMsg.className = 'text-red-500';
-    errorMsg.textContent = 'Erro ao carregar os álbuns.';
-    albumsContainer.appendChild(errorMsg);
-  }
+    // Após carregar os itens, ativa as setas de navegação (PC)
+    setupScrollArrows('albums-container');
 }
 
 async function loadArtistStations(artistId) {
