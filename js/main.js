@@ -1640,53 +1640,81 @@ async function setupArtistPage(artistId) {
         // -----------------------------------------------------------
         // 7. RENDERIZAR SINGLES (COM BLOQUEIO VISUAL)
         // -----------------------------------------------------------
-        const qSingles = query(musicasRef, where("artist", "==", artistId), where("single", "==", "true"));
-        const singlesSnap = await getDocs(qSingles);
+        const qSingles = query(
+    collection(db, "musicas"), 
+    where("artist", "==", artistId), 
+    where("single", "==", "true")
+);
 
-        if (!singlesSnap.empty && singlesContainer) {
-            singlesSection.classList.remove('hidden');
-            
-           // Dentro de setupArtistPage -> singlesSnap.forEach
-singlesSnap.forEach(d => {
-    const trackData = d.data();
-    const track = { id: d.id, ...trackData, artistName };
-    const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
-                        ? new Date(track.scheduledTime) : null;
-    const isLocked = scheduledDate && scheduledDate > now;
+const singlesSnap = await getDocs(qSingles);
 
-    const card = document.createElement('div');
-    // IMPORTANTE: Adicionamos 'scroll-item' para manter o tamanho fixo no carrossel
-    card.className = `scroll-item flex flex-col transition-all duration-300 ${isLocked ? 'opacity-40 pointer-events-none' : 'cursor-pointer group'}`;
+if (!singlesSnap.empty && singlesContainer) {
+    singlesSection.classList.remove('hidden');
+    
+    // 1. Converter para Array para podermos ordenar
+    let singlesList = [];
+    singlesSnap.forEach(d => {
+        singlesList.push({ id: d.id, ...d.data() });
+    });
 
-    card.innerHTML = `
-        <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg">
-            <img src="${track.cover || './assets/default-cover.png'}" 
-                 class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
-            ${isLocked ? `
-                <div class="absolute inset-0 flex items-center justify-center bg-black/40">
-                    <i class='bx bxs-lock-alt text-white text-3xl opacity-70'></i>
-                </div>
-            ` : `
-                <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-2 group-hover:translate-y-0 transition-all">
-                        <i class='bx bx-play text-black text-3xl ml-1'></i>
+    // 2. ORDENAÇÃO POR DATA (AAAA-MM-DD)
+    singlesList.sort((a, b) => {
+        // Se usar 'date' (2020-12-11), o JS ordena perfeitamente
+        const dateA = a.date ? new Date(a.date) : new Date(0);
+        const dateB = b.date ? new Date(b.date) : new Date(0);
+        return dateB - dateA; // Mais recente primeiro
+    });
+
+    // 3. RENDERIZAÇÃO
+    singlesContainer.innerHTML = ""; // Limpa antes de injetar
+    
+    singlesList.forEach(track => {
+        const now = new Date();
+        const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
+                            ? new Date(track.scheduledTime) : null;
+        
+        // Verifica se está bloqueado pelo agendamento
+        const isLocked = scheduledDate && scheduledDate > now;
+
+        const card = document.createElement('div');
+        card.className = `scroll-item flex flex-col transition-all duration-300 ${isLocked ? 'opacity-40 pointer-events-none' : 'cursor-pointer group'}`;
+
+        // Pega o ano da data (2020-12-11 -> 2020)
+        const displayYear = track.date ? track.date.split('-')[0] : 'Single';
+
+        card.innerHTML = `
+            <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg">
+                <img src="${track.cover || './assets/default-cover.png'}" 
+                     class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                ${isLocked ? `
+                    <div class="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <i class='bx bxs-lock-alt text-white text-3xl opacity-70'></i>
                     </div>
-                </div>
-            `}
-        </div>
-        <div class="mt-3">
-            <h3 class="text-white font-bold text-sm truncate">${track.title}</h3>
-            <p class="text-gray-400 text-xs mt-1">
-                ${isLocked ? scheduledDate.toLocaleDateString() : 'Single'}
-            </p>
-        </div>
-    `;
+                ` : `
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-2 group-hover:translate-y-0 transition-all">
+                            <i class='bx bx-play text-black text-3xl ml-1'></i>
+                        </div>
+                    </div>
+                `}
+            </div>
+            <div class="mt-3">
+                <h3 class="text-white font-bold text-sm truncate uppercase">${track.title}</h3>
+                <p class="text-gray-400 text-xs mt-1">
+                    ${isLocked ? scheduledDate.toLocaleDateString() : displayYear}
+                </p>
+            </div>
+        `;
 
-    if (!isLocked) {
-        card.onclick = () => window.playTrackGlobal?.(track);
-    }
-    singlesContainer.appendChild(card);
-});
+        if (!isLocked) {
+            card.onclick = () => {
+                // Chama sua função global de play e a proteção de stream
+                window.playTrackGlobal?.(track);
+                checkAndResetMonthlyStreams(track.id); 
+            };
+        }
+        singlesContainer.appendChild(card);
+    });
         }
 
         // -----------------------------------------------------------
@@ -1958,30 +1986,22 @@ function renderCardRow(rowElementId, items, type) {
     const listElement = document.getElementById(rowElementId);
     if (!listElement) return;
 
-    listElement.innerHTML = ''; // Limpa o conteúdo existente
-    
-    items.forEach(item => {
-        let card;
-        
-        // Chamada da função de criação baseada no tipo
-        // Se for playlist, passa o item e o ID (que é item.id)
-        if (type === 'playlist') {
-            card = createPlaylistCard(item, item.id);
-        } 
-        // Se for álbum, passa o item e o ID
-        else if (type === 'album') {
-            // Assumindo que você tem uma função createAlbumCard(item, item.id)
-            card = createAlbumCard(item, item.id);
-        }
-        // Se for artista, passa o item e o ID
-        else if (type === 'artist') {
-            // Assumindo que você tem uma função createArtistCard(item, item.id)
-            card = createArtistCard(item, item.id);
-        }
+    listElement.innerHTML = ''; 
 
-        if (card) {
-            listElement.appendChild(card);
-        }
+    // Ordenar itens se houver data/ano disponível
+    const sortedItems = [...items].sort((a, b) => {
+        const valA = a.data || a.ano || 0;
+        const valB = b.data || b.ano || 0;
+        return valB > valA ? 1 : -1;
+    });
+    
+    sortedItems.forEach(item => {
+        let card;
+        if (type === 'playlist') card = createPlaylistCard(item, item.id);
+        else if (type === 'album') card = createAlbumCard(item, item.id);
+        else if (type === 'artist') card = createArtistCard(item, item.id);
+
+        if (card) listElement.appendChild(card);
     });
 }
 
@@ -3554,46 +3574,70 @@ async function loadArtistData(artistId) {
   }
 }
 
-// Exemplo de como ajustar a parte dos Álbuns
 async function loadArtistAlbums(artistId) {
     const albumsContainer = document.getElementById('albums-container');
     const albumsSection = document.getElementById('albums-section');
     
     if (!albumsContainer) return;
     
-    // Limpa APENAS os cards, mantendo o <h2> que está fora dele no HTML
     albumsContainer.innerHTML = "";
 
-    const q = query(collection(db, "albuns"), where('uidars', '==', artistId));
-    const querySnapshot = await getDocs(q);
+    try {
+        const q = query(collection(db, "albuns"), where('uidars', '==', artistId));
+        const querySnapshot = await getDocs(q);
 
-    if (querySnapshot.empty) {
-        albumsSection.classList.add('hidden');
-        return;
+        if (querySnapshot.empty) {
+            if (albumsSection) albumsSection.classList.add('hidden');
+            return;
+        }
+
+        if (albumsSection) albumsSection.classList.remove('hidden');
+
+        // 1. Transformar em Array
+        const albumsList = [];
+        querySnapshot.forEach(doc => {
+            albumsList.push({ id: doc.id, ...doc.data() });
+        });
+
+        // 2. ORDENAÇÃO PELO FORMATO "YYYY-MM-DD" (MAIS RECENTE PRIMEIRO)
+        albumsList.sort((a, b) => {
+            // Criar objetos Date diretamente (o JS entende o formato 2020-12-11 nativamente)
+            const dateA = a.date ? new Date(a.date) : new Date(0);
+            const dateB = b.date ? new Date(b.date) : new Date(0);
+            
+            return dateB - dateA; // Data maior (mais nova) vem primeiro
+        });
+
+        // 3. Renderizar
+        albumsList.forEach(album => {
+            const card = document.createElement('div');
+            card.className = "scroll-item flex-shrink-0 w-40 cursor-pointer group";
+            
+            // Formatando a data para exibição (opcional: mostrar apenas o ano no card)
+            const anoExibicao = album.date ? album.date.split('-')[0] : '2024';
+
+            card.innerHTML = `
+                <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg mb-3">
+                    <img src="${album.cover}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="w-10 h-10 bg-[#1ed760] rounded-full flex items-center justify-center shadow-xl translate-y-2 group-hover:translate-y-0 transition-all">
+                            <i class='bx bx-play text-black text-2xl ml-0.5'></i>
+                        </div>
+                    </div>
+                </div>
+                <h3 class="text-white font-bold text-sm truncate">${album.album}</h3>
+                <p class="text-gray-400 text-xs mt-1">${anoExibicao}</p>
+            `;
+            
+            card.onclick = () => loadContent('album', album.id);
+            albumsContainer.appendChild(card);
+        });
+
+        setupScrollArrows('albums-container');
+
+    } catch (error) {
+        console.error("Erro ao carregar álbuns:", error);
     }
-
-    albumsSection.classList.remove('hidden');
-
-    querySnapshot.forEach(doc => {
-        const album = doc.data();
-        const card = document.createElement('div');
-        card.className = "scroll-item flex-shrink-0 w-40 cursor-pointer group";
-        
-        // Renderização do Card (idêntica à imagem da Taylor Swift)
-        card.innerHTML = `
-            <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg mb-3">
-                <img src="${album.cover}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
-            </div>
-            <h3 class="text-white font-bold text-sm truncate">${album.album}</h3>
-            <p class="text-gray-400 text-xs mt-1">${album.ano || '2024'}</p>
-        `;
-        
-        card.onclick = () => loadContent('album', doc.id);
-        albumsContainer.appendChild(card);
-    });
-
-    // Após carregar os itens, ativa as setas de navegação (PC)
-    setupScrollArrows('albums-container');
 }
 
 async function loadArtistStations(artistId) {
