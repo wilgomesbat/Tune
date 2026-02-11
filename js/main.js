@@ -600,10 +600,10 @@ function getTrendIndicator(lastStreamDate) {
 
         if (diffInMs < sevenHoursInMs) {
             // Reproduzida há menos de 7h: Verde (Subindo)
-            return '<span style="color: #4ade80; font-size: 10px; display: block; line-height: 1;">▲</span>';
+            return '<span style="color: #77e09e; font-size: 10px; display: block; line-height: 1;">▲</span>';
         } else {
             // NÃO reproduzida nas últimas 7h: Vermelha (Caindo)
-            return '<span style="color: #f87171; font-size: 10px; display: block; line-height: 1;">▼</span>';
+            return '<span style="color: #af7474; font-size: 10px; display: block; line-height: 1;">▼</span>';
         }
     } catch (e) {
         console.error("Erro ao calcular tendência:", e);
@@ -611,89 +611,61 @@ function getTrendIndicator(lastStreamDate) {
     }
 }
 
-// --- Setup Página Playlist Completo (Versão Atualizada para Top 50) ---
 async function setupPlaylistPage(playlistId) {
+    // 1. Captura de elementos do DOM
     const playlistImgDetail = document.getElementById("playlist-cover-detail");
     const playlistTitleDetail = document.getElementById("playlist-title-detail");
     const playlistDescriptionDetail = document.getElementById("playlist-description-detail");
     const tracksContainer = document.getElementById("tracks-container");
-    const playlistBg = document.getElementById("playlist-bg"); 
-    const priorityNames = ["Top 50 Brasil", "Top 50", "Top 50 World", "Daily Top 50"];
+    const bgBlur = document.getElementById("bg-image-blur");
     
-    const fallbackBackground = 'linear-gradient(to bottom, #1a1a1a, #030303)';
     const fallbackImage = 'https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png'; 
 
     if (!playlistId) return;
 
     try {
+        // 2. Busca de dados no Firebase
         const playlistRef = doc(db, "playlists", playlistId);
         const playlistSnap = await getDoc(playlistRef);
 
         if (!playlistSnap.exists()) {
             if (playlistTitleDetail) playlistTitleDetail.textContent = "Playlist não encontrada";
-            tracksContainer.innerHTML = `<p class="text-gray-400">Não foi possível carregar esta playlist.</p>`;
+            tracksContainer.innerHTML = `<p class="text-gray-400">Playlist não encontrada.</p>`;
             return;
         }
 
+        // --- INICIALIZAÇÃO DE VARIÁVEIS (Ordem Crítica) ---
         const playlist = { id: playlistSnap.id, ...playlistSnap.data() };
-        
         const coverUrl = playlist.cover || fallbackImage;
-        if (playlistTitleDetail) playlistTitleDetail.textContent = playlist.name || "Sem título";
+        const playlistName = playlist.name || "Sem título";
+
+        // 3. Atualização da UI (Textos e Imagens)
+        if (playlistTitleDetail) playlistTitleDetail.textContent = playlistName;
+        if (playlistImgDetail) playlistImgDetail.src = coverUrl;
+
         if (playlistDescriptionDetail) {
             playlistDescriptionDetail.textContent = playlist.category === "Stations" 
                 ? "Baseada nas músicas deste artista." 
                 : (playlist.description || "");
         }
 
-        if (playlistImgDetail) playlistImgDetail.src = coverUrl;
+        // 4. Aplicação do Fundo Borrado (O "Plano B" sem ColorThief)
+        if (bgBlur) {
+            bgBlur.style.backgroundImage = `url('${coverUrl}')`;
+        }
 
-        // Lógica ColorThief
-        const colorThief = new ColorThief();
-        const imgToLoad = new Image();
-        imgToLoad.crossOrigin = "Anonymous"; 
-        imgToLoad.src = coverUrl;
-
-        imgToLoad.onload = () => {
-            try {
-                const color = colorThief.getColor(imgToLoad);
-                const rgb = `${color[0]}, ${color[1]}, ${color[2]}`;
-                if (playlistBg) {
-                    playlistBg.style.background = `linear-gradient(to bottom, rgb(${rgb}) 0%, rgba(${rgb}, 0.4) 40%, #030303 100%)`;
-                }
-            } catch (e) {
-                if (playlistBg) playlistBg.style.background = "#030303";
-            }
-        };
-
-        
-
-      function isPortuguese(title) {
-    if (!title) return false;
-    // Detecta acentos brasileiros e cedilha (exclusivos do PT-BR)
-    const temAcentuacao = /[áàâãéêíóôõúç]/i.test(title);
-    if (temAcentuacao) return true;
-
-    // Palavras curtas muito comuns no PT-BR
-    const palavrasBR = ["o", "a", "os", "as", "do", "da", "no", "na", "com", "para", "pra", "pro", "que", "você", "te", "meu", "amanhã", "encontro"];
-    const palavrasNoTitulo = title.toLowerCase().split(/\s+/);
-    return palavrasNoTitulo.some(p => palavrasBR.includes(p));
-}
-
-// ... dentro da sua função setupPlaylistPage ...
-
+        // 5. Lógica de Busca de Músicas (Tracks)
         let tracks = [];
         const automaticTopNames = ["Top 50", "Daily Top 50", "Top 50 Brasil", "Top 50 World"]; 
-        const isRecentReleases = ["Novidades da Semana", "Novidades", "Lançamentos da Semana"].includes(playlist.name);
-        const isAutomaticTop = automaticTopNames.includes(playlist.name) && playlist.category === "Charts";
-        
+        const isRecentReleases = ["Novidades da Semana", "Novidades", "Lançamentos da Semana"].includes(playlistName);
+        const isAutomaticTop = automaticTopNames.includes(playlistName) && playlist.category === "Charts";
         const generosBR = ["Sertanejo", "Funk", "Pagode", "MPB", "Forró", "Arrocha"]; 
 
-        // --- A) Charts Automáticos (Top 50 / Brasil / World) ---
+        // --- A) Charts Automáticos ---
         if (isAutomaticTop) {
-            const isBrasilChart = playlist.name.includes("Brasil");
-            const isWorldChart = playlist.name.includes("World");
+            const isBrasilChart = playlistName.includes("Brasil");
+            const isWorldChart = playlistName.includes("World");
 
-            // Buscamos um limite maior (ex: 200) para ter margem de filtragem no JS
             const q = query(
                 collection(db, "musicas"), 
                 orderBy("streamsMensal", "desc"), 
@@ -705,30 +677,21 @@ async function setupPlaylistPage(playlistId) {
             snap.forEach((d) => rawTracks.push({ id: d.id, ...d.data() }));
 
             if (isBrasilChart) {
-                // FILTRAGEM JS PARA O BRASIL: Gênero OU Título em Português
                 tracks = rawTracks.filter(m => {
-                    const porGenero = generosBR.includes(m.genre);
-                    const porTitulo = isPortuguese(m.title);
-                    return porGenero || porTitulo;
+                    return generosBR.includes(m.genre) || isPortuguese(m.title);
                 }).slice(0, 50);
             } 
             else if (isWorldChart) {
-                // FILTRAGEM JS PARA WORLD: Nem gênero BR nem título em Português
                 tracks = rawTracks.filter(m => {
-                    const porGenero = generosBR.includes(m.genre);
-                    const porTitulo = isPortuguese(m.title);
-                    return !porGenero && !porTitulo;
+                    return !generosBR.includes(m.genre) && !isPortuguese(m.title);
                 }).slice(0, 50);
             } 
             else {
-                // TOP 50 GLOBAL: Apenas as 50 mais ouvidas sem filtro
                 tracks = rawTracks.slice(0, 50);
             }
         } 
-        
         // --- B) Lançamentos Recentes ---
         else if (isRecentReleases) {
-            // ... (seu código de lançamentos permanece igual)
             const dataLimite = new Date();
             dataLimite.setDate(dataLimite.getDate() - 3);
             const q = query(collection(db, "musicas"), where("timestamp", ">=", dataLimite), limit(50));
@@ -736,14 +699,12 @@ async function setupPlaylistPage(playlistId) {
             snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
             tracks.sort((a, b) => (b.timestamp?.toDate?.() || 0) - (a.timestamp?.toDate?.() || 0));
         }
-
         // --- C) Artist Stations ---
         else if (playlist.uidars) {
             const q = query(collection(db, "musicas"), where("artist", "==", playlist.uidars), limit(30));
             const snap = await getDocs(q);
             snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
         } 
-
         // --- D) Playlists Manuais ---
         else {
             const subColRef = query(collection(db, `playlists/${playlistId}/musicas`), limit(50));
@@ -753,26 +714,37 @@ async function setupPlaylistPage(playlistId) {
                 subSnap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
             } 
             else if (playlist.track_ids?.length > 0) {
-                const lotes = [playlist.track_ids.slice(0, 30)];
-                for (const ids of lotes) {
-                    const q = query(collection(db, "musicas"), where("__name__", "in", ids));
-                    const snapIn = await getDocs(q);
-                    snapIn.forEach(d => tracks.push({ id: d.id, ...d.data() }));
-                }
+                // Busca por IDs (limitado a 30 por performance)
+                const ids = playlist.track_ids.slice(0, 30);
+                const q = query(collection(db, "musicas"), where("__name__", "in", ids));
+                const snapIn = await getDocs(q);
+                snapIn.forEach(d => tracks.push({ id: d.id, ...d.data() }));
             }
         }
 
-        // 5. Ordenação e Renderização
+        // 6. Ordenação Final e Renderização
         if (!isAutomaticTop && !playlist.uidars) { 
             tracks.sort((a, b) => (a.trackNumber || 99) - (b.trackNumber || 99));
         }
 
-        renderTracksSpotifyStyle(tracks, playlist, isAutomaticTop);
+        // Chama sua função de renderizar a lista no HTML
+        if (typeof renderTracksSpotifyStyle === "function") {
+            renderTracksSpotifyStyle(tracks, playlist, isAutomaticTop);
+        }
 
     } catch (error) {
         console.error("Erro ao carregar playlist:", error);
-        if (playlistTitleDetail) playlistTitleDetail.textContent = "Erro ao Carregar";
     }
+}
+
+// Helper: Detecção de idioma
+function isPortuguese(title) {
+    if (!title) return false;
+    const temAcentuacao = /[áàâãéêíóôõúç]/i.test(title);
+    if (temAcentuacao) return true;
+    const palavrasBR = ["o", "a", "os", "as", "do", "da", "no", "na", "com", "para", "pra", "pro", "que", "você", "te", "meu", "amanhã", "encontro"];
+    const palavrasNoTitulo = title.toLowerCase().split(/\s+/);
+    return palavrasNoTitulo.some(p => palavrasBR.includes(p));
 }
 
 async function toggleLike(type, itemId, buttonElement) {
@@ -822,6 +794,8 @@ async function toggleLike(type, itemId, buttonElement) {
         showToast('Ocorreu um erro ao salvar sua curtida.', 'error');
     }
 }
+
+
 
 async function checkAndSetLikeState(type, itemId, buttonElement) {
     if (!currentUserUid || !itemId || !buttonElement) {
@@ -3200,8 +3174,8 @@ function createDefaultCard(item) {
     };
     return div;
 }
-// Substitua pelo ID da MÚSICA que você quer destacar
-const MUSICA_DESTAQUE_ID = "BxAZfEhOImIqolsC3HqJ"; 
+// Substitua pelo ID do ÁLBUM que você quer destacar
+const ALBUM_DESTAQUE_ID = "0h2tM4Trat1FyDehtbMX"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
@@ -3210,18 +3184,18 @@ async function loadBannerAlbum() {
     if (!banner || !coverImg) return;
 
     try {
-        // Busca na coleção de MÚSICAS usando o ID de destaque
-        const musicRef = doc(db, "musicas", MUSICA_DESTAQUE_ID);
-        const musicSnap = await getDoc(musicRef);
+        // 1. Busca na coleção de ALBUNS usando o ID de destaque
+        const albumRef = doc(db, "albuns", ALBUM_DESTAQUE_ID);
+        const albumSnap = await getDoc(albumRef);
 
-        if (musicSnap.exists()) {
-            const musicData = musicSnap.data();
+        if (albumSnap.exists()) {
+            const albumData = albumSnap.data();
             
-            // 1. Preenche os textos usando os campos de música (title e artistName)
-            document.getElementById('banner-title').textContent = musicData.title;
-            document.getElementById('banner-artist-name').textContent = musicData.artistName || "Artista";
+            // 2. Preenche os textos usando os campos de álbum (album e artist)
+            document.getElementById('banner-title').textContent = albumData.album;
+            document.getElementById('banner-artist-name').textContent = albumData.artist || "Artista";
 
-            // 2. Configura a imagem para extração de cor (CORS)
+            // 3. Configura a imagem e extração de cor
             coverImg.crossOrigin = "Anonymous";
             
             const extrairCor = () => {
@@ -3235,17 +3209,17 @@ async function loadBannerAlbum() {
                 }
             };
 
+            // Define a capa do álbum
+            coverImg.src = albumData.cover || "./assets/default-cover.png";
+
             if (coverImg.complete) {
                 extrairCor();
             } else {
                 coverImg.onload = extrairCor;
             }
 
-            // Define a capa da música
-            coverImg.src = musicData.cover || "./assets/default-cover.png";
-
-            // 3. Busca foto do artista (usando o UID do artista da música)
-            const artistId = musicData.artist || musicData.uidars;
+            // 4. Busca foto do artista (usando o uidars do álbum)
+            const artistId = albumData.uidars;
             if (artistId) {
                 const artistRef = doc(db, "usuarios", artistId);
                 const artistSnap = await getDoc(artistRef);
@@ -3255,16 +3229,13 @@ async function loadBannerAlbum() {
                 }
             }
 
-            // 4. Ação de Clique: Tocar a música agora
+            // 5. Ação de Clique: Navegar para a página do álbum
             banner.onclick = (e) => {
                 if (e.target.closest('.action-btn')) return;
                 
-                // Chama seu player global passando os dados da música
-                if (window.playTrackGlobal) {
-                    window.playTrackGlobal({
-                        id: MUSICA_DESTAQUE_ID,
-                        ...musicData
-                    });
+                // Usa sua função de navegação da SPA
+                if (typeof loadContent === 'function') {
+                    loadContent('album', ALBUM_DESTAQUE_ID);
                 }
             };
 
@@ -3272,47 +3243,70 @@ async function loadBannerAlbum() {
             banner.style.display = 'block';
         }
     } catch (error) {
-        console.error("Erro ao carregar banner de música:", error);
+        console.error("Erro ao carregar banner de álbum:", error);
     }
 }
 
 
 
-// ⭐ FUNÇÃO PARA CARREGAR ARTISTAS COM PRIORIDADE CLOUDINARY
 async function setupArtistsCarouselPriority() {
     const listContainer = document.getElementById('artists-list');
     const loadingMessage = document.getElementById('artists-loading-message');
     if (!listContainer) return;
 
+    const GLOBAL_LEGENDS = [
+        "Beyoncé", "Taylor Swift", "Marina", "Anitta", "Ariana Grande", "Rihanna", 
+        "Madonna",  "Luan Santana"
+    ].map(name => name.toLowerCase().trim());
+
     try {
-        // Busca os usuários que são artistas (limite de 40 para ordenar)
-        const musicasRef = collection(db, "usuarios");
-        const q = query(musicasRef, where("artista", "==", "true"), limit(40));
-        const querySnapshot = await getDocs(q);
+        const usuariosRef = collection(db, "usuarios");
+        const q = query(usuariosRef, where("artista", "==", "true"), limit(100));
         
+        const querySnapshot = await getDocs(q);
         let artistas = [];
-        querySnapshot.forEach(doc => {
-            artistas.push({ id: doc.id, ...doc.data() });
+        
+        querySnapshot.forEach(docSnap => {
+            // ESSENCIAL: Garantir que o ID do documento esteja no objeto
+            artistas.push({ 
+                id: docSnap.id, 
+                uid: docSnap.id, // Alguns setups usam uid em vez de id
+                ...docSnap.data() 
+            });
         });
 
-        // ⭐ ORDENAÇÃO: Cloudinary primeiro, Firebase/Outros depois
+        // ⭐ ORDENAÇÃO
         artistas.sort((a, b) => {
+            const nomeA = (a.nomeArtistico || "").toLowerCase().trim();
+            const nomeB = (b.nomeArtistico || "").toLowerCase().trim();
+
+            const aIsLegend = GLOBAL_LEGENDS.includes(nomeA) ? 1 : 0;
+            const bIsLegend = GLOBAL_LEGENDS.includes(nomeB) ? 1 : 0;
+            if (bIsLegend !== aIsLegend) return bIsLegend - aIsLegend;
+
+            const aIsVerified = a.verificado === "true" ? 1 : 0;
+            const bIsVerified = b.verificado === "true" ? 1 : 0;
+            if (bIsVerified !== aIsVerified) return bIsVerified - aIsVerified;
+
             const aIsCloudinary = (a.foto || "").includes("cloudinary.com") ? 1 : 0;
             const bIsCloudinary = (b.foto || "").includes("cloudinary.com") ? 1 : 0;
-            return bIsCloudinary - aIsCloudinary; // Retorna 1 (a vem primeiro) ou 0
+            return bIsCloudinary - aIsCloudinary;
         });
 
-        // Limpa o container e esconde o loading
         if (loadingMessage) loadingMessage.style.display = 'none';
         listContainer.innerHTML = '';
 
-        // Renderiza apenas os 20 primeiros após a ordenação
-        artistas.slice(0, 20).forEach(docData => {
+        // Filtra e Renderiza
+        const artistasFiltrados = artistas.filter(art => 
+            art.verificado === "true" || GLOBAL_LEGENDS.includes((art.nomeArtistico || "").toLowerCase().trim())
+        );
+
+        artistasFiltrados.slice(0, 20).forEach(docData => {
+            // Passamos docData.id explicitamente como segundo argumento
             const card = createArtistCard(docData, docData.id);
             listContainer.appendChild(card);
         });
 
-        // Ativa os botões de scroll (Certifique-se que essa função existe no seu código)
         if (typeof setupScrollButtons === 'function') {
             setupScrollButtons('artists-scroll-left', 'artists-scroll-right', 'artists-list');
         }

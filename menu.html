@@ -81,41 +81,66 @@
         }
 
         body {
-            font-family: 'cy-grotesk-grand';
-            background-color: #000000;
-            color: #ffffff;
-            display: flex;
-            height: 100vh;
-        }
+    font-family: 'cy-grotesk-grand', sans-serif;
+    background-color: #000000;
+    color: #ffffff;
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden; /* Importante para não ter scroll lateral no body */
+}
 
-        #latNav {
-            min-width: 100px;
-            background: #000000;
-            padding-top: 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
+#latNav {
+    width: 100px; /* Largura fixa */
+    min-width: 100px;
+    background: #000000;
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 1000;
+    flex-shrink: 0; /* Impede a sidebar de espremer */
+}
 
         #feed {
-            flex-grow: 1;
-            background: #000000;;     
-            overflow-y: auto;
-            padding-bottom: 90px;
-            /* Espaço para o player fixo no desktop */
-        }
+    flex-grow: 1; /* Ocupa todo o resto da tela sem invadir a sidebar */
+    background: #000000;
+    overflow-y: auto;
+    position: relative;
+    z-index: 10;
+    /* Isso garante que o conteúdo interno não "vaze" para a esquerda */
+    display: flex;
+    flex-direction: column;
+}
+
+#content-area {
+    display: block;
+    width: 100%;
+    /* No desktop, garante que o conteúdo novo nunca encoste na lateral esquerda */
+    padding-left: 0; 
+    transition: opacity 0.3s ease; /* Para um efeito suave na troca */
+}
+
+@media (min-width: 768px) {
+    #content-area {
+        padding-left: 100px; /* A largura exata da sua #latNav */
+    }
+}
 
         #nav-top {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            padding: 1rem 1.1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: #000000;
-        }
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding: 1rem 1.1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    /* Substitua o background-color sólido por este: */
+    background-color: rgba(0, 0, 0, 0); /* O '0.4' define a transparência do fundo */
+}
 
         .custom-scrollbar::-webkit-scrollbar {
             height: 8px;
@@ -213,7 +238,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link" data-page="/search">
+                    <a href="#" class="nav-link" data-page="search">
                         <svg role="img" viewBox="0 0 24 24">
                             <path fill="white"
                                 d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 101.414-1.414l-4.344-4.344a9.157 9.157 0 002.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z">

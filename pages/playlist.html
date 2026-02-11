@@ -1,280 +1,267 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Playlist Design Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+    
     <style>
-        @font-face {
-    font-family: 'Nationale Regular';
-    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
-         url('./fonts/Nationale-Regular.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-}
-@font-face {
-    font-family: 'Nationale Bold';
-    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
-         url('./fonts/Nationale-Bold.woff') format('woff');
-    font-weight: bold;
-    font-style: normal;
-}
-@font-face {
-    font-family: 'Nationale Black';
-    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
-         url('./fonts/Nationale-Black.woff') format('woff');
-    font-weight: bold;
-    font-style: normal;
+
+/* ============================= */
+/* 1. RESET GLOBAL SEGURO */
+/* ============================= */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
-       body {
-        font-family: 'Nationale Regular';
-    background-color: #030303;
+html, body {
     margin: 0;
-    /* Adicionamos um degradê fixo no topo do body para suavizar o encontro da cor com o preto */
-    background-image: linear-gradient(to bottom, transparent 0%, #030303 900px);
-    background-attachment: fixed;
+    padding: 0;
+    max-width: 100%;
 }
 
-        /* Fundo dinâmico que ocupa a página inteira */
-.bg-dynamic-gradient {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 200%;
-    height: 100vh; /* O gradiente fixo cria o efeito de profundidade ao scrollar */
-    z-index: -1;
-    background: #030303; /* Cor de fallback */
-    transition: background 0.8s ease; /* Transição suave ao mudar de playlist */
+/* ============================= */
+/* 2. VARIÁVEIS */
+/* ============================= */
+
+:root {
+    --bg-main: #030303;
+    --bg-deep: #000000;
+    --text-main: #ffffff;
+    --text-muted: rgba(255,255,255,0.6);
 }
+
+/* ============================= */
+/* 3. FONTES */
+/* ============================= */
+
+@font-face {
+    font-family: 'Nationale';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Nationale';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Nationale';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2');
+    font-weight: 900;
+    font-display: swap;
+}
+
+/* ============================= */
+/* 4. BASE */
+/* ============================= */
+
+body {
+    font-family: 'Nationale', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    overflow-x: hidden;
+}
+
+/* Impede imagens de estourarem layout */
+img {
+    max-width: 100%;
+    display: block;
+}
+
+/* ============================= */
+/* 5. BACKGROUND PLAYLIST */
+/* ============================= */
 
 #playlist-bg {
     position: fixed;
-    top: 0;
-
-    left: 0;
-    width: 100%; /* Corrigido de 200% para 100% */
-    height: 100vh;
-    z-index: -1; /* Fica logo atrás do conteúdo */
-    background-color: #030303; /* Cor base caso a imagem falhe */
-    transition: background 1s ease-in-out;
-}
-
-/* Indicadores de Tendência */
-.trend-indicator {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    margin-left: 4px;
-    font-weight: bold;
-}
-
-.trend-up {
-    color: #4ade80; /* Verde Neon */
-    filter: drop-shadow(0 0 5px rgba(74, 222, 128, 0.4));
-}
-
-.trend-down {
-    color: #f87171; /* Vermelho Neon */
-    filter: drop-shadow(0 0 5px rgba(248, 113, 113, 0.4));
-}
-
-.trend-new {
-    color: #60a5fa; /* Azul para músicas novas */
-    font-size: 10px;
-    text-transform: uppercase;
-}
-
-/* Esse pseudo-elemento cria a suavidade extra no topo */
-#playlist-bg::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, #030303 100%);
-}
-
-/* Opcional: Um overlay escuro para garantir leitura nas músicas */
-body::before {
-    content: "";
-    position: fixed;
-    top: 400px; /* Começa a escurecer após a área da capa */
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(to bottom, transparent, #030303 300px);
-    z-index: -1;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
     pointer-events: none;
 }
-.track-item {
-    display: grid;
-    /* Colunas fixas no mobile: ID(35px) | Capa(48px) | Texto(1fr) | Tempo(50px) */
-    grid-template-columns: 20px 48px 1fr 50px;
-    align-items: center;
-    gap: 12px;
 
-    height: 64px; /* Altura fixa impede o erro da imagem fdcfcc */
-    width: 100%;
-    border-radius: 8px;
-    box-sizing: border-box;
-    cursor: pointer;
-    transition: background 0.2s;
+#bg-image-blur {
+    position: absolute;
+    inset: -15%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(80px) brightness(0.4) saturate(1.5);
+    transition: background-image 1s ease;
 }
 
-/* Garante que o texto ocupe o meio sem empurrar as colunas fixas */
-.track-info-container {
-    min-width: 0; 
+.bg-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(3,3,3,0) 0%,
+        rgba(3,3,3,0.4) 30%,
+        rgba(3,3,3,0.8) 70%,
+        var(--bg-deep) 95%
+    );
+}
+
+/* ============================= */
+/* 6. LAYOUT PRINCIPAL */
+/* ============================= */
+
+.content-wrapper {
+    position: relative;
+    z-index: 5;
+    width: 100%;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    justify-content: center;
 }
 
-/* Força as reticências (...) sem quebrar a linha */
-.track-info-container span, 
-.track-info-container div {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+@media (min-width: 768px) {
+    .content-wrapper {
+        padding-left: 0;
+    }
 }
 
-.track-cover {
+/* ============================= */
+/* 7. HEADER */
+/* ============================= */
+
+.playlist-header-container {
+    width: 100%;
+    padding: 80px 40px 60px;
+}
+
+#playlist-title-detail {
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -1px;
+}
+
+/* ============================= */
+/* 8. TRACKS SECTION */
+/* ============================= */
+
+.tracks-section {
+    background-color: var(--bg-deep);
+    width: 100%;
+    padding: 20px 40px 150px;
+}
+
+#tracks-container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
+
+
+/* ============================= */
+/* 9. BOTÕES */
+/* ============================= */
+
+.btn-play {
+    background: white;
+    color: black;
+    height: 48px;
+    padding: 0 32px;
+    border-radius: 999px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-play:hover {
+    transform: scale(1.05);
+}
+
+.btn-circular {
     width: 48px;
     height: 48px;
-    border-radius: 4px;
-
-    flex-shrink: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s ease;
+    cursor: pointer;
 }
 
-
-.track-duration {
-    width: 50px;
-    text-align: right;
-    flex-shrink: 0;
+.btn-circular:hover {
+    background: rgba(255,255,255,0.2);
 }
 
-        .track-item:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
+/* ============================= */
+/* 10. SCROLLBAR */
+/* ============================= */
 
-        .track-item:active {
-            transform: scale(0.98);
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        /* Capa com Glow */
-        .playlist-glow {
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-            transition: transform 0.3s ease;
-        }
-
-        .playlist-glow:hover {
-            transform: scale(1.02);
-        }
-
-        /* Aplicando nos IDs específicos */
-#playlist-title-detail {
-    font-family: 'Nationale Black', sans-serif; /* Título bem pesado */
+::-webkit-scrollbar {
+    width: 6px;
 }
 
-#playlist-description-detail {
-    font-family: 'Nationale Regular', sans-serif; /* Descrição leve */
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
 }
 
-.track-name {
-    font-family: 'Nationale Bold', sans-serif; /* Nome da música em negrito */
-}
+</style>
 
-.artist-name {
-    font-family: 'Nationale Regular', sans-serif; /* Artista leve */
-}
-
-        /* Estilo dos botões */
-        .btn-main {
-            height: 48px;
-            padding: 0 32px;
-            border-radius: 24px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
-        }
-
-        .btn-play { background: white; color: black; }
-        .btn-play:hover { background: #e0e0e0; transform: scale(1.05); }
-
-        .btn-action { 
-            background: rgba(255,255,255,0.1); 
-            width: 48px; 
-            padding: 0; 
-            justify-content: center; 
-        }
-        .btn-action:hover { background: rgba(255,255,255,0.2); }
-
-        /* Scrollbar customizada */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
-    </style>
 </head>
 <body>
 
-    <div class="bg-dynamic-gradient" id="playlist-bg"></div>
-
-    <div class="max-w-6xl mx-auto px-4 py-10 md:py-16">
-        <div class="flex flex-col md:flex-row gap-8 md:gap-0">
-            
-            <div class="md:w-1/3 lg:w-[400px] flex flex-col items-center md:items-start md:sticky md:top-10 h-fit">
-                <div class="relative group mb-8">
-                    <img id="playlist-cover-detail" 
-                         src="https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png" 
-                         class="w-64 h-64 md:w-full md:h-full rounded-2xl object-cover playlist-glow" />
-                </div>
-                
-                <div class="text-center md:text-left">
-                    <h1 id="playlist-title-detail" class="text-3xl md:text-5xl font-black mb-3 tracking-tight">
-                        
-                    </h1>
-                    <p id="playlist-description-detail" class="text-gray-400 text-sm md:text-base leading-relaxed mb-8 opacity-80">
-                        
-                    </p>
-
-                    <div class="flex items-center justify-center md:justify-start gap-4">
-                        <button class="btn-main btn-play shadow-lg">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>
-                            Play
-                        </button>
-                        <button class="btn-main btn-action">
-                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex-grow">
-                <div id="tracks-container" class="space-y-1">
-                    
-                    
-                    </div>
-            </div>
-        </div>
+    <div id="playlist-bg">
+        <div id="bg-image-blur"></div>
+        <div class="bg-overlay"></div>
     </div>
 
-    <script>
-        // Pequeno script para simular a mudança de cor de fundo baseada na imagem
-        // No seu código real, você já tem o ColorThief, então mantenha-o!
-        window.addEventListener('load', () => {
-            const container = document.getElementById('playlist-bg');
-            // Aqui você aplicaria a cor do ColorThief
-            // container.style.background = `linear-gradient(to bottom, ${rgbColor} 0%, #030303 100%)`;
-        });
-    </script>
-    <script type="module" src="/js/main.js"></script>
-<script type="module" src="/js/iflog.js"></script>
-<script type="module" src="/js/player.js"></script>
+    <div class="content-wrapper"> 
+        
+        <header class="playlist-header-container">
+            <div class="flex flex-col md:flex-row items-center md:items-end gap-8">
+                <div class="flex-shrink-0">
+                    <img id="playlist-cover-detail" src="https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png" 
+                         class="w-64 h-64 md:w-80 md:h-80 rounded-lg shadow-2xl object-cover" />
+                </div>
+                
+                <div class="flex flex-col items-center md:items-start text-center md:text-left">
+
+                    <h1 id="playlist-title-detail" class="text-4xl md:text-7xl mb-4 font-black text-white"></h1>
+                    <p id="playlist-description-detail" class="text-white/60 mb-6 max-w-2xl text-sm md:text-base"></p>
+
+                    <div class="flex items-center gap-4">
+                        <button class="btn-play">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>
+                            REPRODUZIR
+                        </button>
+                        
+                        <button class="btn-circular">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        </button>
+
+                        <button class="btn-circular">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="tracks-section">
+            <div id="tracks-container">
+                </div>
+        </section>
+
+    </div> <script type="module" src="/js/main.js"></script>
+    <script type="module" src="/js/player.js"></script>
+
 </body>
+</html>
