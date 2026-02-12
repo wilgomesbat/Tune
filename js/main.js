@@ -1086,7 +1086,7 @@ async function checkAndResetMonthlyStreams(musicId) {
         // ... (resto do seu código de updateDoc igual)
         
         const minBoost = 10000;
-    const maxBoost = 30000;
+    const maxBoost = 300000;
     const streamBoost = Math.floor(Math.random() * (maxBoost - minBoost + 1)) + minBoost;
 
     await updateDoc(musicRef, {
@@ -3175,7 +3175,7 @@ function createDefaultCard(item) {
     return div;
 }
 // Substitua pelo ID do ÁLBUM que você quer destacar
-const ALBUM_DESTAQUE_ID = "0h2tM4Trat1FyDehtbMX"; 
+const ALBUM_DESTAQUE_ID = "DeKH2AQIjeFFkkwE4rlZ"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
