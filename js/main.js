@@ -3175,7 +3175,7 @@ function createDefaultCard(item) {
     return div;
 }
 // Substitua pelo ID do ÁLBUM que você quer destacar
-const ALBUM_DESTAQUE_ID = "DeKH2AQIjeFFkkwE4rlZ"; 
+const ALBUM_DESTAQUE_ID = "kqznj7OWRwTtMxWn50s7"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
