@@ -45,7 +45,7 @@ window.addEventListener('popstate', (e) => {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { getFirestore, Timestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
 // Configuração do Firebase para a sua aplicação web (APENAS ESTA SEÇÃO)
@@ -150,43 +150,51 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUserUid = user.uid;
 
-        // --- LÓGICA DO CARD DE ARTISTA (VERSÃO BOOLEAN) ---
         try {
+            // 1. Busca os dados no Firestore primeiro
             const userDocRef = doc(db, "usuarios", user.uid);
             const userSnap = await getDoc(userDocRef);
             
             if (userSnap.exists()) {
                 const userData = userSnap.data();
+
+                // 2. VERIFICAÇÃO DE BANIMENTO (Agora userData já existe aqui)
+                if (userData.banido === "true" || userData.banido === true) {
+                    console.error("Usuário banido detectado.");
+                    await signOut(auth); 
+                    window.location.href = "ban.html"; 
+                    return; // Para a execução aqui
+                }
+
+                // 3. LÓGICA DO CARD DE ARTISTA
                 console.log("Status artista no banco:", userData.artista);
 
-                // Verificação para boolean puro
-                if (userData.artista === true) {
-                    
-                    // Espera o elemento carregar no DOM (importante para SPAs/loadContent)
+                // Aceita tanto string "true" quanto boolean true
+                if (userData.artista === "true" || userData.artista === true) {
                     const checkExist = setInterval(() => {
                         const artistCard = document.querySelector('.artist-promo-container');
                         if (artistCard) {
                             artistCard.style.setProperty('display', 'block', 'important');
                             console.log("✅ Card de artista exibido com sucesso.");
-                            clearInterval(checkExist); // Para de procurar quando encontrar
+                            clearInterval(checkExist);
                         }
-                    }, 500); // Tenta a cada 0.5 segundos
+                    }, 500);
 
-                    // Limite de segurança: para de procurar após 5 segundos para não pesar o site
                     setTimeout(() => clearInterval(checkExist), 5000);
                 }
             }
         } catch (error) {
-            console.error("Erro ao verificar artista:", error);
+            console.error("Erro ao verificar dados do usuário:", error);
         }
 
-        // Carrega o perfil
+        // 4. Carrega o perfil e mostra o conteúdo
         if (typeof populateUserProfile === "function") {
             populateUserProfile(user);
         }
         hideLoadingAndShowContent();
 
     } else {
+        // Se não houver usuário, volta para a index
         window.location.href = "/index";
     }
 });

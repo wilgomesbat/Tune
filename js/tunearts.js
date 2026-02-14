@@ -81,7 +81,7 @@ let currentUser = null;
 window.currentArtistUid = null;
 
 // ================================
-// 2. ESTADO DE AUTENTICAÇÃO
+// 2. ESTADO DE AUTENTICAÇÃO E VERIFICAÇÃO DE PERFIL
 // ================================
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -89,11 +89,35 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
 
-    currentUser = user;
-    window.currentArtistUid = user.uid;
-    console.log("Artista conectado:", user.uid);
+    try {
+        const userDocRef = doc(db, "usuarios", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
 
-    initializePageNavigation();
+        if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+
+            if (userData.artista !== "false") {
+                console.warn("Acesso negado: Usuário não é artista.");
+                window.location.href = "index.html"; 
+                return;
+            }
+
+            currentUser = user;
+            window.currentArtistUid = user.uid;
+            console.log("Artista verificado e conectado:", user.uid);
+
+            // Verifica se a função existe antes de chamar para evitar novo erro
+            if (typeof initializePageNavigation === "function") {
+                initializePageNavigation();
+            }
+            
+        } else {
+            window.location.href = "index.html";
+        }
+    } catch (error) {
+        console.error("Erro ao verificar permissões:", error);
+        window.location.href = "index.html";
+    }
 });
 
 window.showDeleteConfirm = function(id, titulo, colecao) {

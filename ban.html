@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Suspenso - TUNE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="./assets/favicon.png">
+    <link rel="stylesheet" href="rodape.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @font-face {
+            font-family: 'Nationale Regular';
+            src: url('./fonts/Nationale-Regular.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Nationale Bold';
+            src: url('./fonts/Nationale-Bold.woff2') format('woff2');
+            font-weight: bold;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Nationale Black';
+            src: url('./fonts/Nationale-Black.woff2') format('woff2');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Nationale Regular';
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #ban-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 100000;
+            background: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .maintenance-card {
+            text-align: center;
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .site-logo {
+            display: block;
+            margin: 0 auto 30px;
+            width: 180px;
+            height: auto;
+        }
+
+        .m-title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            font-family: 'Nationale Black';
+            margin-bottom: 15px;
+            color: #f44336; /* Vermelho para indicar suspensão */
+        }
+
+        .m-text {
+            color: #888888;
+            line-height: 1.6;
+            margin: 13px;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+            padding: 10px 20px;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border: 1px solid rgba(244, 67, 54, 0.2);
+            margin-bottom: 40px;
+        }
+
+        
+        .tune-logo {
+            width: 20px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ban-screen">
+        <div class="maintenance-card">
+            <img src="assets/tunelogoh.png" alt="Tune Logo" class="site-logo">
+            
+            <div class="status-badge">
+                <div class="dot-red"></div>
+                Acesso Suspenso
+            </div>
+
+            <h1 class="m-title">CONTA BANIDA</h1>
+            <p class="m-text">Sua conta foi permanentemente suspensa por violar nossos Termos de Uso. 
+            Esta decisão é irreversível e o acesso a esta plataforma foi bloqueado.</p>
+            
+            <footer>
+                <div class="social-media-icons">
+                    <a href="https://x.com/tunedks" aria-label="X (Twitter)">
+                        <i class="fab fa-x-twitter"></i>
+                    </a>
+                    <a href="https://www.instagram.com/tunedks/" aria-label="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                </div>
+
+                <nav class="footer-links">
+                    <ul>
+                        <li><a href="termos.html">Política de Privacidade</a></li>
+                        <li><a href="termos.html">Termos e Condições</a></li>
+                    </ul>
+                </nav>
+
+                <div class="copyright">
+                    <img src="assets/logotunenew.png" alt="Logo TUNE" class="tune-logo">
+                    © 2026
+                </div>
+            </footer>
+        </div>
+    </div>
+
+</body>
+</html>

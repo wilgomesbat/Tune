@@ -54,25 +54,14 @@ function showToast(message, type = "error") {
 
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    const nome = nomeInput.value.trim();
-    const user = userInputField.value.trim();
-    const email = emailInput.value.trim();
-    const senha = senhaInput.value;
+const nome = nomeInput.value.trim();
+const user = nome; // Usando o nome como apelido, já que não tem campo "username"
+const email = emailInput.value.trim();
+const senha = senhaInput.value;
 
     // Validações básicas
     if (!nome || !user || !email || !senha) {
         showToast("Preencha todos os campos.");
-        return;
-    }
-
-    if (!isUsernameAvailable) {
-        showToast("Nome de usuário não disponível.");
-        return;
-    }
-
-    if (!profileFile) {
-        showToast("Adicione uma foto de perfil.");
         return;
     }
     
@@ -80,35 +69,26 @@ registerForm.addEventListener('submit', async (e) => {
     submitBtn.innerText = "Criando...";
 
     try {
-        // 1. Upload da foto para o CLOUDINARY
-        // Usando a função que você forneceu
-        let photoURL;
-        try {
-            photoURL = await uploadImageToCloudinary(profileFile);
-        } catch (uploadError) {
-            throw new Error(`Falha no upload da imagem: ${uploadError.message}`);
-        }
-
-        // 2. Criar usuário no Firebase Auth
+        // 1. Criar usuário no Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
         const userUid = userCredential.user.uid;
 
-        // 3. Salvar nome de usuário (para checagem de disponibilidade)
+        // 2. Salvar nome de usuário para evitar duplicatas
         await setDoc(doc(db, "nomes", user.toLowerCase()), {
             uid: userUid,
             criadoEm: new Date().toISOString()
         });
         
-        // 4. Salvar dados do usuário na coleção 'usuarios'
+        // 3. Organizar os dados (Removido o que não existe no formulário)
         const dadosUsuario = {
-            email,
+            email: email,
             apelido: user,
             nomeArtistico: nome,
             artista: "true", 
             admin: "false",
             verificado: "false",
             niveladmin: 0,
-            aprovado: "false", // Importante para o redirecionamento
+            aprovado: "true",
             seguidores: 0,
             banido: "false",
             instagram: "",
@@ -116,16 +96,17 @@ registerForm.addEventListener('submit', async (e) => {
             youtube: "",
             streams: 0,
             status: "ativo",
-            foto: photoURL, // URL vinda do Cloudinary
+            foto: "", // Como não tem upload, deixamos vazio para não dar erro
             criadoEm: new Date().toLocaleString('pt-BR'),
             uid: userUid
         };
 
+        // 4. Salvar no Firestore
         await setDoc(doc(db, "usuarios", userUid), dadosUsuario);
 
         showToast("Conta criada com sucesso!", "success");
 
-        // 5. Lógica de Redirecionamento baseada no status 'aprovado'
+        // 5. Redirecionamento
         setTimeout(() => {
             if (dadosUsuario.aprovado === "false") {
                 window.location.href = "welcome.html";
