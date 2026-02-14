@@ -1642,9 +1642,7 @@ if (!singlesSnap.empty && singlesContainer) {
 
         if (!isLocked) {
             card.onclick = () => {
-                // Chama sua função global de play e a proteção de stream
-                window.playTrackGlobal?.(track);
-                checkAndResetMonthlyStreams(track.id); 
+navigateTo('music', track.id);
             };
         }
         singlesContainer.appendChild(card);
