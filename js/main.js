@@ -1530,149 +1530,128 @@ async function setupArtistPage(artistId) {
             isContextLoading = false;
             return;
         }
-       
         
         const artistData = docSnap.data();
         const artistName = artistData.nomeArtistico || "Nome Desconhecido";
-        const now = new Date(); // Referência de tempo atual
+        const now = new Date(); 
         
         // Lógica de Banimento
         if (artistData.banido === "true") {
             if (banIndicator) banIndicator.style.display = 'flex'; 
-            artistNameElement.textContent = `${artistName} (Banido)`;
+            if (artistNameElement) artistNameElement.textContent = `${artistName} (Banido)`;
             if (artistCoverBg) artistCoverBg.style.backgroundImage = `url('${bannedImageURL}')`;
             isContextLoading = false;
             return; 
         }
 
-        // --- CAPA E EXTRAÇÃO DE COR DOMINANTE ---
+        // --- CAPA E COR DOMINANTE ---
         if (artistData.foto && artistCoverBg) {
             artistCoverBg.style.backgroundImage = `url('${artistData.foto}')`;
-            
-            // Agora chamando o nome correto da função
             const color = await getAverageColor(artistData.foto);
             document.documentElement.style.setProperty('--artist-dominant-color', color);
         }
 
-const verificadoStatus = String(artistData.verificado || "").toLowerCase().trim();
+        const verificadoStatus = String(artistData.verificado || "").toLowerCase().trim();
         const isVerified = verificadoStatus === "true";
 
-        // --- 3. RENDERIZAÇÃO DO NOME E BADGES ---
+        // --- RENDERIZAÇÃO DO NOME ---
         if (artistNameElement) {
             artistNameElement.innerHTML = `<span>${artistName}</span>` + 
-                (isVerified ? 
-                    `<img src="/assets/verificado.png" style="width: 35px; margin-left: 5px; display: inline-block; vertical-align: middle;" alt="Verificado">` : '') +
-                (artistData.gravadora?.toLowerCase() === 'shark' ? 
-                    `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
+                (isVerified ? `<img src="/assets/verificado.png" style="width: 35px; margin-left: 5px; display: inline-block; vertical-align: middle;">` : '') +
+                (artistData.gravadora?.toLowerCase() === 'shark' ? `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
         }
 
-        // --- 4. OUVINTES ---
+        // --- OUVINTES ---
         const totalStreams = await calculateTotalStreams(artistId); 
         if (artistListeners) artistListeners.textContent = `${formatNumber(totalStreams)} streams`; 
 
+        // --- BUSCA DE SINGLES ---
         const musicasRef = collection(db, "musicas");
-        // -----------------------------------------------------------
-        // 7. RENDERIZAR SINGLES (COM BLOQUEIO VISUAL)
-        // -----------------------------------------------------------
-        const qSingles = query(
-    collection(db, "musicas"), 
-    where("artist", "==", artistId), 
-    where("single", "==", "true")
-);
+        const qSingles = query(musicasRef, where("artist", "==", artistId), where("single", "==", "true"));
+        const singlesSnap = await getDocs(qSingles);
 
-const singlesSnap = await getDocs(qSingles);
+        if (!singlesSnap.empty && singlesContainer) {
+            if (singlesSection) singlesSection.classList.remove('hidden');
+            
+            let singlesList = [];
+            singlesSnap.forEach(d => {
+                singlesList.push({ id: d.id, ...d.data() });
+            });
 
-if (!singlesSnap.empty && singlesContainer) {
-    singlesSection.classList.remove('hidden');
-    
-    // 1. Converter para Array para podermos ordenar
-    let singlesList = [];
-    singlesSnap.forEach(d => {
-        singlesList.push({ id: d.id, ...d.data() });
-    });
+            singlesList.sort((a, b) => {
+                const dateA = a.date ? new Date(a.date) : new Date(0);
+                const dateB = b.date ? new Date(b.date) : new Date(0);
+                return dateB - dateA;
+            });
 
-    // 2. ORDENAÇÃO POR DATA (AAAA-MM-DD)
-    singlesList.sort((a, b) => {
-        // Se usar 'date' (2020-12-11), o JS ordena perfeitamente
-        const dateA = a.date ? new Date(a.date) : new Date(0);
-        const dateB = b.date ? new Date(b.date) : new Date(0);
-        return dateB - dateA; // Mais recente primeiro
-    });
+            singlesList.forEach(track => {
+                const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" ? new Date(track.scheduledTime) : null;
+                const isLocked = scheduledDate && scheduledDate > now;
+                const displayYear = track.date ? track.date.split('-')[0] : 'Single';
 
-    // 3. RENDERIZAÇÃO
-    singlesContainer.innerHTML = ""; // Limpa antes de injetar
-    
-    singlesList.forEach(track => {
-        const now = new Date();
-        const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
-                            ? new Date(track.scheduledTime) : null;
-        
-        // Verifica se está bloqueado pelo agendamento
-        const isLocked = scheduledDate && scheduledDate > now;
+                const card = document.createElement('div');
+                card.className = `scroll-item flex flex-col transition-all duration-300 ${isLocked ? 'opacity-40 pointer-events-none' : 'cursor-pointer group'}`;
 
-        const card = document.createElement('div');
-        card.className = `scroll-item flex flex-col transition-all duration-300 ${isLocked ? 'opacity-40 pointer-events-none' : 'cursor-pointer group'}`;
-
-        // Pega o ano da data (2020-12-11 -> 2020)
-        const displayYear = track.date ? track.date.split('-')[0] : 'Single';
-
-        card.innerHTML = `
-            <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg">
-                <img src="${track.cover || './assets/default-cover.png'}" 
-                     class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
-                ${isLocked ? `
-                    <div class="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <i class='bx bxs-lock-alt text-white text-3xl opacity-70'></i>
+                card.innerHTML = `
+                    <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg">
+                        <img src="${track.cover || './assets/default-cover.png'}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                        ${isLocked ? `
+                            <div class="absolute inset-0 flex items-center justify-center bg-black/40"><i class='bx bxs-lock-alt text-white text-3xl opacity-70'></i></div>
+                        ` : `
+                            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <div class="w-12 h-12 bg-[#ace000] rounded-full flex items-center justify-center shadow-2xl translate-y-2 group-hover:translate-y-0 transition-all">
+                                    <i class='bx bx-play text-black text-3xl ml-1'></i>
+                                </div>
+                            </div>
+                        `}
                     </div>
-                ` : `
-                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div class="w-12 h-12 bg-[#1ed760] rounded-full flex items-center justify-center shadow-2xl translate-y-2 group-hover:translate-y-0 transition-all">
-                            <i class='bx bx-play text-black text-3xl ml-1'></i>
-                        </div>
+                    <div class="mt-3">
+                        <h3 class="text-white font-bold text-sm truncate uppercase">${track.title || "Sem título"}</h3>
+                        <p class="text-gray-400 text-xs mt-1">${isLocked ? scheduledDate.toLocaleDateString() : displayYear}</p>
                     </div>
-                `}
-            </div>
-            <div class="mt-3">
-                <h3 class="text-white font-bold text-sm truncate uppercase">${track.title}</h3>
-                <p class="text-gray-400 text-xs mt-1">
-                    ${isLocked ? scheduledDate.toLocaleDateString() : displayYear}
-                </p>
-            </div>
-        `;
+                `;
 
-        if (!isLocked) {
-            card.onclick = () => {
-navigateTo('music', track.id);
+if (!isLocked) {
+            card.onclick = (e) => {
+                if (e.target.closest('.action-btn')) return;
+
+                // 1. Proteção
+                if (typeof window.checkAndResetMonthlyStreams === 'function') {
+                    window.checkAndResetMonthlyStreams(track); 
+                }
+
+                // 2. Tocar (Isso vai abrir o vídeo se o loadTrack estiver atualizado)
+                if (typeof loadTrack === 'function') {
+                    loadTrack(track); 
+                }
+
+                
+
+                // 3. Navegar
+                if (typeof navigateTo === 'function') {
+                    navigateTo('music', track.id);
+                }
             };
         }
-        singlesContainer.appendChild(card);
-    });
-        }
 
-        // -----------------------------------------------------------
-        // 8. RENDERIZAR POPULARES (FILTRANDO AGENDADOS)
-        // -----------------------------------------------------------
+        singlesContainer.appendChild(card);
+    }); // <--- FIM DO singlesList.forEach
+} // <--- FIM DO if (!singlesSnap.empty)
+
+        // --- RENDERIZAR POPULARES ---
         const qPopulares = query(musicasRef, where("artist", "==", artistId), orderBy("streams", "desc"), limit(10));
         const popularesSnap = await getDocs(qPopulares);
-        
         const validTopTracks = [];
 
         popularesSnap.forEach(d => {
             const trackData = d.data();
-            const scheduledDate = trackData.scheduledTime && trackData.scheduledTime !== "Imediato" 
-                                  ? new Date(trackData.scheduledTime) : null;
-
-            // FILTRO: Só adiciona à lista de Populares se já tiver sido lançada
+            const scheduledDate = trackData.scheduledTime && trackData.scheduledTime !== "Imediato" ? new Date(trackData.scheduledTime) : null;
             if (!scheduledDate || scheduledDate <= now) {
-                if (validTopTracks.length < 5) {
-                    validTopTracks.push({ id: d.id, ...trackData, artistName });
-                }
+                if (validTopTracks.length < 5) validTopTracks.push({ id: d.id, ...trackData, artistName });
             }
         });
         
-        if (topTracksContainer) {
-            renderTop5Tracks(validTopTracks, "top-tracks-container"); 
-        }
+        if (topTracksContainer) renderTop5Tracks(validTopTracks, "top-tracks-container"); 
 
         // 9. Outros carregamentos
         if (typeof loadArtistAlbums === 'function') await loadArtistAlbums(artistId);
@@ -2442,20 +2421,26 @@ async function setupMusicPage(musicId) {
         const snap = await getDoc(docRef);
 
         if (snap.exists()) {
-            const data = snap.data();
+            // Unificamos o ID com os dados para evitar 'undefined' na proteção de streams
+            const data = { id: snap.id, ...snap.data() }; 
             
-            // 1. Preenchimento do Header do Site
-            document.getElementById('album-title-detail').textContent = data.title;
-            document.getElementById('artist-name-detail').textContent = data.artistName || "Artista";
-            
-            // Adicionando crossorigin para o canvas poder ler a imagem do Firebase
+            // 1. Preenchimento da Interface Principal
+            const albumTitle = document.getElementById('album-title-detail');
+            const artistNameDetail = document.getElementById('artist-name-detail');
             const detailCover = document.getElementById('album-cover-detail');
-            detailCover.src = data.cover;
-            detailCover.setAttribute('crossorigin', 'anonymous');
-            
-            document.getElementById('album-cover-bg').style.backgroundImage = `url(${data.cover})`;
-            
+            const coverBg = document.getElementById('album-cover-bg');
             const streamsEl = document.getElementById('music-streams-count');
+
+            if (albumTitle) albumTitle.textContent = data.title || "Sem título";
+            if (artistNameDetail) artistNameDetail.textContent = data.artistName || "Artista";
+            
+            if (detailCover) {
+                detailCover.src = data.cover;
+                detailCover.setAttribute('crossorigin', 'anonymous');
+            }
+            
+            if (coverBg) coverBg.style.backgroundImage = `url(${data.cover})`;
+            
             if (streamsEl) {
                 streamsEl.textContent = `${(data.streams || 0).toLocaleString()} streams`;
             }
@@ -2464,136 +2449,86 @@ async function setupMusicPage(musicId) {
                 document.getElementById('explicit-badge')?.classList.remove('hidden');
             }
 
-            // --- INÍCIO DA LÓGICA DE COMPARTILHAMENTO ESTILO SPOTIFY ---
+            // --- INÍCIO DA LÓGICA DE COMPARTILHAMENTO ---
             const shareBtn = document.getElementById('btn-share-instagram') || document.querySelector('.btn.share');
-            
             if (shareBtn) {
-               shareBtn.onclick = async () => {
-    // 1. Tentar copiar o link imediatamente para evitar erro de foco
-    try { await navigator.clipboard.writeText(window.location.href); } catch (e) {}
+                shareBtn.onclick = async () => {
+                    try { await navigator.clipboard.writeText(window.location.href); } catch (e) {}
 
-    const originalContent = shareBtn.innerHTML;
-    shareBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
-    
-    try {
-        // --- CORREÇÃO DO ERRO: Carregamento Blindado ---
-        let h2c = window.html2canvas;
+                    const originalContent = shareBtn.innerHTML;
+                    shareBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+                    
+                    try {
+                        let h2c = window.html2canvas;
+                        if (!h2c) {
+                            await new Promise((resolve, reject) => {
+                                const script = document.createElement('script');
+                                script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+                                script.onload = resolve;
+                                script.onerror = reject;
+                                document.head.appendChild(script);
+                            });
+                            h2c = window.html2canvas;
+                        }
 
-        if (!h2c) {
-            console.log("html2canvas não detectado, carregando dinamicamente...");
-            await new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-                script.onload = () => resolve();
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
-            h2c = window.html2canvas;
-        }
+                        const storyCover = document.getElementById('story-cover');
+                        const storyBg = document.getElementById('story-bg-blur');
+                        const nocacheCover = data.cover + (data.cover.includes('?') ? '&' : '?') + "t=" + Date.now();
+                        
+                        if (storyCover) {
+                            storyCover.crossOrigin = "anonymous";
+                            storyCover.src = nocacheCover;
+                        }
+                        document.getElementById('story-title').innerText = data.title;
+                        document.getElementById('story-artist').innerText = data.artistName || "Artista";
+                        if (storyBg) storyBg.style.backgroundImage = `url(${nocacheCover})`;
 
-        if (typeof h2c !== 'function') {
-            throw new Error("Não foi possível inicializar a biblioteca de imagem.");
-        }
+                        await new Promise((resolve) => {
+                            if (storyCover.complete) resolve();
+                            else { storyCover.onload = resolve; setTimeout(resolve, 1500); }
+                        });
 
-        // 2. Preparar o Card Invisível
-        const storyCover = document.getElementById('story-cover');
-        const storyBg = document.getElementById('story-bg-blur');
-        
-        // Anti-Cache para evitar que a imagem venha sem permissão de CORS
-        const nocacheCover = data.cover + (data.cover.includes('?') ? '&' : '?') + "t=" + new Date().getTime();
-        
-        storyCover.crossOrigin = "anonymous";
-        storyCover.src = nocacheCover;
-        document.getElementById('story-title').innerText = data.title;
-        document.getElementById('story-artist').innerText = data.artistName || "Artista";
-        storyBg.style.backgroundImage = `url(${nocacheCover})`;
+                        const card = document.getElementById('story-share-card');
+                        const canvas = await h2c(card, { useCORS: true, scale: 2, backgroundColor: "#030303" });
+                        const imgData = canvas.toDataURL("image/png");
 
-        // Esperar carregar
-        await new Promise((resolve) => {
-            if (storyCover.complete) resolve();
-            storyCover.onload = resolve;
-            setTimeout(resolve, 1200); // Segurança
-        });
+                        const modal = document.getElementById('share-preview-modal');
+                        const previewContainer = document.getElementById('preview-image-container');
+                        
+                        previewContainer.innerHTML = `<img src="${imgData}" class="w-full h-full object-contain">`;
+                        modal.classList.replace('hidden', 'flex');
 
-        // 3. Gerar o Canvas
-        const card = document.getElementById('story-share-card');
-        const canvas = await h2c(card, {
-            useCORS: true,
-            allowTaint: false,
-            scale: 2,
-            backgroundColor: "#030303"
-        });
+                        const closeModal = () => {
+                            modal.classList.replace('flex', 'hidden');
+                            previewContainer.innerHTML = '';
+                        };
 
-        const imgData = canvas.toDataURL("image/png");
+                        document.getElementById('close-share-preview').onclick = closeModal;
+                        modal.onclick = (e) => { if (e.target === modal) closeModal(); };
 
-        // 4. Mostrar Pré-visualização
-        const modal = document.getElementById('share-preview-modal');
-        const previewContainer = document.getElementById('preview-image-container');
-        
-        previewContainer.innerHTML = `<img src="${imgData}" class="w-full h-full object-contain">`;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-
-        // Função para fechar o modal
-const closeModal = () => {
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    // Limpa a imagem anterior para não dar "flash" da música antiga na próxima vez
-    document.getElementById('preview-image-container').innerHTML = '';
-};
-
-// 1. Fechar ao clicar no botão "X"
-const closeBtn = document.getElementById('close-share-preview');
-if (closeBtn) {
-    closeBtn.onclick = closeModal;
-}
-
-// 2. Fechar ao clicar fora do card (no fundo escuro)
-modal.onclick = (e) => {
-    if (e.target === modal) {
-        closeModal();
-    }
-};
-
-// 3. Fechar ao apertar a tecla ESC
-document.addEventListener('keydown', (e) => {
-    if (e.key === "Escape" && !modal.classList.contains('hidden')) {
-        closeModal();
-    }
-});
-
-        // Botão Confirmar Share
-        document.getElementById('confirm-share-btn').onclick = async () => {
-            canvas.toBlob(async (blob) => {
-                const file = new File([blob], 'tune-story.png', { type: 'image/png' });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({ files: [file], title: 'TUNE' });
-                } else {
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = `TUNE-${data.title}.png`;
-                    link.click();
-                }
-            }, 'image/png');
-        };
-
-        // Fechar Modal
-        document.getElementById('close-share-preview').onclick = () => {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
-
-    } catch (err) {
-        console.error("Erro no Share:", err);
-        alert("Erro ao preparar imagem. Tente novamente.");
-    } finally {
-        shareBtn.innerHTML = originalContent;
-    }
-};
+                        document.getElementById('confirm-share-btn').onclick = () => {
+                            canvas.toBlob(async (blob) => {
+                                const file = new File([blob], 'tune-story.png', { type: 'image/png' });
+                                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                    await navigator.share({ files: [file], title: 'TUNE' });
+                                } else {
+                                    const link = document.createElement('a');
+                                    link.href = URL.createObjectURL(blob);
+                                    link.download = `TUNE-${data.title}.png`;
+                                    link.click();
+                                }
+                            });
+                        };
+                    } catch (err) {
+                        console.error("Erro no Share:", err);
+                    } finally {
+                        shareBtn.innerHTML = originalContent;
+                    }
+                };
             }
             // --- FIM DA LÓGICA DE COMPARTILHAMENTO ---
 
-            // 2. Lógica de Bloqueio (Continuando seu código)
+            // 2. Lógica de Bloqueio/Agendamento
             const now = new Date();
             const scheduledDate = data.scheduledTime && data.scheduledTime !== "Imediato" 
                                   ? new Date(data.scheduledTime) : null;
@@ -2622,8 +2557,9 @@ document.addEventListener('keydown', (e) => {
 
                 if (!isLocked) {
                     tracksContainer.querySelector('.track-item').onclick = () => {
-                        checkAndResetMonthlyStreams(musicId);
-                        window.playTrackGlobal(data);
+                        if (window.checkAndResetMonthlyStreams) window.checkAndResetMonthlyStreams(data);
+                        if (window.playTrackGlobal) window.playTrackGlobal(data);
+                        else if (typeof loadTrack === 'function') loadTrack(data);
                     };
                 }
             }
@@ -2635,16 +2571,18 @@ document.addEventListener('keydown', (e) => {
                     mainPlayBtn.style.opacity = "0.3";
                     mainPlayBtn.style.cursor = "default";
                     mainPlayBtn.onclick = null;
-                    if (document.getElementById('countdown-wrapper')) {
-                        document.getElementById('countdown-wrapper').classList.remove('hidden');
-                        iniciarCronometroMusica(scheduledDate, musicId);
+                    const countdown = document.getElementById('countdown-wrapper');
+                    if (countdown) {
+                        countdown.classList.remove('hidden');
+                        if (typeof iniciarCronometroMusica === 'function') iniciarCronometroMusica(scheduledDate, musicId);
                     }
                 } else {
                     mainPlayBtn.style.opacity = "1";
                     mainPlayBtn.style.cursor = "pointer";
                     mainPlayBtn.onclick = () => {
-                        checkAndResetMonthlyStreams(musicId);
-                        window.playTrackGlobal(data);
+                        if (window.checkAndResetMonthlyStreams) window.checkAndResetMonthlyStreams(data);
+                        if (window.playTrackGlobal) window.playTrackGlobal(data);
+                        else if (typeof loadTrack === 'function') loadTrack(data);
                     };
                 }
             }

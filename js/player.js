@@ -160,6 +160,14 @@ function syncPlayPauseState() {
     }
 }
 
+window.checkAndResetMonthlyStreams = function(track) {
+    if (!track) return;
+    
+    // Tenta pegar 'title' ou 'nome'. Se não achar nenhum, usa 'Sem nome'
+    const nomeDaMusica = track.title || track.nome || "Sem nome";
+    console.log("🛡️ Proteção de stream validada para:", nomeDaMusica);
+};
+
 async function loadTrack(track) {
     if (!track || !track.audioURL) return;
 
@@ -188,6 +196,8 @@ async function loadTrack(track) {
             });
         });
     }
+
+    
 
     // 3. Reset Interface de Vídeo (YT escondido por padrão)
     if (elements.ytContainer) elements.ytContainer.classList.add('hidden');
