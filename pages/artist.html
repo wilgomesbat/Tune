@@ -134,10 +134,9 @@
   </style>
 </head>
 <body>
-
   <div id="artist" class="relative min-h-screen pb-24">
     
-    <div id="artist-header" class="relative h-[60vh] w-full overflow-hidden flex items-end">
+    <div id="artist-header" class="relative h-[40vh] md:h-[60vh] w-full overflow-hidden flex items-end">
       <div id="artist-cover-bg" class="absolute inset-0 bg-cover bg-center transition-opacity duration-700"></div>
       <div class="absolute inset-0 artist-header-overlay z-10"></div>
 
@@ -148,65 +147,44 @@
       </button>
 
       <div class="relative z-20 w-full px-8 pb-10">
-        <div id="verified-status-container" class="flex items-center gap-2 mb-2 text-blue-400 font-bold text-sm">
-            </div>
-
+        <div id="verified-status-container" class="flex items-center gap-2 mb-2 text-blue-400 font-bold text-sm"></div>
         <div id="ban-indicator" class="inline-flex items-center gap-2 mb-4 text-red-500 font-bold text-xs uppercase tracking-widest bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20 hidden">
             Conta Restrita
         </div>
 
-        <h1 id="artist-name" class="flex items-center gap-3 text-5xl md:text-7xl font-black mb-4 drop-shadow-2xl text-white">
-          <span id="name-text"></span>
-          
+        <h1 id="artist-name" class="flex items-center gap-3 text-4xl md:text-7xl font-black mb-4 drop-shadow-2xl text-white">
+          <span id="name-text">Carregando...</span>
           <img id="verified-icon" src="/assets/verificado.png" class="w-8 h-8 md:w-12 md:h-12 hidden" alt="Verificado">
-          
-          <span id="label-badge"></span>
         </h1>
-        
         <p id="artist-listeners" class="text-gray-200 text-base font-medium mb-6 drop-shadow-md"></p>
-
-        <div class="flex gap-4">
-          </div>
       </div>
     </div>
 
-    <div class="relative z-20 px-8 mt-8">
+    <div class="relative z-20 px-8 mt-4">
 
+      <div id="top-tracks-section" class="mb-8">
 
+        <div id="top-tracks-container" class="w-full flex flex-col gap-1">
+          </div>
+      </div>
 
-<div id="top-tracks-section" class="mb-12">
-    <h2 class="text-2xl font-bold mb-4"></h2>
-    <div id="top-tracks-container" class="w-full flex flex-col gap-1"></div>
-</div>
+      <div id="singles-section" class="mb-8 relative group">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">Singles e EPs</h2>
+          <span class="text-sm font-bold text-gray-400 hover:underline cursor-pointer">Mostrar tudo</span>
+        </div>
+        <div id="singles-container" class="scroll-container flex overflow-x-auto gap-4">
+          </div>
+      </div>
 
-<div id="singles-section" class="mb-12 hidden relative group">
-    <div class="flex justify-between items-center mb-4">
-        <h2 class="text-2xl font-bold">Singles e EPs</h2>
-        <span class="text-sm font-bold text-gray-400 hover:underline cursor-pointer">Mostrar tudo</span>
-    </div>
-    <div id="singles-container" class="scroll-container"></div>
-</div>
-
-<div id="singles-section" class="mb-12 hidden relative group">
-    <div class="flex justify-between items-center mb-4">
-        <h2 class="text-2xl font-bold">Singles e EPs</h2>
-    </div>
-    <div id="singles-container" class="scroll-container flex overflow-x-auto gap-4 scrollbar-hide"></div>
-</div>
-
-<div id="albums-section" class="mb-12 hidden relative group">
-    <h2 class="text-2xl font-bold mb-4">Álbuns</h2>
-    <div id="albums-container" class="scroll-container flex overflow-x-auto gap-4 scrollbar-hide"></div>
-</div>
-
-<div id="stations-section" class="mb-12 hidden relative group">
-    <h2 class="text-2xl font-bold mb-4">Álbuns</h2>
-    <div id="stations-container" class="scroll-container flex overflow-x-auto gap-4 scrollbar-hide"></div>
-</div>
+      <div id="albums-section" class="mb-8 relative group">
+        <h2 class="text-2xl font-bold mb-4">Álbuns</h2>
+        <div id="albums-container" class="scroll-container flex overflow-x-auto gap-4">
+          </div>
+      </div>
 
     </div>
   </div>
 
   <script type="module" src="/js/main.js"></script>
 </body>
-</html>

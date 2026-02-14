@@ -33,26 +33,23 @@ body {
     }
 @font-face {
     font-family: 'Nationale Regular';
-    /* Removido o '.' para buscar da raiz */
-    src: url('/fonts/Nationale-Regular.woff2') format('woff2'),
-         url('/fonts/Nationale-Regular.woff') format('woff');
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
     font-weight: normal;
     font-style: normal;
 }
-
 @font-face {
     font-family: 'Nationale Bold';
-    src: url('/fonts/Nationale-Bold.woff2') format('woff2'),
-         url('/fonts/Nationale-Bold.woff') format('woff');
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
     font-weight: bold;
     font-style: normal;
 }
-
 @font-face {
     font-family: 'Nationale Black';
-    src: url('/fonts/Nationale-Black.woff2') format('woff2'),
-         url('/fonts/Nationale-Black.woff') format('woff');
-    font-weight: 900; /* Black geralmente usa 900 para diferenciar do Bold */
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
     font-style: normal;
 }
 
@@ -287,102 +284,6 @@ ul.playlists li.serie-item a {
   color: #fff;
 }
 
-#principal #latNav {
-  max-width: 24px;
-  background-color: #0a0a0afb;;
-}
-
-#principal #latNav a {
-  text-decoration: none;
-  color: #fff;
-}
-
-#principal #latNav .nav .nav-item .nav-link {
-  color: #fff;
-  fill: #fff;
-  font-size: 0.9em;
-  font-weight: bold;
-  opacity: 0.8;
-  transition: opacity 0.3s ease;
-}
-
-#principal #latNav .nav .nav-item .nav-link svg {
-  margin-right: 13px;
-}
-
-#principal #latNav .nav .nav-item .nav-link.ativo,
-#principal #latNav .nav .nav-item .nav-link:hover {
-  opacity: 1;
-}
-
-#principal #latNav #underList button {
-  background-color: rgba(0, 0, 0, 0);
-  border: 0;
-  display: flex;
-  color: #fff;
-  opacity: 0.8;
-  transition: opacity 0.3s ease;
-  padding: 8px 24px;
-  width: 100%;
-  font-size: 0.9em;
-  font-weight: bold;
-}
-
-#principal #latNav #underList button .plus_bttn,
-#principal #latNav #underList button .heart_bttn {
-  width: 24px;
-  height: 24px;
-  margin-right: 16px;
-  border-radius: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#principal #latNav #underList button .plus_bttn {
-  background-color: #fff;
-}
-
-#principal #latNav #underList button .heart_bttn {
-  background: linear-gradient(125deg, #773de3 41%, #cffff1 100%);
-  fill: #fff;
-}
-
-#principal #latNav #underList button:hover {
-  opacity: 1;
-}
-
-#principal #latNav #playlistSidebar {
-  width: 100%;
-  overflow-y: auto;
-  box-shadow: inset 0 30px 15px rgba(10, 10, 10, 0.2);
-}
-
-#principal #latNav #playlistSidebar li {
-  width: 100%;
-  list-style-type: none;
-}
-
-#principal #latNav #playlistSidebar li a {
-  font-size: 0.9em;
-  font-weight: 500;
-}
-
-#principal #latNav #installApp {
-  fill: #fff;
-  font-size: 0.9em;
-  font-weight: 500;
-  opacity: 0.8;
-  transition: opacity 0.3s;
-}
-
-#principal #latNav #installApp svg {
-  margin-right: 15px;
-}
-
-#principal #latNav #installApp:hover {
-  opacity: 1;
-}
 
 #principal #feed {
   background: linear-gradient(
@@ -2702,3 +2603,36 @@ font-family: 'Nationale Black';
     transform: translateY(-2px);
 }
 
+.fan-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding-left: 10px;
+}
+
+.artist-circle-img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: #282828;
+}
+
+.fan-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.fan-text .sub-title {
+    font-size: 12px;
+    color: #b3b3b3;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+}
+
+.fan-text .section-title {
+    margin: 0; /* Remove a margem padrão para alinhar com o "Para fãs de" */
+    font-size: 28px;
+}

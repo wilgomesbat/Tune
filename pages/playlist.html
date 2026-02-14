@@ -73,6 +73,7 @@ body {
 
 /* Impede imagens de estourarem layout */
 img {
+    box-shadow: rgba(0, 0, 0, 0.56) 0px 22px 70px 4px;
     max-width: 100%;
     display: block;
 }
@@ -105,10 +106,24 @@ img {
     background: linear-gradient(
         to bottom,
         rgba(3,3,3,0) 0%,
-        rgba(3,3,3,0.4) 30%,
-        rgba(3,3,3,0.8) 70%,
+        rgba(3, 3, 3, 0.894) 30%,
+        rgb(3, 3, 3) 70%,
         var(--bg-deep) 95%
     );
+}
+
+#playlist-cover-detail {
+    /* A sombra que você pediu */
+box-shadow: rgb(0, 0, 0) 0px 20px 30px -10px;    /* Garante que a imagem mantenha proporção e bordas */
+    object-fit: cover;
+    border-radius: 8px; /* Opcional: arredondar levemente como no Spotify */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Efeito opcional: a sombra aumenta quando passa o mouse */
+#playlist-cover-detail:hover {
+    transform: scale(1.02);
+    box-shadow: rgba(0, 0, 0, 0.8) 0px 30px 90px 10px;
 }
 
 /* ============================= */
@@ -137,6 +152,9 @@ img {
 .playlist-header-container {
     width: 100%;
     padding: 80px 40px 60px;
+    box-sizing: border-box;
+    /* Garante que a sombra da imagem não seja cortada nas laterais */
+    overflow: visible !important; 
 }
 
 #playlist-title-detail {
@@ -152,7 +170,7 @@ img {
 .tracks-section {
     background-color: var(--bg-deep);
     width: 100%;
-    padding: 20px 40px 150px;
+    padding: 20px 20px 150px;
 }
 
 #tracks-container {
@@ -228,9 +246,10 @@ img {
         <header class="playlist-header-container">
             <div class="flex flex-col md:flex-row items-center md:items-end gap-8">
                 <div class="flex-shrink-0">
-                    <img id="playlist-cover-detail" src="https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png" 
-                         class="w-64 h-64 md:w-80 md:h-80 rounded-lg shadow-2xl object-cover" />
-                </div>
+    <img id="playlist-cover-detail" 
+         src="https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png" 
+         class="w-64 h-64 md:w-80 md:h-80 object-cover" />
+</div>
                 
                 <div class="flex flex-col items-center md:items-start text-center md:text-left">
 

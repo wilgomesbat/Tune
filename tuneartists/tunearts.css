@@ -771,4 +771,141 @@ ul.playlists li.serie-item a {
 
 @keyframes modalPop {
     to { transform: scale(1); opacity: 1; }
+} 
+
+/* Container Principal */
+.dashboard-container {
+    padding: 40px;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* Grid de Cards */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+/* Estilo Base dos Cards */
+.metric-card {
+    padding: 30px;
+    border-radius: 30px;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Card Verde */
+.metric-card.highlight {
+    background-color: #ace000;
+    color: #000;
+}
+
+/* Card Escuro */
+.metric-card.dark {
+    background-color: #121212;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Tipografia dos Números */
+.metric-card .value {
+    font-family: 'Nationale Black', sans-serif;
+    font-size: clamp(3rem, 10vw, 5rem);
+    line-height: 0.9;
+    letter-spacing: -3px;
+    margin: 10px 0;
+}
+
+.metric-label {
+    display: inline-flex;
+    align-items: center; /* Alinha o Lottie no meio do texto */
+    gap: 10px;
+}
+
+.metric-label dotlottie-wc {
+    width: 45px !important;
+    height: 45px !important;
+    transform: translateY(-2px); /* Ajuste fino para o "olho" humano */
+}
+
+.footer-text {
+    display: flex;
+    flex-direction: column;
+    font-weight: 900;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.footer-text small {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-top: 4px;
+}
+
+.metric-card .footer-label {
+    font-size: 1.5rem;
+    font-weight: 800;
+    font-family: 'Nationale Regular';
+
+}
+
+.metric-card .footer-label span {
+    font-size: 12px;
+    opacity: 0.5;
+    font-family: 'Nationale Regular';
+    display: block;
+}
+
+
+
+@keyframes pulse {
+    0% { transform: scale(0.95); opacity: 0.5; }
+    70% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(0.95); opacity: 0.5; }
+}
+
+/* Seção de Músicas (Branco) */
+.top-tracks-section {
+    background-color: #fff;
+    border-radius: 40px;
+    padding: 40px;
+    color: #000;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.section-header h2 {
+    font-family: 'Nationale Black', sans-serif;
+    font-size: 24px;
+ 
+}
+
+.view-all {
+  font-family: 'Nationale Regular';
+    font-weight: 800;
+
+    font-size: 12px;
+    border-bottom: 2px solid #000;
+    cursor: pointer;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .dashboard-container { padding: 20px; }
+    .metric-card .value { font-size: 4rem; }
 }

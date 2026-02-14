@@ -15,6 +15,30 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+
         /* Estilos para o Loading Overlay */
         #loading-overlay {
             position: fixed;
@@ -69,10 +93,6 @@
 
         /* IMPORTANTE: Adicionado o padding-bottom de 130px para mobile aqui, para evitar que o player e a nav-bar cubram o conteúdo no final da rolagem */
         @media (max-width: 768px) {
-            #feed {
-                padding-bottom: 130px;
-                /* 70px do player + 60px da nav-bar */
-            }
 
             #latNav {
                 display: none !important;
@@ -91,41 +111,162 @@
     overflow: hidden; /* Importante para não ter scroll lateral no body */
 }
 
+/* Container Principal da Sidebar */
+/* Container Sidebar */
 #latNav {
-    width: 100px; /* Largura fixa */
-    min-width: 100px;
-    background: #000000;
-    padding-top: 1rem;
+    width: 250px;
+    min-width: 250px;
+    height: 100vh;
+    background-color: #000000;
+    padding: 15px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 10px;
+    position: sticky;
+    top: 0;
+    left: 0;
+    font-family: 'Nationale Regular';
     z-index: 1000;
-    flex-shrink: 0; /* Impede a sidebar de espremer */
+    border-right: 1px solid #121212;
+    transition: width 0.3s ease, min-width 0.3s ease;
+    overflow: hidden;
 }
 
-        #feed {
-    flex-grow: 1; /* Ocupa todo o resto da tela sem invadir a sidebar */
-    background: #000000;
+/* Quando estiver fechada */
+#latNav.collapsed {
+    width: 80px;
+    min-width: 80px;
+}
+
+/* Header */
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    padding: 0 10px;
+}
+
+.logo-img { width: 30px; }
+
+
+
+/* ALINHAMENTO DO LINK (O QUE VOCÊ PRECISA) */
+.sidebar-content .nav-link {
+    display: flex !important;
+    flex-direction: row !important; /* Ícone e texto lado a lado */
+    align-items: center !important; /* Centraliza verticalmente */
+    padding: 12px 15px;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 10px;
+    margin-bottom: 4px;
+    transition: background 0.2s;
+    width: 100%;
+    opacity: 0.7;
+}
+
+/* Seus ícones originais (SVG e IMG) */
+.sidebar-content .nav-link svg, 
+.sidebar-content .nav-link img {
+    width: 24px !important;
+    height: 24px !important;
+    margin-right: 15px !important; /* Espaço entre ícone e texto */
+    flex-shrink: 0;
+}
+
+/* Texto ao lado */
+.sidebar-content .nav-link span {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap; /* Evita que o texto quebre */
+    transition: opacity 0.2s;
+}
+
+/* Hover e Ativo (Estilo Tidal) */
+.sidebar-content .nav-link:hover,
+.sidebar-content .nav-link.ativo {
+    background-color: #262626;
+    opacity: 1;
+}
+
+/* Lógica de Esconder */
+#latNav.collapsed .nav-link span {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#latNav.collapsed .logo-img {
+    display: none;
+}
+
+#latNav.collapsed .sidebar-header {
+    justify-content: center;
+}
+
+#latNav.collapsed .nav-link svg, 
+#latNav.collapsed .nav-link img {
+    margin-right: 0 !important;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Mantém logo na esquerda e botão na direita */
+    padding: 10px 14px 30px 14px;
+}
+
+.menu-toggle svg {
+    width: 20px !important;
+    height: 20px !important;
+    flex-shrink: 0; /* IMPEDE de esticar ou esmagar */
+    aspect-ratio: 1/1; /* Garante que seja sempre um quadrado */
+    display: block;
+}
+
+/* Garante que o container do botão também seja fixo */
+.menu-toggle {
+    width: 32px;
+    height: 32px;
+    min-width: 32px; /* Garante que o botão não mude de tamanho */
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.menu-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+/* Garante que o botão fique centralizado quando a barra fechar */
+#latNav.collapsed .sidebar-header {
+    justify-content: center;
+}
+
+/* Localize esta parte no seu código: */
+#feed {
+    flex-grow: 1;
+    background: #000000; /* Mude de #ff0000 para #000000 */
     overflow-y: auto;
     position: relative;
     z-index: 10;
-    /* Isso garante que o conteúdo interno não "vaze" para a esquerda */
     display: flex;
     flex-direction: column;
 }
 
 #content-area {
-    display: block;
     width: 100%;
-    /* No desktop, garante que o conteúdo novo nunca encoste na lateral esquerda */
-    padding-left: 0; 
-    transition: opacity 0.3s ease; /* Para um efeito suave na troca */
+    min-height: 100%; /* Adicione isso para garantir que ele preencha o feed */
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
 }
 
-@media (min-width: 768px) {
-    #content-area {
-        padding-left: 100px; /* A largura exata da sua #latNav */
+@media (max-width: 768px) {
+    #nav-top {
+        display: none !important;
     }
 }
 
@@ -161,53 +302,73 @@
             background: #a7a7a7;
         }
 
-        .sidebar-content {
-            background-color: #111111;
-            border-radius: 10px;
-            padding: 24px;
-            width: 60%;
-            margin-top: 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
 
-.sidebar-content ul {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
+/* Container do Card */
+.sidebar-promo-card {
+    background-color: #121212; /* Fundo levemente mais claro que a sidebar */
+    border-radius: 12px;
+    padding: 16px;
+    margin: 20px 12px;
+    position: relative;
+    border: 1px solid #1a1a1a;
+    transition: opacity 0.3s, transform 0.3s;
 }
 
+/* Botão de Fechar (X) */
+.close-card {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #808080;
+    font-size: 18px;
+    cursor: pointer;
+}
 
-        .sidebar-content>a.d-flex {
-            /* Certifique-se de que o coração 'a href="#"' também esteja centralizado se estiver fora da lista */
-            width: 100%;
-            justify-content: center;
-        }
+.close-card:hover { color: white; }
 
-        #liked-covers-container {
-            /* Garante que o contêiner de covers não empurre para o lado */
-            width: 90%;
-        }
+/* Título do Card */
+.sidebar-promo-card h3 {
+    color: #ffffff;
+    font-size: 14px;
+    font-family: 'Nationale Bold';
+    font-weight: 700;
+    margin-bottom: 8px;
+    padding-right: 15px; /* Espaço para o X */
+}
 
-        .sidebar-content .nav-link {
-            width: 22px;
-            height: 22px;
-            display: block;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-            background-color: transparent;
-            transition: background-color 0.3s ease;
-            padding: 0;
-        }
+/* Texto descritivo */
+.sidebar-promo-card p {
+    color: #a0a0a0;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 16px;
+}
 
-        .sidebar-content .nav-link svg {
-            width: 26px;
-            height: 26px;
-        }
+/* Botão "Comece já" / "Seguir agora" */
+.btn-promo {
+    display: block;
+    background-color: #282828; /* Cinza escuro como na imagem */
+    color: #ffffff !important; /* Força o texto branco */
+    text-align: center;
+    padding: 10px;
+    border-radius: 20px;
+    text-decoration: none !important; /* Tira o sublinhado azul */
+    font-size: 13px;
+    font-weight: 700;
+    transition: background 0.2s;
+    border: none;
+}
 
+.btn-promo:hover {
+    background-color: #333333;
+    color: #ffffff !important;
+}
+/* --- LÓGICA PARA QUANDO A SIDEBAR FECHAR --- */
+#latNav.collapsed .sidebar-promo-card {
+    display: none; /* Esconde o card totalmente quando a barra estiver pequena */
+}
         
     </style>
 </head>
@@ -222,43 +383,48 @@
         </div>
     </div>
 
-    <div id="latNav" class="d-flex flex-column align-items-center">
-        <a href="#" class="d-flex px-4">
-            <img src="./assets/logotunenew.png" alt="TUNE" width="40" height="40">
-        </a>
-        <div class="sidebar-content">
-            <ul class="flex-column">
-                <li class="nav-item">
-                    <a href="#" class="nav-link ativo" data-page="home">
-                        <svg role="img" viewBox="0 0 24 24">
-                            <path fill="white"
-                                d="M13.5 1.515a3 3 0 00-3 0L3 5.845a2 2 0 00-1 1.732V21a1 1 0 001 1h6a1 1 0 001-1v-6h4v6a1 1 0 001 1h6a1 1 0 001-1V7.577a2 2 0 00-1-1.732l-7.5-4.33z">
-                            </path>
-                        </svg>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link" data-page="search">
-                        <svg role="img" viewBox="0 0 24 24">
-                            <path fill="white"
-                                d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 101.414-1.414l-4.344-4.344a9.157 9.157 0 002.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z">
-                            </path>
-                        </svg>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link" data-page="library">
-                        <img src="assets/user-round (1).svg" alt="Fila" class="w-6 h-6">
-                    </a>
-                </li>
-                <li class="nav-item hidden" id="tuneteam-item">
-                    <a href="/tuneteam" class="nav-link" data-page="tuneteam">
-                        <img src="assets/teamlogotune.png" alt="Painel TuneTeam" class="w-6 h-6">
-                    </a>
-                </li>
-            </ul>
-        </div>
+   <div id="latNav">
+    <div class="sidebar-header">
+        <img src="./assets/logotunenew.png" alt="TUNE" class="logo-img">
+        
+        <button class="menu-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()">
+    <svg id="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"></polyline>
+    </svg>
+</button>
     </div>
+
+    <div class="sidebar-content">
+        <ul>
+            <li class="nav-item">
+                <a href="#" class="nav-link ativo" data-page="home">
+                    <svg role="img" viewBox="0 0 24 24"><path fill="white" d="M13.5 1.515a3 3 0 00-3 0L3 5.845a2 2 0 00-1 1.732V21a1 1 0 001 1h6a1 1 0 001-1v-6h4v6a1 1 0 001 1h6a1 1 0 001-1V7.577a2 2 0 00-1-1.732l-7.5-4.33z"></path></svg>
+                    <span>Música</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-page="search">
+                    <svg role="img" viewBox="0 0 24 24"><path fill="white" d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 101.414-1.414l-4.344-4.344a9.157 9.157 0 002.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z"></path></svg>
+                    <span>Explorar</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-page="library">
+                    <img src="assets/user-round (1).svg" alt="">
+                    <span>Coleção</span>
+                </a>
+            </li>
+
+            <div class="sidebar-promo-card" id="insta-card">
+    <button class="close-card" onclick="this.parentElement.style.display='none'"></button>
+    <h3>Siga o Tune</h3>
+    <p>Acompanhe as novidades, e muito mais pelo nosso Instagram.</p>
+    <a href="https://instagram.com/tunedks" target="_blank" class="btn-promo">Seguir agora</a>
+</div>
+            
+        </ul>
+    </div>
+</div>
 
 
     <div id="feed" class="custom-scrollbar">
@@ -314,31 +480,7 @@
         </nav>
         <main id="content-area" class="p-0"></main>
 
-   <div id="music-player">
-
-
-    <div class="player-main-content">
-        <div class="player-left">
-            <img id="mini-player-cover" src="assets/default-cover.png" alt="Capa" />
-            <div class="player-info">
-                <span id="player-title">Nenhuma música</span>
-                <span id="player-artist">Escolha algo para tocar</span>
-            </div>
-        </div>
-
-        
-    </div>
-
-    <div class="progress-bar-bottom">
-        <span id="current-time">0:00</span>
-        <div class="progress-bar">
-            <div id="progress-fill"></div>
-        </div>
-        <span id="total-time">0:00</span>
-    </div>
-    <audio id="player-audio" preload="auto"></audio>
-</div>
-
+  
 
    <svg style="display: none">
   <filter id="glass-distortion">
@@ -367,82 +509,140 @@
     </div>
 </div>
 
+
+
     <script>
- // Remova as constantes de sufixo, pois elas não serão mais necessárias
-// const FILLED_SUFFIX = '-filled.svg';
-// const OUTLINE_SUFFIX = '.svg';
-// const ASSETS_PATH = './assets/'; 
+// --- CONFIGURAÇÃO VISUAL ---
+const OUTLINE_OPACITY = '0.5';
+const FILLED_OPACITY = '1.0';
 
-// Defina as opacidades para os estados
-const OUTLINE_OPACITY = '0.5'; // Ícone 'Outline' com 50% de transparência
-const FILLED_OPACITY = '1.0';  // Ícone 'Filled' com 100% de opacidade
+// Função para atualizar visualmente os links da sidebar/mobile nav
+function updateActiveNavLink(pageName) {
+    const navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+        const isTarget = link.getAttribute('data-page').includes(pageName);
+        const img = link.querySelector('img');
+        
+        if (isTarget) {
+            link.classList.add('active');
+            if (img) img.style.opacity = FILLED_OPACITY;
+        } else {
+            link.classList.remove('active');
+            if (img) img.style.opacity = OUTLINE_OPACITY;
+        }
+    });
+}
 
-// Pega todos os links de navegação
-const navLinks = document.querySelectorAll('.nav-link');
+// --- ROTEAMENTO E NAVEGAÇÃO ---
 
 function handleNavigation(event) {
     event.preventDefault();
-    const clickedLink = event.currentTarget;
-
-    // 1. Pega o caminho da página (ex: "/pages/home")
-    let pagePath = clickedLink.getAttribute('data-page'); 
     
-    // 2. Limpa o caminho para pegar só o nome (ex: "home")
-    // Se o caminho for "/pages/home", queremos apenas "home"
-    let pageName = pagePath.replace('/pages/', '').replace('.html', '');
+    // Pega o elemento clicado (mesmo se clicar no ícone dentro do <a>)
+    const clickedLink = event.currentTarget;
+    const pageName = clickedLink.getAttribute('data-page'); 
 
-    if (clickedLink.classList.contains('active')) {
-        // Opcional: Recarregar a página se clicar no ícone ativo
-        // loadContent(pageName, null, false); 
-        return;
-    }
+    if (!pageName) return;
 
-    // Lógica da Library (Perfil)
-    if (pageName === "library") {
-        if (typeof populateUserProfile === "function" && auth.currentUser) {
-            populateUserProfile(auth.currentUser);
-        }
-    }
+    console.log(`Navigando para: ${pageName}`);
 
-    // --- A PARTE QUE FALTAVA: CARREGAR O CONTEÚDO ---
+    // 1. Carrega o conteúdo
+    // O id é null para cliques no menu, e true para salvar no histórico
     if (typeof loadContent === 'function') {
-        loadContent(pageName); 
+        loadContent(pageName, null, true); 
     }
 
-    // 3. ATUALIZAÇÃO VISUAL (OPACIDADE)
-    navLinks.forEach(link => {
-        link.classList.remove('active');
-        const img = link.querySelector('img');
-        if (img) img.style.opacity = OUTLINE_OPACITY;
-    });
-
-    clickedLink.classList.add('active');
-    const clickedImg = clickedLink.querySelector('img');
-    if (clickedImg) clickedImg.style.opacity = FILLED_OPACITY;
+    // 2. Atualização Visual
+    updateVisualState(clickedLink);
 }
 
-// Adiciona o Event Listener a cada link
-navLinks.forEach(link => {
-    // **Atenção:** Se você quiser que o primeiro ícone comece ativo/preenchido,
-    // adicione a classe 'active' e defina a opacidade inicial aqui.
-    const img = link.querySelector('img');
-    if (img && !link.classList.contains('active')) {
-        img.style.opacity = OUTLINE_OPACITY;
-    } else if (img && link.classList.contains('active')) {
-        img.style.opacity = FILLED_OPACITY;
-    }
+function updateVisualState(activeLink) {
+    const allLinks = document.querySelectorAll('.nav-link');
     
+    allLinks.forEach(link => {
+        link.classList.remove('active');
+        const img = link.querySelector('img');
+        if (img) img.style.opacity = '0.5'; // Estado inativo
+    });
+
+    activeLink.classList.add('active');
+    const activeImg = activeLink.querySelector('img');
+    if (activeImg) activeImg.style.opacity = '1.0'; // Estado ativo
+}
+
+// Inicialização
+document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', handleNavigation);
 });
 
-// Lógica para esconder o loading overlay... (mantida como estava)
+// Inicializa o roteamento ao carregar a página
+function initializeRouting() {
+    const pathname = window.location.pathname;
+    const urlParams = new URLSearchParams(window.location.search);
+
+    let page = 'home';
+    let id = null;
+
+    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "index.html");
+
+    if (pathParts.length > 0) {
+        page = pathParts[0]; 
+        id = pathParts[1] || null;
+    } else if (urlParams.has('page')) {
+        page = urlParams.get('page');
+        id = urlParams.get('id');
+    }
+
+    if (page.includes('.html')) page = page.replace('.html', '');
+    
+    loadContent(page, id, false); // false para não duplicar o histórico inicial
+    updateActiveNavLink(page);
+}
+
+// ESCUTA O BOTÃO VOLTAR/AVANÇAR
+window.addEventListener('popstate', (e) => {
+    if (e.state && e.state.page) {
+        console.log("⬅️ Voltando para:", e.state.page);
+        loadContent(e.state.page, e.state.id, false);
+        updateActiveNavLink(e.state.page);
+    } else {
+        initializeRouting();
+    }
+});
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    initializeRouting();
+    
+    const links = document.querySelectorAll('.nav-link');
+    links.forEach(link => link.addEventListener('click', handleNavigation));
+});
+
+// Overlay de Loading
 window.addEventListener('load', () => {
     const loadingOverlay = document.getElementById('loading-overlay');
-    loadingOverlay.classList.add('hidden');
-    setTimeout(() => {
-        loadingOverlay.style.display = 'none';
-    }, 500); 
+    if (loadingOverlay) {
+        loadingOverlay.classList.add('hidden');
+        setTimeout(() => loadingOverlay.style.display = 'none', 500);
+    }
 });
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('latNav');
+    const iconSvg = document.getElementById('toggle-icon');
+    
+    // Alterna a classe na sidebar
+    sidebar.classList.toggle('collapsed');
+
+    // Verifica se está fechada para mudar o desenho do ícone (SVG Path)
+    if (sidebar.classList.contains('collapsed')) {
+        // Ícone Chevron-Right (Seta para direita)
+        iconSvg.innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
+    } else {
+        // Ícone Chevron-Left (Seta para esquerda)
+        iconSvg.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline>';
+    }
+}
 
     </script>
 
@@ -458,7 +658,7 @@ window.addEventListener('load', () => {
 </div>
 
     <button id="fs-player-close-btn">
-        <img src="./assets/arrow_back_ios_new_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.svg" class="fs-player-close-btn svg">
+        <img src="./assets/x.svg" class="fs-player-close-btn svg">
     </button>
 
     <div class="fs-player-content">
@@ -501,13 +701,41 @@ window.addEventListener('load', () => {
     </div>
 </div>
 
+ <div id="music-player">
+
+
+    <div class="player-main-content">
+        <div class="player-left">
+            <img id="mini-player-cover" src="assets/default-cover.png" alt="Capa" />
+            <div class="player-info">
+                <span id="player-title">Nenhuma música</span>
+                <span id="player-artist">Escolha algo para tocar</span>
+            </div>
+        </div>
+
+        
+    </div>
+
+    <div class="progress-bar-bottom">
+        <span id="current-time">0:00</span>
+        <div class="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+        <span id="total-time">0:00</span>
+    </div>
+    <audio id="player-audio" preload="auto"></audio>
+</div>
 
 
 
-    <script type="module" src="/js/main.js"></script>
-<script src="https://www.youtube.com/iframe_api"></script>
+<script type="module" src="/js/main.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script type="module" src="./js/iflog.js"></script>
     <script type="module" src="./js/player.js"></script>
+
+    <div id="full-screen-player" class="hidden">
+        </div>
+</body>
 
 </body>
 

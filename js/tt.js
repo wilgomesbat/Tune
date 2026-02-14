@@ -486,6 +486,75 @@ export function setupEditPlaylistsPage() {
     console.log("✔ Setup para Gerenciamento de Playlists (editplaylist) concluído.");
 }
 
+async function refreshGlobalRanking() {
+    console.log("Botão clicado! Iniciando processo..."); // TESTE DE CLIQUE
+    
+    const btn = document.getElementById('btn-update-ranking');
+    const status = document.getElementById('ranking-status');
+    
+    if (!btn) {
+        console.error("Botão não encontrado no DOM!");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "⏳ Processando...";
+
+    try {
+        // 1. Busca músicas por streams
+        const q = query(collection(db, "musicas"), orderBy("streamsMensal", "desc"), limit(100));
+        const snap = await getDocs(q);
+        
+        if (snap.empty) {
+            console.warn("Nenhuma música encontrada para ranquear.");
+            return;
+        }
+
+        const batch = writeBatch(db);
+        let rank = 1;
+
+        snap.forEach((musicDoc) => {
+            batch.update(musicDoc.ref, { posicaoGlobal: Number(rank) });
+            rank++;
+        });
+
+        // 2. IDs das Playlists
+        const chartsToUpdate = ["vMFKkV505sBl2heeBedd", "qdLLORT2auk5K5PRTnu3"]; 
+        chartsToUpdate.forEach(id => {
+            batch.update(doc(db, "playlists", id), { 
+                lastUpdateChart: serverTimestamp(),
+                refreshTrigger: Math.random() 
+            });
+        });
+
+        await batch.commit();
+        console.log("Batch commitado com sucesso!");
+        
+        if (status) {
+            status.style.color = "#1DB954";
+            status.textContent = "✅ Sucesso! Ranking atualizado.";
+        }
+        alert("Ranking Atualizado!");
+
+    } catch (error) {
+        console.error("ERRO NO FIREBASE:", error);
+        alert("Erro: " + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "🔄 Atualizar Ranking Top 100";
+    }
+}
+
+// ESTA PARTE É O QUE FAZ O BOTÃO FUNCIONAR:
+document.addEventListener('DOMContentLoaded', () => {
+    const btnRank = document.getElementById('btn-update-ranking');
+    if (btnRank) {
+        console.log("Ouvinte de clique adicionado ao botão.");
+        btnRank.addEventListener('click', refreshGlobalRanking);
+    } else {
+        console.error("Não foi possível encontrar o botão para adicionar o evento.");
+    }
+});
 // ====================================================
 // ⭐ LISTA SEPARADA: MÚSICAS EM ALTA POR STREAMS ⭐
 // ====================================================

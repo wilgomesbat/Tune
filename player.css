@@ -1,26 +1,23 @@
 /* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
 @font-face {
     font-family: 'Nationale Regular';
-    /* Removido o '.' para buscar da raiz */
-    src: url('/fonts/Nationale-Regular.woff2') format('woff2'),
-         url('/fonts/Nationale-Regular.woff') format('woff');
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
     font-weight: normal;
     font-style: normal;
 }
-
 @font-face {
     font-family: 'Nationale Bold';
-    src: url('/fonts/Nationale-Bold.woff2') format('woff2'),
-         url('/fonts/Nationale-Bold.woff') format('woff');
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
     font-weight: bold;
     font-style: normal;
 }
-
 @font-face {
     font-family: 'Nationale Black';
-    src: url('/fonts/Nationale-Black.woff2') format('woff2'),
-         url('/fonts/Nationale-Black.woff') format('woff');
-    font-weight: 900; /* Black geralmente usa 900 para diferenciar do Bold */
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
     font-style: normal;
 }
 
@@ -28,17 +25,18 @@
 
 #music-player {
     font-family: 'Nationale Regular';
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 90px;
+   position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    /* Valor astronômico para passar a sidebar */
+    z-index: 9999999 !important;
      display: flex;
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
     padding: 0 16px;
-    z-index: 1000;
+    z-index: 2147483647 !important;
     color: white;
     
     /* O JS vai controlar a background-color agora */
@@ -59,14 +57,13 @@
     z-index: 5;
 }
 
-/* Ajuste Mobile para manter o efeito glass flutuante */
 @media (max-width: 768px) {
     #music-player {
-        width: calc(100% - 30px);
-        margin: 0 15px;
-        bottom: 85px; /* Sobe um pouco para não colar na nav-bar */
-        border-radius: 16px; /* Bordas mais arredondadas combinam melhor com glass */
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        bottom: 100px !important; /* Valor maior para ficar acima da barra de navegação */
+        width: calc(100% - 30px) !important;
+        margin: 0 15px !important;
+
+        position: fixed !important;
     }
 }
 
@@ -82,12 +79,14 @@ body.fs-active #full-screen-player {
     opacity: 1; 
     /* ⭐️ POSIÇÃO FINAL: 0 significa no topo da tela */
     transform: translateY(0); 
+
 }
 
 /* Mini Player */
 body.fs-active #music-player {
     opacity: 0; 
     transform: translateY(100%); 
+
 }
 
 /* Container para a primeira linha (Capa, Controles, Volume) */
@@ -96,6 +95,7 @@ body.fs-active #music-player {
     justify-content: space-between;
     align-items: center;
     width: 100%;
+    z-index: 9999999 !important;
     height: 70px; /* Espaço para o conteúdo principal */
 }
 
@@ -322,10 +322,10 @@ body.fs-active #music-player {
 @media (max-width: 768px) {
     #music-player {
         /* Ocupa a largura total com margens laterais de 15px */
-        width: calc(100% - 30px);
-        margin: 0 15px;
-        bottom: 80px;
-        z-index: 1025;
+       bottom: 100px !important; /* Valor maior para ficar acima da barra de navegação */
+        width: calc(100% - 30px) !important;
+        margin: 0 15px !important;
+        z-index: 2147483647 !important;
         border-radius: 8px;
         position: fixed;
         transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
@@ -476,6 +476,26 @@ body.fs-active #music-player {
    PLAYER TELA CHEIA (FULL SCREEN) - CSS COMPLETO
    ============================================================ */
 
+@keyframes rotating {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Camada da Aurora (Fundo Dinâmico) */
+#fs-aurora-bg {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%; /* Aumentado para cobrir a tela durante a rotação */
+    height: 200%;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    filter: blur(80px) brightness(0.6); /* Desfoque intenso para o efeito aurora */
+    animation: rotating 60s linear infinite; /* Rotação lenta e suave */
+    transition: background 1.5s ease-in-out;
+}
+
 #full-screen-player {
     font-family: 'Nationale Regular', sans-serif;
     position: fixed;
@@ -483,22 +503,28 @@ body.fs-active #music-player {
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 2000;
+    z-index: 9999999 !important;
     background-color: #000000;
     color: white;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    padding: 60px 4px 40px 4px;
+
     box-sizing: border-box;
-    
+    justify-content: center; /* Mude de space-between para center */
+    padding: 20px 4px 40px 4px; /* Reduza o topo de 60px para 20px */
+    gap: 20px; /* Adiciona um espaço fixo entre os elementos */
     /* Transição suave de entrada (Slide Up) */
     transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.5s ease;
     transform: translateY(100%); 
     opacity: 0;
     pointer-events: none;
     overflow: hidden;
+}
+
+
+body.fs-active {
+    overflow: hidden; /* Impede que a página de baixo (playlist) role */
 }
 
 /* Container que envolve o ícone do YouTube */
@@ -565,7 +591,7 @@ body.fs-active #full-screen-player {
 }
 
 #fs-player-overlay {
-    position: absolute;
+    position: absolute !important;
     top: 0;
     left: 0;
     width: 100%;
@@ -578,7 +604,7 @@ body.fs-active #full-screen-player {
 #fs-player-close-btn {
     position: absolute;
     top: 20px;
-    left: 20px;
+    right: 20px; /* Alterado de left para right */
     z-index: 2100;
     background: rgba(0, 0, 0, 0.354);
     border: none;
@@ -602,7 +628,6 @@ body.fs-active #full-screen-player {
     height: 10px;
     fill: rgb(221, 221, 221);
 }
-
 /* --- CONTAINER DA CAPA --- */
 .fs-player-cover-container {
     flex: 1;
@@ -625,7 +650,7 @@ body.fs-active #full-screen-player {
 /* --- INFORMAÇÕES E CONTROLES (CENTRALIZADOS NO MOBILE) --- */
 .fs-player-content {
     position: relative;
-    z-index: 10;
+    z-index: 2147483647 !important;
     width: 100%;
     max-width: 450px;
     display: flex;
@@ -859,3 +884,10 @@ body.fs-active #full-screen-player {
 }
 
 .hidden { display: none !important; }
+
+/* Adicione isso ao final do arquivo para forçar a sobreposição total */
+body.fs-active #full-screen-player {
+    left: 0 !important;
+    width: 100vw !important;
+    z-index: 1000000 !important;
+}

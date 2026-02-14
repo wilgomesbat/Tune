@@ -15,17 +15,25 @@ const firebaseConfig = {
     appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
 };
 
-// Inicializa o Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app); // Adicionei auth
-const LOGIN_URL = "index.html"; // Adicionado para a lógica de logout
+const auth = getAuth(app);
+const LOGIN_URL = "index.html";
 
-// --- ELEMENTOS GLOBAIS ESSENCIAIS ---
+// --- ESTADO GLOBAL E PROTEÇÃO ---
 const audio = new Audio();
 audio.preload = "auto";
 let currentTrack = null; 
-let listenersAttached = false; // Controle para ligar listeners uma única vez
+let listenersAttached = false;
+let streamTimer = null; 
+const TIME_TO_STREAM = 20000; // 20 segundos para validar
+
+if (!window.streamGuard) {
+    window.streamGuard = {
+        lastGlobalStreamTime: 0,
+        userStreamHistory: new Map()
+    };
+}
 
 // --- Elementos do DOM (Adicionados da sua lógica de perfil) ---
 const userProfileContainer = document.getElementById('user_profile_sidebar');
@@ -44,27 +52,21 @@ const defaultSections = document.getElementById('defaultSections'); // Adicionad
 const searchResultsDropdown = document.getElementById('searchResultsDropdown'); // Adicionado
 
 
-// --- FUNÇÃO PARA OBTER TODOS OS ELEMENTOS DO PLAYER ---
 function getPlayerElements() {
     return {
-        // Elementos Comuns e Fixo
         musicPlayer: document.getElementById("music-player"),
         coverImg: document.getElementById("fs-player-cover"),
         playBtn: document.getElementById("playpause-btn"),
         playIcon: document.getElementById("play-icon"),
         pauseIcon: document.getElementById("pause-icon"),
-        miniPlayerCover: document.getElementById('mini-player-cover'), // Novo ID do player pequeno
-        // NOVO: Container de informações para verificação de largura
+        miniPlayerCover: document.getElementById('mini-player-cover'),
         playerInfoContainer: document.querySelector('.player-info'), 
         playerTitle: document.getElementById("player-title"),
         playerArtist: document.getElementById("player-artist"),
-        
         currentTimeEl: document.getElementById("current-time"),
         totalTimeEl: document.getElementById("total-time"),
         progressFill: document.getElementById("progress-fill"),
         volumeSlider: document.getElementById("volume-slider"),
-        
-        // Elementos Tela Cheia
         fullScreenPlayer: document.getElementById('full-screen-player'),
         fsCloseButton: document.getElementById('fs-player-close-btn'),
         fsPlayerCover: document.getElementById("fs-player-cover"),
@@ -77,12 +79,8 @@ function getPlayerElements() {
         fsTotalTimeEl: document.getElementById("fs-total-time"),
         fsProgressFill: document.getElementById("fs-player-bar-fill"),
         fsVolumeSlider: document.getElementById("fs-volume-slider"),
-        fsOverlay: document.getElementById('fs-player-overlay'),
-
         ytContainer: document.getElementById("youtube-embed-container"),
-        ytIframe: document.getElementById("youtube-iframe"),
-        ytBtn: document.getElementById("btn-show-video")
-
+        ytIframe: document.getElementById("youtube-iframe")
     };
 }
 
@@ -163,28 +161,24 @@ function syncPlayPauseState() {
 }
 
 async function loadTrack(track) {
-    if (!track || !track.audioURL) {
-        console.error("Dados da faixa inválidos:", track);
-        return;
-    }
+    if (!track || !track.audioURL) return;
 
+    // 1. Limpeza de streams e timers anteriores
+    clearTimeout(streamTimer);
+    streamTimer = null; 
+    
+    currentTrack = track; 
+    audio.src = track.audioURL;
     const elements = getPlayerElements();
     const coverUrl = track.cover || "assets/10.png";
 
-    // --- 1. VISIBILIDADE DOS PLAYERS ---
-    // Remove o hidden do player pequeno
-    if (elements.musicPlayer) {
-        elements.musicPlayer.classList.remove('hidden');
-    }
-
-    // Abre o Full Screen automaticamente
+    // 2. Visibilidade e Animação de Entrada
+    if (elements.musicPlayer) elements.musicPlayer.classList.remove('hidden');
+    
     if (elements.fullScreenPlayer) {
         elements.fullScreenPlayer.classList.remove('hidden');
-        // Delay para garantir que o navegador processe a remoção do display:none antes da animação
         requestAnimationFrame(() => {
             document.body.classList.add('fs-active');
-            
-            // Animação de subida (Slide Up)
             elements.fullScreenPlayer.animate([
                 { transform: 'translateY(100%)', opacity: 0 },
                 { transform: 'translateY(0)', opacity: 1 }
@@ -195,20 +189,15 @@ async function loadTrack(track) {
         });
     }
 
-    // 2. Reset de interface (Vídeo vs Capa)
+    // 3. Reset Interface de Vídeo (YT escondido por padrão)
     if (elements.ytContainer) elements.ytContainer.classList.add('hidden');
     if (elements.fsPlayerCover) elements.fsPlayerCover.classList.remove('hidden');
     if (elements.ytIframe) elements.ytIframe.src = "";
 
-    // 3. Configuração do Áudio
-    currentTrack = track;
-    audio.src = track.audioURL;
-
-    // 4. Atualização das Imagens e Cores
+    // 4. Cores Dinâmicas (ColorThief) e Fundo
     if (elements.miniPlayerCover) {
         elements.miniPlayerCover.src = coverUrl;
         elements.miniPlayerCover.crossOrigin = "Anonymous";
-        
         elements.miniPlayerCover.onload = function() {
             try {
                 const colorThief = new ColorThief();
@@ -216,34 +205,26 @@ async function loadTrack(track) {
                 const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
                 
                 if (elements.musicPlayer) {
-                    elements.musicPlayer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3))`;
                     elements.musicPlayer.style.backgroundColor = rgb;
+                    elements.musicPlayer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3))`;
                 }
-
-                if (elements.fullScreenPlayer) {
-                    elements.fullScreenPlayer.style.background = `linear-gradient(180deg, ${rgb} 0%, #000000 100%)`;
-                }
-            } catch (e) {
-                console.warn("Erro ao extrair cor:", e);
-            }
+                
+                // Atualiza o background da tela cheia (Aurora ou Canvas)
+                updateFullScreenBackground(track);
+                
+            } catch (e) { console.warn("Erro nas cores:", e); }
         };
     }
-    
-    if (elements.fsPlayerCover) {
-        elements.fsPlayerCover.src = coverUrl;
-    }
+    if (elements.fsPlayerCover) elements.fsPlayerCover.src = coverUrl;
 
-    // 5. Atualização de Textos (Firebase)
+    // 5. Dados do Artista e Título
     let artistName = "Artista";
     let artistUid = track.artist || track.uidars;
-
     if (artistUid) {
         try {
             const artistSnap = await getDoc(doc(db, "usuarios", artistUid));
-            if (artistSnap.exists()) {
-                artistName = artistSnap.data().nomeArtistico || "Artista";
-            }
-        } catch (err) { console.error("Erro ao buscar artista:", err); }
+            if (artistSnap.exists()) artistName = artistSnap.data().nomeArtistico || "Artista";
+        } catch (err) { console.error(err); }
     }
 
     if (elements.playerTitle) elements.playerTitle.textContent = track.title || "Sem título";
@@ -253,15 +234,34 @@ async function loadTrack(track) {
 
     // 6. Finalização
     setTimeout(updateScrollAnimation, 100);
-    audio.play().catch(err => console.warn("Autoplay bloqueado"));
+    audio.play().catch(() => console.log("Aguardando interação."));
     syncPlayPauseState();
     localStorage.setItem("currentTrack", JSON.stringify(track));
 }
 
+async function validarStreamOficial(track) {
+    if (!track || !track.id) return;
+    if (!window.streamGuard) window.streamGuard = { lastGlobalStreamTime: 0 };
 
-// --- HANDLERS E UTilitários ---
-// ... (funções formatTime, handleTimeUpdate, handleVolumeChange, handleProgressClick, setupPlayerListeners, updateFullScreenBackground, checkCurrentTrack e o listener 'storage' permanecem INALTERADOS) ...
+    const now = Date.now();
+    if (now - window.streamGuard.lastGlobalStreamTime < 5000) return;
+    window.streamGuard.lastGlobalStreamTime = now;
 
+    try {
+        const valorAleatorio = Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000;
+        const musicaRef = doc(db, "musicas", track.id);
+        
+        await updateDoc(musicaRef, {
+            streams: increment(valorAleatorio),
+            streamsMensal: increment(valorAleatorio),
+            lastMonthlyStreamDate: new Date()
+        });
+
+        console.log(`🚀 ✅ Stream validado (20s YT): ${track.title} | +${valorAleatorio.toLocaleString()} streams`);
+    } catch (err) {
+        console.error("Erro Firebase:", err);
+    }
+}
 
 function setupPlayerListeners() {
     if (listenersAttached) return; 
@@ -269,156 +269,101 @@ function setupPlayerListeners() {
     
     const elements = getPlayerElements();
     const { 
-        playBtn, 
-        fsPlayPauseBtn, 
-        volumeSlider, 
-        fsVolumeSlider, 
-        musicPlayer, 
-        fsCloseButton,
-        ytContainer,
-        ytIframe,
-        fsPlayerCover 
+        playBtn, fsPlayPauseBtn, volumeSlider, fsVolumeSlider, 
+        musicPlayer, fsCloseButton, ytContainer, ytIframe, fsPlayerCover 
     } = elements;
 
-    // --- FUNÇÕES AUXILIARES ---
-
-    // Reseta a interface do Full Screen: Esconde o vídeo e volta a mostrar a capa
-    const backToCover = () => {
-        if (ytContainer && !ytContainer.classList.contains('hidden')) {
-            ytContainer.classList.add('hidden');
-            if (fsPlayerCover) fsPlayerCover.classList.remove('hidden');
-            if (ytIframe) ytIframe.src = ""; // Para o vídeo e limpa o iframe
-        }
-    };
-
-    // Alterna o estado do Áudio (Play/Pause)
-    const togglePlayPause = () => {
-        if (!audio.src || audio.src === window.location.href) return;
-        
-        if (audio.paused) {
-            audio.play().catch(err => console.warn("Erro ao dar play:", err));
-        } else {
-            audio.pause();
-        }
-    };
-
-    // --- 1. LÓGICA DO BOTÃO CENTRAL (YOUTUBE) NO FULL SCREEN ---
+    // --- 1. BOTÃO DO YOUTUBE (Gera Stream após 20s) ---
     if (fsPlayPauseBtn) {
         fsPlayPauseBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation(); // Evita que o clique feche o player acidentalmente
+            e.preventDefault(); e.stopPropagation();
+            if (!currentTrack || !currentTrack.id) return;
 
-            const stored = localStorage.getItem("currentTrack");
-            if (!stored) return;
-            const track = JSON.parse(stored);
+            let videoId = "";
+            const url = currentTrack.audioURL;
+            if (url.includes("v=")) videoId = url.split("v=")[1].split("&")[0];
+            else if (url.includes("youtu.be/")) videoId = url.split("youtu.be/")[1].split("?")[0];
 
-            if (track.audioURL) {
-                let videoId = "";
-                const url = track.audioURL;
-
-                // Extração robusta do ID do YouTube
-                if (url.includes("v=")) {
-                    videoId = url.split("v=")[1].split("&")[0];
-                } else if (url.includes("youtu.be/")) {
-                    videoId = url.split("youtu.be/")[1].split("?")[0];
-                } else {
-                    videoId = url.split("/").pop();
-                }
-
-                // Troca visual: Capa sai, Vídeo entra
-                if (fsPlayerCover) fsPlayerCover.classList.add('hidden');
-                if (ytContainer) ytContainer.classList.remove('hidden');
+            if (fsPlayerCover) fsPlayerCover.classList.add('hidden');
+            if (ytContainer) ytContainer.classList.remove('hidden');
+            
+            if (ytIframe && videoId) {
+                ytIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&origin=${window.location.origin}`;
+                console.log("📺 Modo YouTube iniciado. Aguardando 20s para stream...");
                 
-                // Carrega o vídeo e pausa a música de fundo
-                if (ytIframe) {
-                    ytIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&origin=${window.location.origin}`;
-                }
-                audio.pause(); 
+                clearTimeout(streamTimer); 
+                streamTimer = setTimeout(() => {
+                    validarStreamOficial(currentTrack);
+                }, TIME_TO_STREAM);
             }
+            audio.pause(); 
         });
     }
 
-    // --- 2. LÓGICA DE PLAY/PAUSE DO PLAYER PEQUENO ---
+    // --- 2. PLAY/PAUSE NATIVO ---
     if (playBtn) {
         playBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            togglePlayPause();
+            if (audio.paused) audio.play(); else audio.pause();
         });
     }
 
-    // --- 3. CONTROLE DE VOLUME ---
-    const handleVolumeInput = (e) => {
-        const val = e.target.value;
-        audio.volume = val;
-        // Sincroniza visualmente ambos os sliders
-        if (volumeSlider) volumeSlider.value = val;
-        if (fsVolumeSlider) fsVolumeSlider.value = val;
-    };
-
-    if (volumeSlider) volumeSlider.addEventListener("input", handleVolumeInput);
-    if (fsVolumeSlider) fsVolumeSlider.addEventListener("input", handleVolumeInput);
-    
-    // --- 4. EVENTOS NATIVOS DO OBJETO AUDIO ---
-    audio.addEventListener("play", syncPlayPauseState);
+    // --- 3. EVENTOS DE ÁUDIO ---
+    audio.addEventListener("play", () => {
+        syncPlayPauseState();
+        console.log("🎵 Áudio nativo tocando (Sem stream).");
+    });
     audio.addEventListener("pause", syncPlayPauseState);
     audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("volumechange", handleVolumeChange);
-    audio.addEventListener("ended", () => {
-        console.log("Música finalizada.");
-        // Aqui você pode chamar uma função de nextTrack() futuramente
-    });
-    
-    // --- 5. BARRAS DE PROGRESSO (CLIQUE PARA AVANÇAR/VOLTAR) ---
-    const progressBar = document.querySelector(".progress-bar"); 
-    const fsProgressBar = document.getElementById("fs-player-bar-container"); 
-    
-    if (progressBar) {
-        progressBar.addEventListener("click", (e) => {
-            handleProgressClick(e, progressBar, elements.progressFill);
-        });
-    }
+    audio.addEventListener("ended", () => clearTimeout(streamTimer));
 
-    if (fsProgressBar) {
-        fsProgressBar.addEventListener("click", (e) => {
-            handleProgressClick(e, fsProgressBar, elements.fsProgressFill);
-        });
-    }
+    // --- 4. CONTROLE DE VOLUME ---
+    const handleVol = (e) => {
+        audio.volume = e.target.value;
+        if (volumeSlider) volumeSlider.value = e.target.value;
+        if (fsVolumeSlider) fsVolumeSlider.value = e.target.value;
+    };
+    if (volumeSlider) volumeSlider.addEventListener("input", handleVol);
+    if (fsVolumeSlider) fsVolumeSlider.addEventListener("input", handleVol);
 
-if (musicPlayer && elements.fullScreenPlayer) {
-        
-        // --- ABRIR PLAYER ---
+    // --- 5. PROGRESSO E CLIQUE NA BARRA ---
+    const pBar = document.querySelector(".progress-bar");
+    const fsPBar = document.getElementById("fs-player-bar-container");
+    if (pBar) pBar.addEventListener("click", (e) => handleProgressClick(e, pBar, elements.progressFill));
+    if (fsPBar) fsPBar.addEventListener("click", (e) => handleProgressClick(e, fsPBar, elements.fsProgressFill));
+
+    // --- 6. ABRIR E FECHAR PLAYER ---
+    if (musicPlayer) {
         musicPlayer.addEventListener('click', (e) => {
-            // Ignora se clicar nos botões da barra pequena
-            if (e.target.closest('.player-center') || e.target.closest('.player-right') || e.target.closest('.progress-bar')) {
-                return;
-            }
-            
-            if (currentTrack) {
-                // 1. Remove hidden primeiro para o elemento existir no DOM
+            if (e.target.closest('.player-center') || e.target.closest('.player-right') || e.target.closest('.progress-bar')) return;
+            if (currentTrack && elements.fullScreenPlayer) {
                 elements.fullScreenPlayer.classList.remove('hidden');
-                
-                // 2. Pequeno delay para o navegador processar que o display não é mais 'none'
-                requestAnimationFrame(() => {
-                    document.body.classList.add('fs-active');
-                });
+                requestAnimationFrame(() => document.body.classList.add('fs-active'));
             }
         });
+    }
 
-// Fechar o Player
-if (fsCloseButton) {
-            fsCloseButton.addEventListener('click', () => {
-                // 1. Remove a classe que anima. O CSS começará o translateY(100%)
-                document.body.classList.remove('fs-active');
-                
-                // 2. ESPERA 500ms (tempo do transition no CSS) antes de aplicar o 'hidden'
-                setTimeout(() => {
-                    // Verificação extra: só esconde se o usuário não abriu de novo
-                    if (!document.body.classList.contains('fs-active')) {
-                        elements.fullScreenPlayer.classList.add('hidden');
-                    }
-                }, 500); 
-            });
-        }
+    if (fsCloseButton) {
+        fsCloseButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            console.log("❌ Player fechado. Stream cancelado.");
+            clearTimeout(streamTimer); 
+            
+            document.body.classList.remove('fs-active');
+            const animation = elements.fullScreenPlayer.animate([
+                { transform: 'translateY(0)', opacity: 1 },
+                { transform: 'translateY(100%)', opacity: 0 }
+            ], { duration: 500, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
+
+            animation.onfinish = () => {
+                elements.fullScreenPlayer.classList.add('hidden');
+                if (ytIframe) ytIframe.src = ""; 
+                animation.cancel();
+            };
+        });
+    
+    
+
         
     }if (musicPlayer && elements.fullScreenPlayer) {
         
@@ -513,70 +458,84 @@ function handleProgressClick(e, progressBar, progressFill) {
         audio.currentTime = newTime;
     }
 }
-
 async function updateFullScreenBackground(track) {
     const elements = getPlayerElements();
-    const fsOverlay = document.getElementById("fs-player-overlay");
-    if (!elements.fullScreenPlayer || !fsOverlay) return;
+    const fsPlayer = elements.fullScreenPlayer;
+    if (!fsPlayer) return;
 
-    // Limpa estados anteriores
-    elements.fullScreenPlayer.style.backgroundImage = "";
-    
-    // Remove canvas/video se já existir
+    let aurora = document.getElementById("fs-aurora-bg");
+    if (!aurora) {
+        aurora = document.createElement("div");
+        aurora.id = "fs-aurora-bg";
+        fsPlayer.prepend(aurora);
+    }
+
     const oldBg = document.querySelector("#fs-player-canvas-bg");
     if (oldBg) oldBg.remove();
 
-    // 1️⃣ PRIORIDADE: CANVAS (Vídeo/GIF)
     if (track.canvas) {
-        const isGif = track.canvas.toLowerCase().endsWith('.gif');
-        const mediaElement = document.createElement(isGif ? "img" : "video");
-        mediaElement.id = "fs-player-canvas-bg";
-        mediaElement.src = track.canvas;
-        
-        Object.assign(mediaElement.style, {
-            position: "absolute",
-            top: 0, left: 0, width: "100%", height: "100%",
-            objectFit: "cover", zIndex: "0", opacity: "1.0",
-        });
-
-        if (!isGif) {
-            mediaElement.autoplay = true;
-            mediaElement.loop = true;
-            mediaElement.muted = true;
-            mediaElement.playsInline = true;
-        }
-
-        elements.fullScreenPlayer.prepend(mediaElement);
-        fsOverlay.style.background = "linear-gradient(to top, rgba(0,0,0,0.8), transparent)";
+        aurora.style.opacity = "0";
+        // ... (lógica do mediaElement para vídeo permanece igual)
         return;
     }
 
-    // 2️⃣ FUNDO DINÂMICO COM COR DOMINANTE
+    aurora.style.opacity = "1";
+    
     const imgForColor = new Image();
     imgForColor.crossOrigin = "Anonymous";
-    imgForColor.src = track.cover || "assets/10.png";
 
     imgForColor.onload = function() {
         try {
             const colorThief = new ColorThief();
-            const color = colorThief.getColor(imgForColor); // [R, G, B]
-            const rgb = `${color[0]}, ${color[1]}, ${color[2]}`;
+            const [r, g, b] = colorThief.getColor(imgForColor); 
 
-            // Aplica um gradiente que vai da cor dominante (topo) para o preto (base)
-            // Usamos uma versão levemente mais escura da cor para o fundo não ofuscar o texto
-            elements.fullScreenPlayer.style.transition = "background 1s ease";
-            elements.fullScreenPlayer.style.background = `linear-gradient(180deg, rgb(${rgb}) 0%, #000000 100%)`;
+            // --- TRUQUE PARA COR FORTE: CONVERSÃO PARA HSL ---
+            let { h, s, l } = rgbToHsl(r, g, b);
+
+            // 1. Forçamos a Saturação (S) para ser sempre alta (ex: 80%+)
+            s = Math.max(s, 0.8); 
+
+            // 2. Garantimos que o Brilho (L) seja visível mas não branco (ex: 40% a 50%)
+            l = Math.min(Math.max(l, 0.4), 0.5); 
+
+            const strongColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+            const glowColor = `hsl(${h * 360}, ${s * 100}%, ${l * 120}%, 0.3)`; // Um brilho extra
+
+            // GRADIENTE DE IMPACTO
+            // Usamos a cor forte ocupando mais espaço antes de escurecer
+            aurora.style.background = `radial-gradient(circle at 50% 35%, 
+                ${strongColor} 0%, 
+                ${glowColor} 40%, 
+                rgba(0,0,0,0.85) 85%, 
+                #000 100%)`;
             
-            // Opcional: Adiciona um brilho suave no overlay
-            fsOverlay.style.background = "rgba(0, 0, 0, 0.2)"; 
-        } catch (e) {
-            console.warn("Erro ao extrair cor para o fundo:", e);
-            elements.fullScreenPlayer.style.background = "#121212";
+                    } catch (e) {
+            console.warn(e);
+            aurora.style.background = "#121212";
         }
     };
+
+    imgForColor.src = track.cover ? `${track.cover}?t=${new Date().getTime()}` : "assets/10.png";
 }
 
-
+// Helper necessário para manipular a cor
+function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    if (max === min) h = s = 0;
+    else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+    return { h, s, l };
+}
 
 // --- LÓGICA DE PERFIL E AUTENTICAÇÃO (MANTIDA/CORRIGIDA) ---
 

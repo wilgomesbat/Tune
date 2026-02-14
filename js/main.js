@@ -559,10 +559,14 @@ const artistCache = {}; // Cache para performance
 async function getArtistName(artistUid) {
     if (!artistUid) return "Desconhecido";
     
-    if (artistCache[artistUid]) return artistCache[artistUid];
+    // Supondo que artistCache já esteja definido globalmente (ex: const artistCache = {};)
+    if (typeof artistCache !== 'undefined' && artistCache[artistUid]) {
+        return artistCache[artistUid];
+    }
     
     try {
         const artistRef = doc(db, "usuarios", artistUid);
+        // CORREÇÃO: Nomeamos a variável como artistSnap para coincidir com o uso abaixo
         const artistSnap = await getDoc(artistRef);
 
         if (artistSnap.exists()) {
@@ -570,7 +574,9 @@ async function getArtistName(artistUid) {
             // AJUSTE: Usando a chave 'nomeArtistico' conforme seu banco
             const name = data.nomeArtistico || data.displayName || data.name || "Artista";
             
-            artistCache[artistUid] = name;
+            if (typeof artistCache !== 'undefined') {
+                artistCache[artistUid] = name;
+            }
             return name;
         }
         return "Artista não encontrado";
@@ -579,6 +585,7 @@ async function getArtistName(artistUid) {
         return "Erro ao carregar";
     }
 }
+
 
 function getTrendIndicator(lastStreamDate) {
     // Se não houver data, tratamos como música nova (NEW)
@@ -951,21 +958,21 @@ async function renderTracksSpotifyStyle(tracks, playlist, isChart = false) {
                 if (nameField) nameField.textContent = name;
             });
 
-            // 3. Evento de Clique
-            if (!isLocked) {
-                trackRow.addEventListener("click", (e) => {
-                    // Impede o clique se for no botão de curtir (se você adicionar um depois)
-                    if (e.target.closest('.track-like-button')) return;
+// No seu main.js (dentro da renderização)
+if (!isLocked) {
+    trackRow.addEventListener("click", (e) => {
+        if (e.target.closest('.track-like-button')) return;
 
-                    if (typeof checkAndResetMonthlyStreams === 'function') {
-                        checkAndResetMonthlyStreams(track.id); 
-                    }
-                    
-                    if (window.playTrackGlobal) {
-                        window.playTrackGlobal(track);
-                    }
-                });
-            }
+        // IMPORTANTE: Passe o objeto 'track' inteiro!
+        if (typeof window.checkAndResetMonthlyStreams === 'function') {
+            window.checkAndResetMonthlyStreams(track); 
+        }
+        
+        if (window.playTrackGlobal) {
+            window.playTrackGlobal(track);
+        }
+    });
+}
 
             listWrapper.appendChild(trackRow);
 
@@ -1041,69 +1048,7 @@ countdownContainer.innerHTML = `
     updateCountdown();
     window.countdownInterval = setInterval(updateCountdown, 1600);
 }
-// 1. Criamos um objeto global único que sobrevive à troca de páginas no loadContent
-if (!window.streamGuard) {
-    window.streamGuard = {
-        lastGlobalStreamTime: 0,
-        userStreamHistory: new Map()
-    };
-}
 
-async function checkAndResetMonthlyStreams(musicId) {
-    if (!musicId) return;
-
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const userId = user.uid;
-    const now = Date.now();
-    const trackKey = `${userId}_${musicId}`;
-
-    // --- 1. VERIFICAÇÃO GLOBAL (DENTRO DO OBJETO PERSISTENTE) ---
-    // Impede clicar em QUALQUER música em menos de 5 segundos (aumentei para garantir)
-    const GLOBAL_COOLDOWN = 20000; 
-    const timeSinceLastAnyMusic = now - window.streamGuard.lastGlobalStreamTime;
-
-    if (timeSinceLastAnyMusic < GLOBAL_COOLDOWN) {
-                return;
-    }
-
-    // --- 2. VERIFICAÇÃO POR MÚSICA ESPECÍFICA (7 SEGUNDOS) ---
-    const MIN_CLICK_INTERVAL = 20000; 
-    if (window.streamGuard.userStreamHistory.has(trackKey)) {
-        const lastPlayTime = window.streamGuard.userStreamHistory.get(trackKey);
-        if (now - lastPlayTime < MIN_CLICK_INTERVAL) {
-                       return;
-        }
-    }
-
-    // --- 3. REGISTRO NO OBJETO GLOBAL ANTES DE ENVIAR AO BANCO ---
-    window.streamGuard.lastGlobalStreamTime = now; 
-    window.streamGuard.userStreamHistory.set(trackKey, now);
-
-    try {
-        const musicRef = doc(db, "musicas", musicId);
-        // ... (resto do seu código de updateDoc igual)
-        
-        const minBoost = 10000;
-    const maxBoost = 300000;
-    const streamBoost = Math.floor(Math.random() * (maxBoost - minBoost + 1)) + minBoost;
-
-    await updateDoc(musicRef, {
-        streams: increment(streamBoost),
-        streamsMensal: increment(streamBoost),
-        lastMonthlyStreamDate: new Date()
-    });
-
-        console.log(`🚀 +${streamBoost.toLocaleString()} streams validados.`);
-
-    } catch (error) {
-        console.error("❌ Erro:", error);
-        // Se der erro, limpa para permitir tentar de novo
-        window.streamGuard.lastGlobalStreamTime = 0;
-        window.streamGuard.userStreamHistory.delete(trackKey);
-    }
-}
 // Função para carregar e exibir as playlists com mais streams
 async function loadTopStreamedPlaylists() {
     const listElement = document.getElementById('top-playlists-list');
@@ -1255,29 +1200,41 @@ async function shareAlbum(albumTitle, artistName, shareUrl, showToast) {
     }
 }
 
+function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+
+    if (max === min) {
+        h = s = 0; // acromático
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+    return { h, s, l };
+}
+
 /**
  * Função principal para carregar e configurar a página do álbum.
  * @param {string} albumId - O ID único do álbum.
  */
-/**
- * Carrega e configura a página de álbum (LOW COST Firestore)
- * @param {string} albumId
- */
-/**
- * Carrega e configura a página de álbum mantendo o layout original
- * @param {string} albumId
- */
+
+
 async function setupAlbumPage(albumId) {
     const detailHeader = document.querySelector('#album-header');
     const albumCoverDetail = document.getElementById('album-cover-detail');
     const albumTitleDetail = document.getElementById('album-title-detail');
     const artistNameDetail = document.getElementById('artist-name-detail');
+    const artistImageDetail = document.getElementById('artist-image-detail'); // Foto do Artista
     const albumYearDetail = document.getElementById('album-year-detail');
-    const tracksContainer = document.getElementById('tracks-container');
-    const playButton = document.querySelector('.album-actions .play');
-    
-    // ID CORRETO que você mencionou
     const countdownContainer = document.getElementById('countdown-container');
+    const playButton = document.querySelector('.album-actions .play');
 
     if (!albumId) return;
 
@@ -1290,31 +1247,60 @@ async function setupAlbumPage(albumId) {
         const albumData = albumSnap.data();
         const album = { id: albumSnap.id, ...albumData };
 
-        // ====== LÓGICA DE DATA ======
+        // --- 1. BUSCAR DADOS DO ARTISTA (PARA A FOTO) ---
+        const artistId = albumData.artistId || albumData.uidars;
+        if (artistId) {
+            const artistSnap = await getDoc(doc(db, 'usuarios', artistId));
+            if (artistSnap.exists()) {
+                const artistData = artistSnap.data();
+                if (artistImageDetail) {
+                    artistImageDetail.src = artistData.fotoPerfil || artistData.foto || 'https://placehold.co/32x32';
+                }
+            }
+        }
+
+        // --- 2. CORES DINÂMICAS COM COLOR THIEF ---
+        const coverUrl = album.cover || './assets/default-cover.png';
+        albumCoverDetail.src = coverUrl;
+        albumCoverDetail.crossOrigin = "Anonymous";
+
+        albumCoverDetail.onload = () => {
+            try {
+                const colorThief = new ColorThief();
+                const color = colorThief.getColor(albumCoverDetail);
+                
+                // Turbinar a cor (Saturação e Brilho)
+                let { h, s, l } = rgbToHsl(color[0], color[1], color[2]);
+                s = Math.max(s, 0.7); // Força saturação
+                l = 0.4; // Brilho equilibrado
+                
+                const baseColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+                
+                if (detailHeader) {
+                    detailHeader.style.backgroundColor = baseColor;
+                    detailHeader.style.backgroundImage = `linear-gradient(to bottom, ${baseColor} 0%, #000000 100%)`;
+                }
+            } catch (e) { console.warn("Erro ao extrair cores do álbum:", e); }
+        };
+
+        // --- 3. LÓGICA DE BLOQUEIO / COUNTDOWN ---
         const now = new Date();
-        // Converte a string "2026-02-27" para objeto Date
         const scheduledDate = albumData.date ? new Date(albumData.date + "T00:00:00") : null;
         const isLocked = scheduledDate && scheduledDate > now;
 
-        // ====== PREENCHIMENTO DO HEADER ======
-        albumCoverDetail.src = album.cover || './assets/default-cover.png';
         albumTitleDetail.textContent = album.album;
         artistNameDetail.textContent = album.artist;
         albumYearDetail.textContent = album.releaseYear || (scheduledDate ? scheduledDate.getFullYear() : '—');
 
-        // ====== BLOQUEIO E SUA FUNÇÃO DE COUNTDOWN ======
         if (isLocked) {
             albumCoverDetail.style.filter = "grayscale(1) brightness(0.6)";
-            
             if (playButton) {
                 playButton.style.opacity = "0.3";
                 playButton.style.cursor = "not-allowed";
                 playButton.onclick = null;
             }
-
-            // CHAMA A SUA FUNÇÃO ORIGINAL
             if (countdownContainer) {
-                // Passamos a data e a capa como você definiu na sua startCountdown
+                countdownContainer.classList.remove('hidden');
                 startCountdown(albumData.date + "T00:00:00", album.cover);
             }
         } else {
@@ -1322,7 +1308,7 @@ async function setupAlbumPage(albumId) {
             if (countdownContainer) countdownContainer.classList.add('hidden');
         }
 
-        // ====== BUSCA E RENDERIZAÇÃO DAS TRACKS ======
+        // --- 4. BUSCA DAS MÚSICAS ---
         const musicQuery = query(
             collection(db, 'musicas'),
             where('album', '==', albumId),
@@ -1331,15 +1317,10 @@ async function setupAlbumPage(albumId) {
 
         const musicSnap = await getDocs(musicQuery);
         const tracks = [];
+        musicSnap.forEach(docSnap => tracks.push({ id: docSnap.id, ...docSnap.data() }));
 
-        musicSnap.forEach(docSnap => {
-            tracks.push({ id: docSnap.id, ...docSnap.data() });
-        });
-
-        // Chama a renderização passando o estado isLocked
         renderAlbumTracks(tracks, isLocked);
 
-        // Ativa play principal se liberado
         if (!isLocked && playButton && tracks.length) {
             playButton.style.opacity = "1";
             playButton.onclick = () => addToQueue(tracks);
@@ -1788,23 +1769,24 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
             window.history.pushState({ page: pageName, id: id }, '', newUrl);
         }
 
-        // 3. Setup específico de cada página
-        setTimeout(() => {
-            console.log(`🛠️ Executando setup para: ${pageName}`);
-            switch (pageName) {
-                case 'home': if (typeof setupHomePage === 'function') setupHomePage(); break;
-                case 'music': if (typeof setupMusicPage === 'function') setupMusicPage(id); break;
-                case 'album': if (typeof setupAlbumPage === 'function') setupAlbumPage(id); break;
-                case 'artist': if (typeof setupArtistPage === 'function') setupArtistPage(id); break;
-                case 'playlist': if (typeof setupPlaylistPage === 'function') setupPlaylistPage(id); break;
-                case 'liked': if (typeof setupLikedPage === 'function') setupLikedPage(); break;
-                case 'search': 
-                    import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
-                    break;
-                // Adicione os outros casos aqui conforme necessário...
-            }
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 50);
+// 3. Setup específico de cada página
+setTimeout(() => {
+    console.log(`🛠️ Executando setup para: ${pageName}`);
+    
+    switch (pageName) {
+        case 'home': if (typeof setupHomePage === 'function') setupHomePage(); break;
+        case 'music': if (typeof setupMusicPage === 'function') setupMusicPage(id); break;
+        case 'album': if (typeof setupAlbumPage === 'function') setupAlbumPage(id); break;
+        case 'artist': if (typeof setupArtistPage === 'function') setupArtistPage(id); break;
+        case 'playlist': if (typeof setupPlaylistPage === 'function') setupPlaylistPage(id); break;
+        case 'library': if (typeof setupLibraryPage === 'function') setupLibraryPage(id); break; // ADICIONE ESTA LINHA
+        case 'liked': if (typeof setupLikedPage === 'function') setupLikedPage(); break;
+        case 'search': 
+            import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
+            break;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}, 50);
 
     } catch (error) {
         console.error("❌ Erro ao carregar página:", error);
@@ -1832,23 +1814,31 @@ function createArtistCard(docData, docId) {
     card.setAttribute('data-navigate', 'artist');
     card.setAttribute('data-id', docId);
 
-    const fotoUrl = docData.foto || "";
-    
-    // Lógica de imagem simplificada
-    let imgSrc = "/assets/default-artist.png";
-    if (fotoUrl && fotoUrl !== "") {
-        imgSrc = fotoUrl;
-    } else {
-        imgSrc = "/assets/artistpfp.png";
+    // --- 1. Lógica de Verificação e Gravadora ---
+    const verificadoStatus = String(docData.verificado || "").toLowerCase().trim();
+    const isVerified = verificadoStatus === "true";
+    const isSharkLabel = docData.gravadora?.toLowerCase() === 'shark';
+
+    // --- 2. Lógica de Imagem ---
+    let imgSrc = "/assets/artistpfp.png"; // Fallback padrão
+    if (docData.foto && docData.foto !== "") {
+        imgSrc = docData.foto;
     }
+
+    // --- 3. Construção dos Badges HTML ---
+    const badgeVerificado = isVerified ? 
+        `<img src="/assets/verificado.png" style="width: 14px; margin-left: 4px; display: inline-block; vertical-align: middle;" alt="Verificado">` : '';
+    
+    const badgeShark = isSharkLabel ? 
+        `<img src="assets/sharklabel.png" style="width: 14px; margin-left: 4px; display: inline-block; vertical-align: middle;" alt="Shark Label">` : '';
 
     card.innerHTML = `
         <div class="relative mx-auto w-24 h-24">
             <img src="${imgSrc}" alt="${docData.nomeArtistico}" 
                  class="w-24 h-24 rounded-full object-cover shadow-md">
         </div>
-        <p class="text-white text-[11px] font-bold truncate mt-3">
-            ${docData.nomeArtistico || "Artista"}
+        <p class="text-white text-[11px] font-bold truncate mt-3 px-1">
+            <span>${docData.nomeArtistico || "Artista"}</span>${badgeVerificado}${badgeShark}
         </p>
     `;
 
@@ -1963,9 +1953,13 @@ function createAlbumCard(album, albumId) {
     const albumCard = document.createElement('div');
     albumCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
     
-    // CORREÇÃO: Atributos de navegação
     albumCard.setAttribute('data-navigate', 'album');
     albumCard.setAttribute('data-id', albumId);
+
+    // Adicionamos o evento de clique para contar o stream diário
+    albumCard.addEventListener('click', () => {
+        trackAlbumDayStream(albumId);
+    });
 
     albumCard.innerHTML = `
         <div class="relative w-full pb-[100%] rounded-md">
@@ -1977,6 +1971,34 @@ function createAlbumCard(album, albumId) {
         </div>
     `;
     return albumCard;
+}
+
+// Função para gerenciar o streamsDay
+async function trackAlbumDayStream(albumId) {
+    const albumRef = doc(db, "albuns", albumId);
+    const hoje = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+
+    try {
+        const snap = await getDoc(albumRef);
+        if (snap.exists()) {
+            const data = snap.data();
+            
+            // Se a última atualização foi em outro dia, resetamos o contador
+            if (data.lastStreamDate !== hoje) {
+                await updateDoc(albumRef, {
+                    streamsDay: 1,
+                    lastStreamDate: hoje
+                });
+            } else {
+                // Se for o mesmo dia, incrementa
+                await updateDoc(albumRef, {
+                    streamsDay: increment(1)
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Erro ao computar stream diário:", e);
+    }
 }
 
 async function registrarLog(itemTitle, type) {
@@ -1998,6 +2020,7 @@ async function registrarLog(itemTitle, type) {
         console.error("Erro ao salvar log: ", e);
     }
 }
+
 
 
 async function setupContentCarousel(
@@ -2423,13 +2446,17 @@ async function setupMusicPage(musicId) {
         if (snap.exists()) {
             const data = snap.data();
             
-            // 1. Preenchimento do Header
+            // 1. Preenchimento do Header do Site
             document.getElementById('album-title-detail').textContent = data.title;
             document.getElementById('artist-name-detail').textContent = data.artistName || "Artista";
-            document.getElementById('album-cover-detail').src = data.cover;
+            
+            // Adicionando crossorigin para o canvas poder ler a imagem do Firebase
+            const detailCover = document.getElementById('album-cover-detail');
+            detailCover.src = data.cover;
+            detailCover.setAttribute('crossorigin', 'anonymous');
+            
             document.getElementById('album-cover-bg').style.backgroundImage = `url(${data.cover})`;
             
-            // Exibe o total de streams formatado (ex: 1.500.200 streams)
             const streamsEl = document.getElementById('music-streams-count');
             if (streamsEl) {
                 streamsEl.textContent = `${(data.streams || 0).toLocaleString()} streams`;
@@ -2439,13 +2466,142 @@ async function setupMusicPage(musicId) {
                 document.getElementById('explicit-badge')?.classList.remove('hidden');
             }
 
-            // 2. Lógica de Bloqueio
+            // --- INÍCIO DA LÓGICA DE COMPARTILHAMENTO ESTILO SPOTIFY ---
+            const shareBtn = document.getElementById('btn-share-instagram') || document.querySelector('.btn.share');
+            
+            if (shareBtn) {
+               shareBtn.onclick = async () => {
+    // 1. Tentar copiar o link imediatamente para evitar erro de foco
+    try { await navigator.clipboard.writeText(window.location.href); } catch (e) {}
+
+    const originalContent = shareBtn.innerHTML;
+    shareBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+    
+    try {
+        // --- CORREÇÃO DO ERRO: Carregamento Blindado ---
+        let h2c = window.html2canvas;
+
+        if (!h2c) {
+            console.log("html2canvas não detectado, carregando dinamicamente...");
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+                script.onload = () => resolve();
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+            h2c = window.html2canvas;
+        }
+
+        if (typeof h2c !== 'function') {
+            throw new Error("Não foi possível inicializar a biblioteca de imagem.");
+        }
+
+        // 2. Preparar o Card Invisível
+        const storyCover = document.getElementById('story-cover');
+        const storyBg = document.getElementById('story-bg-blur');
+        
+        // Anti-Cache para evitar que a imagem venha sem permissão de CORS
+        const nocacheCover = data.cover + (data.cover.includes('?') ? '&' : '?') + "t=" + new Date().getTime();
+        
+        storyCover.crossOrigin = "anonymous";
+        storyCover.src = nocacheCover;
+        document.getElementById('story-title').innerText = data.title;
+        document.getElementById('story-artist').innerText = data.artistName || "Artista";
+        storyBg.style.backgroundImage = `url(${nocacheCover})`;
+
+        // Esperar carregar
+        await new Promise((resolve) => {
+            if (storyCover.complete) resolve();
+            storyCover.onload = resolve;
+            setTimeout(resolve, 1200); // Segurança
+        });
+
+        // 3. Gerar o Canvas
+        const card = document.getElementById('story-share-card');
+        const canvas = await h2c(card, {
+            useCORS: true,
+            allowTaint: false,
+            scale: 2,
+            backgroundColor: "#030303"
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+
+        // 4. Mostrar Pré-visualização
+        const modal = document.getElementById('share-preview-modal');
+        const previewContainer = document.getElementById('preview-image-container');
+        
+        previewContainer.innerHTML = `<img src="${imgData}" class="w-full h-full object-contain">`;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // Função para fechar o modal
+const closeModal = () => {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    // Limpa a imagem anterior para não dar "flash" da música antiga na próxima vez
+    document.getElementById('preview-image-container').innerHTML = '';
+};
+
+// 1. Fechar ao clicar no botão "X"
+const closeBtn = document.getElementById('close-share-preview');
+if (closeBtn) {
+    closeBtn.onclick = closeModal;
+}
+
+// 2. Fechar ao clicar fora do card (no fundo escuro)
+modal.onclick = (e) => {
+    if (e.target === modal) {
+        closeModal();
+    }
+};
+
+// 3. Fechar ao apertar a tecla ESC
+document.addEventListener('keydown', (e) => {
+    if (e.key === "Escape" && !modal.classList.contains('hidden')) {
+        closeModal();
+    }
+});
+
+        // Botão Confirmar Share
+        document.getElementById('confirm-share-btn').onclick = async () => {
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], 'tune-story.png', { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file], title: 'TUNE' });
+                } else {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `TUNE-${data.title}.png`;
+                    link.click();
+                }
+            }, 'image/png');
+        };
+
+        // Fechar Modal
+        document.getElementById('close-share-preview').onclick = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
+    } catch (err) {
+        console.error("Erro no Share:", err);
+        alert("Erro ao preparar imagem. Tente novamente.");
+    } finally {
+        shareBtn.innerHTML = originalContent;
+    }
+};
+            }
+            // --- FIM DA LÓGICA DE COMPARTILHAMENTO ---
+
+            // 2. Lógica de Bloqueio (Continuando seu código)
             const now = new Date();
             const scheduledDate = data.scheduledTime && data.scheduledTime !== "Imediato" 
                                   ? new Date(data.scheduledTime) : null;
             const isLocked = scheduledDate && scheduledDate > now;
 
-            // 3. Renderização da Lista
+            // 3. Renderização da Lista de Faixas
             const tracksContainer = document.getElementById('tracks-container');
             if (tracksContainer) {
                 const lockClass = isLocked ? "opacity-30 pointer-events-none" : "hover:bg-white/10 cursor-pointer";
@@ -2453,13 +2609,12 @@ async function setupMusicPage(musicId) {
                 tracksContainer.innerHTML = `
                     <div class="track-item ${lockClass}">
                         <div class="track-number-display text-gray-500 text-xs">1</div>
-                        <img src="${data.cover}" class="track-cover ${isLocked ? 'grayscale' : ''}">
+                        <img src="${data.cover}" crossorigin="anonymous" class="track-cover ${isLocked ? 'grayscale' : ''}">
                         <div class="track-info-container">
                             <div class="flex items-center gap-1.5 overflow-hidden">
                                 <span class="track-name text-white">${data.title}</span>
                                 ${data.explicit ? '<span class="explicit-tag">E</span>' : ''}
                             </div>
-
                         </div>
                         <div class="track-duration text-gray-400 text-xs">
                             ${isLocked ? "<i class='bx bxs-lock-alt text-[10px]'></i>" : (data.duration || '0:00')}
@@ -2469,7 +2624,7 @@ async function setupMusicPage(musicId) {
 
                 if (!isLocked) {
                     tracksContainer.querySelector('.track-item').onclick = () => {
-                        checkAndResetMonthlyStreams(musicId); // Incrementa o contador
+                        checkAndResetMonthlyStreams(musicId);
                         window.playTrackGlobal(data);
                     };
                 }
@@ -2490,7 +2645,7 @@ async function setupMusicPage(musicId) {
                     mainPlayBtn.style.opacity = "1";
                     mainPlayBtn.style.cursor = "pointer";
                     mainPlayBtn.onclick = () => {
-                        checkAndResetMonthlyStreams(musicId); // Incrementa o contador
+                        checkAndResetMonthlyStreams(musicId);
                         window.playTrackGlobal(data);
                     };
                 }
@@ -2958,7 +3113,7 @@ async function fetchAndRenderNewSingles() {
 
 // 1. Aumente o tempo para teste (ex: 7 dias = 168 horas)
 const tempoLimite = new Date();
-tempoLimite.setHours(tempoLimite.getHours() - 72); 
+tempoLimite.setHours(tempoLimite.getHours() - 42); 
 
 // 2. Query ajustada
 const q = query(
@@ -3174,8 +3329,11 @@ function createDefaultCard(item) {
     };
     return div;
 }
+
+
+
 // Substitua pelo ID do ÁLBUM que você quer destacar
-const ALBUM_DESTAQUE_ID = "kqznj7OWRwTtMxWn50s7"; 
+const ALBUM_DESTAQUE_ID = "0h2tM4Trat1FyDehtbMX"; 
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
@@ -3248,6 +3406,8 @@ async function loadBannerAlbum() {
 }
 
 
+// 2. Inicialização do Cache
+window.__HOME_CACHE__ = window.__HOME_CACHE__ || { loaded: false, html: null, scrollPosition: 0 };
 
 async function setupArtistsCarouselPriority() {
     const listContainer = document.getElementById('artists-list');
@@ -3255,7 +3415,7 @@ async function setupArtistsCarouselPriority() {
     if (!listContainer) return;
 
     const GLOBAL_LEGENDS = [
-        "Beyoncé", "Taylor Swift", "Marina", "Anitta", "Ariana Grande", "Rihanna", 
+         "Legendaryture", "Taylor Swift", "Marina", "Ariana Grande", "Rihanna", 
         "Madonna",  "Luan Santana"
     ].map(name => name.toLowerCase().trim());
 
@@ -3316,6 +3476,136 @@ async function setupArtistsCarouselPriority() {
     }
 }
 
+async function loadTopArtists() {
+    const container = document.getElementById('top-artists-list');
+    if (!container) return;
+
+    // 1. LIMPEZA IMEDIATA: Remove o conteúdo antes de qualquer busca assíncrona
+    container.innerHTML = ''; 
+
+    try {
+        // Busca as músicas (usando o campo 'artist' que vimos na sua imagem do Firebase)
+        const songsQuery = query(collection(db, "musicas"), orderBy("streams", "desc"), limit(40));
+        const songsSnap = await getDocs(songsQuery);
+        
+        const uniqueArtistUIDs = new Set();
+        songsSnap.forEach(doc => {
+            const data = doc.data();
+            if (data.artist) uniqueArtistUIDs.add(data.artist);
+        });
+
+        const topUIDs = Array.from(uniqueArtistUIDs).slice(0, 10);
+        const artistSnaps = await Promise.all(topUIDs.map(uid => getDoc(doc(db, "usuarios", uid))));
+
+        const fragment = document.createDocumentFragment();
+        artistSnaps.forEach(snap => {
+            if (snap.exists()) {
+                const card = createArtistCard(snap.data(), snap.id);
+                fragment.appendChild(card);
+            }
+        });
+
+        // 2. VERIFICAÇÃO DE SEGURANÇA: Só insere se o container continuar vazio
+        if (container.children.length === 0) {
+            container.appendChild(fragment);
+        }
+
+        if (typeof setupScrollButtons === 'function') {
+            setupScrollButtons('top-artists-scroll-left', 'top-artists-scroll-right', 'top-artists-list');
+        }
+
+    } catch (error) {
+        console.error("Erro ao carregar artistas:", error);
+    }
+}
+async function setupFanArtistSection() {
+    const listContainer = document.getElementById('fan-albums-list');
+    const sectionWrapper = document.getElementById('fan-section');
+    
+    if (!listContainer || !sectionWrapper) return;
+
+    try {
+        // 1. BUSCAR ARTISTAS ONDE A CHAVE É A STRING "true"
+        const artistsQuery = query(
+            collection(db, "usuarios"), 
+            where('artista', '==', "true") // Filtro exato para string
+        );
+        const artistsSnap = await getDocs(artistsQuery);
+
+        if (artistsSnap.empty) {
+            console.warn("Nenhum artista encontrado com a marcação artista: 'true'");
+            sectionWrapper.style.display = 'none';
+            return;
+        }
+
+        // 2. TRANSFORMAR SNAPSHOT EM LISTA E SORTEAR
+        const artistsList = [];
+        artistsSnap.forEach(doc => {
+            artistsList.push({ id: doc.id, ...doc.data() });
+        });
+
+        const randomArtist = artistsList[Math.floor(Math.random() * artistsList.length)];
+        const ARTISTA_ID = randomArtist.id;
+
+        // 3. ATUALIZAR INTERFACE (Usando seus campos específicos)
+        const nameDisplay = document.getElementById('fan-artist-name');
+        const imgDisplay = document.getElementById('fan-artist-img');
+
+        // Prioriza nomeArtistico, depois nome, depois o campo artist
+        nameDisplay.textContent = randomArtist.nomeArtistico || randomArtist.nome || randomArtist.artist || "Artista";
+        imgDisplay.src = randomArtist.foto || "/assets/default-artist.png";
+
+        // 4. BUSCAR ÁLBUNS DO ARTISTA SORTEADO
+        const albumsQuery = query(
+            collection(db, "albuns"), 
+            where('uidars', '==', ARTISTA_ID),
+            limit(20)
+        );
+        
+        const albumsSnap = await getDocs(albumsQuery);
+
+        // Limpa o container para remover skeletons
+        listContainer.innerHTML = '';
+
+        if (albumsSnap.empty) {
+            // Se o artista sorteado não tiver álbuns, a seção permanece oculta
+            sectionWrapper.style.display = 'none';
+            return;
+        }
+
+        // 5. RENDERIZAR USANDO SUA FUNÇÃO GLOBAL createAlbumCard
+        albumsSnap.forEach(doc => {
+            const albumData = doc.data();
+            const albumId = doc.id;
+            
+            let card;
+            if (typeof createAlbumCard === 'function') {
+                // Mantém o trackAlbumDayStream e toda sua lógica original
+                card = createAlbumCard(albumData, albumId);
+            } else {
+                // Fallback de segurança
+                card = createDefaultCard({ type: 'album', id: albumId, ...albumData });
+            }
+            
+            if (card) listContainer.appendChild(card);
+        });
+
+        // 6. EXIBIR SEÇÃO E ATIVAR SCROLL PADRONIZADO
+        sectionWrapper.style.display = 'block';
+
+        if (typeof setupScrollButtons === 'function') {
+            setupScrollButtons('fan-scroll-left', 'fan-scroll-right', 'fan-albums-list');
+        }
+
+    } catch (error) {
+        console.error("Erro ao carregar seção Para Fãs Dinâmica:", error);
+        sectionWrapper.style.display = 'none';
+    }
+}
+
+// Chamada da função
+setupFanArtistSection();
+
 // 1. Inicialização do Cache (Coloque no topo do seu arquivo JS)
 window.__HOME_CACHE__ = window.__HOME_CACHE__ || { loaded: false, html: null, scrollPosition: 0 };
 async function setupHomePage() {
@@ -3345,7 +3635,9 @@ async function setupHomePage() {
                 [orderBy('date', 'desc'), limit(15)], createAlbumCard
             ),
             setupForroGenreSection(),   
-            setupPopSection()
+            setupPopSection(),
+            setupFanArtistSection(),
+            loadTopArtists()
         ]);
 
         // 5. BLOCO 2: REMOVIDA A DUPLICATA DE ARTISTAS DAQUI
@@ -3364,10 +3656,22 @@ async function setupHomePage() {
                 'stations-loading-message', 'playlists', 
                 [where('category', '==', 'Stations'), limit(12)], createPlaylistCard
             ),
+
+            // Dentro de setupHomePage -> Bloco 2
+setupContentCarousel(
+    'top-albums-day-list', 
+    'top-albums-day-left', 
+    'top-albums-day-right', 
+    'top-albums-day-loading', 
+    'albuns', 
+    [orderBy('streamsDay', 'desc'), limit(12)], 
+    createAlbumCard
+),
+            
             setupContentCarousel(
                 'playlist-genres-list', 'playlist-genres-scroll-left', 'playlist-genres-scroll-right', 
                 'playlist-genres-loading-message', 'playlists', 
-                [where('category', '==', 'Playlist Genres'), limit(12)], createPlaylistCard
+                [where('category', '==', 'Playlist Genres'), limit(18)], createPlaylistCard
             )
         ]);
 
