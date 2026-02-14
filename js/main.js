@@ -3329,27 +3329,27 @@ function createDefaultCard(item) {
 }
 
 
+// Substitua pelo ID da MÚSICA que você quer destacar
+const MUSICA_DESTAQUE_ID = "SjNsuJyzW8XTNmuAXxzH"; 
 
-// Substitua pelo ID do ÁLBUM que você quer destacar
-const ALBUM_DESTAQUE_ID = "0h2tM4Trat1FyDehtbMX"; 
-
-async function loadBannerAlbum() {
+async function loadBannerTrack() {
     const banner = document.getElementById('new-release-banner');
     const coverImg = document.getElementById('banner-cover');
     
     if (!banner || !coverImg) return;
 
     try {
-        // 1. Busca na coleção de ALBUNS usando o ID de destaque
-        const albumRef = doc(db, "albuns", ALBUM_DESTAQUE_ID);
-        const albumSnap = await getDoc(albumRef);
+        // 1. Busca na coleção de MUSICAS usando o ID de destaque
+        const trackRef = doc(db, "musicas", MUSICA_DESTAQUE_ID);
+        const trackSnap = await getDoc(trackRef);
 
-        if (albumSnap.exists()) {
-            const albumData = albumSnap.data();
+        if (trackSnap.exists()) {
+            const trackData = trackSnap.data();
             
-            // 2. Preenche os textos usando os campos de álbum (album e artist)
-            document.getElementById('banner-title').textContent = albumData.album;
-            document.getElementById('banner-artist-name').textContent = albumData.artist || "Artista";
+            // 2. Preenche os textos usando os campos de música (title e artistName/artist)
+            // Ajuste 'trackData.title' ou 'trackData.nome' conforme seu banco
+            document.getElementById('banner-title').textContent = trackData.title || trackData.nome;
+            document.getElementById('banner-artist-name').textContent = trackData.artistName || "Artista";
 
             // 3. Configura a imagem e extração de cor
             coverImg.crossOrigin = "Anonymous";
@@ -3359,14 +3359,15 @@ async function loadBannerAlbum() {
                     const colorThief = new ColorThief();
                     const color = colorThief.getColor(coverImg);
                     const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                    // Gradiente dinâmico baseado na capa
                     banner.style.background = `linear-gradient(135deg, ${rgb} 0%, #121212 100%)`;
                 } catch (e) {
                     banner.style.background = `linear-gradient(135deg, #282828 0%, #121212 100%)`;
                 }
             };
 
-            // Define a capa do álbum
-            coverImg.src = albumData.cover || "./assets/default-cover.png";
+            // Define a capa da música
+            coverImg.src = trackData.cover || "./assets/default-cover.png";
 
             if (coverImg.complete) {
                 extrairCor();
@@ -3374,8 +3375,8 @@ async function loadBannerAlbum() {
                 coverImg.onload = extrairCor;
             }
 
-            // 4. Busca foto do artista (usando o uidars do álbum)
-            const artistId = albumData.uidars;
+            // 4. Busca foto do artista (usando o campo 'artist' ou 'uidars' da música)
+            const artistId = trackData.artist; // ID do documento do artista
             if (artistId) {
                 const artistRef = doc(db, "usuarios", artistId);
                 const artistSnap = await getDoc(artistRef);
@@ -3385,13 +3386,15 @@ async function loadBannerAlbum() {
                 }
             }
 
-            // 5. Ação de Clique: Navegar para a página do álbum
+            // 5. Ação de Clique: Navegar para a página da MÚSICA
             banner.onclick = (e) => {
                 if (e.target.closest('.action-btn')) return;
                 
-                // Usa sua função de navegação da SPA
-                if (typeof loadContent === 'function') {
-                    loadContent('album', ALBUM_DESTAQUE_ID);
+                // Usa sua função de navegação SPA para a página 'music'
+                if (typeof navigateTo === 'function') {
+                    navigateTo('music', MUSICA_DESTAQUE_ID);
+                } else if (typeof loadContent === 'function') {
+                    loadContent('music', MUSICA_DESTAQUE_ID);
                 }
             };
 
@@ -3399,7 +3402,7 @@ async function loadBannerAlbum() {
             banner.style.display = 'block';
         }
     } catch (error) {
-        console.error("Erro ao carregar banner de álbum:", error);
+        console.error("Erro ao carregar banner de música:", error);
     }
 }
 
@@ -3621,7 +3624,7 @@ async function setupHomePage() {
 
     try {
         setGreeting();
-        await loadBannerAlbum();
+        await loadBannerTrack();
 
         // 4. BLOCO 1: Aqui a ordem está correta
         await Promise.all([
