@@ -27,8 +27,9 @@ const storage = getStorage(app);
 // -------------------------------
 // ☁️ Cloudinary (UPLOAD FRONT)
 // -------------------------------
-const CLOUD_NAME = "dsrrzjwuf";
-const UPLOAD_PRESET = "tune_unsigned";
+const CLOUD_NAME = "dykhzs0q0";
+const UPLOAD_PRESET = "tunestrg";
+
 
 export async function uploadImageToCloudinary(file) {
     if (!file) throw new Error("Nenhum arquivo selecionado");
@@ -96,17 +97,19 @@ onAuthStateChanged(auth, async (user) => {
         if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
 
-            if (userData.artista !== "false") {
-                console.warn("Acesso negado: Usuário não é artista.");
+            // AJUSTE AQUI: Verifica se é diferente de "true" para bloquear
+            // Se for "true", ele ignora o IF e segue para o painel.
+            if (userData.artista !== "true") { 
+                console.warn("Acesso negado: Usuário não possui perfil de artista.");
                 window.location.href = "index.html"; 
                 return;
             }
 
+            // Se chegou aqui, é porque userData.artista === "true"
             currentUser = user;
             window.currentArtistUid = user.uid;
             console.log("Artista verificado e conectado:", user.uid);
 
-            // Verifica se a função existe antes de chamar para evitar novo erro
             if (typeof initializePageNavigation === "function") {
                 initializePageNavigation();
             }
@@ -210,6 +213,49 @@ async function setupEditProfilePage() {
     }
 }
 
+async function resizeImage(file, maxWidth = 500, maxHeight = 500, quality = 0.7) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            img.src = e.target.result;
+        };
+
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let width = img.width;
+            let height = img.height;
+
+            // calcula proporção
+            if (width > height) {
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width *= maxHeight / height;
+                    height = maxHeight;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(
+                (blob) => resolve(blob),
+                "image/jpeg",
+                quality
+            );
+        };
+
+        reader.readAsDataURL(file);
+    });
+}
 
 
 
@@ -222,28 +268,22 @@ window.hidePhotoEditModal = function () {
   const modal = document.getElementById("photo-edit-modal");
   modal.classList.add("hidden");
 };
-
-
 window.updateArtistPhoto = async () => {
     const fileInput = document.getElementById('new-photo-file-input');
     if (!fileInput?.files?.[0] || !currentUser) return;
 
-    const file = fileInput.files[0];
-    window.hidePhotoEditModal();
-
     try {
+        const originalFile = fileInput.files[0];
+
+        // 🔥 Reduz a imagem antes de enviar
+        const resizedFile = await resizeImage(originalFile, 500, 500, 0.7);
+
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", resizedFile);
         formData.append("upload_preset", UPLOAD_PRESET);
         formData.append("folder", `tune/posts/profile/${currentUser.uid}`);
 
-        // 🔥 TRANSFORMAÇÕES
-        formData.append("width", 600);
-        formData.append("height", 600);
-        formData.append("crop", "fill");
-        formData.append("gravity", "face");
-        formData.append("quality", "auto:low");
-        formData.append("fetch_format", "auto");
+        window.hidePhotoEditModal();
 
         const response = await fetch(
             `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
@@ -253,8 +293,15 @@ window.updateArtistPhoto = async () => {
             }
         );
 
-        const data = await response.json();
-        if (!data.secure_url) throw new Error("Upload falhou");
+       const data = await response.json();
+
+if (!response.ok) {
+    console.error("STATUS:", response.status);
+    console.error("RESPOSTA:", data);
+    alert(data.error?.message || "Erro desconhecido");
+    return;
+}
+
 
         const url = data.secure_url;
 
@@ -271,6 +318,8 @@ window.updateArtistPhoto = async () => {
         alert("Erro ao enviar foto.");
     }
 };
+
+
 
 window.salvarNomeV3 = async function () {
     const input = document.getElementById('input-sistema-v3');
@@ -587,6 +636,36 @@ if (!document.getElementById('toast-style')) {
     document.head.appendChild(style);
 }
 
+// Função para comprimir a imagem antes do upload
+async function compressImage(file, maxWidth = 500, maxHeight = 500) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // Lógica de redimensionamento proporcional (Crop Center)
+                const size = Math.min(width, height);
+                canvas.width = maxWidth;
+                canvas.height = maxHeight;
+
+                const ctx = canvas.getContext('2d');
+                // Desenha a imagem cortando o centro para ficar quadrada
+                ctx.drawImage(img, (width - size) / 2, (height - size) / 2, size, size, 0, 0, maxWidth, maxHeight);
+                
+                canvas.toBlob((blob) => {
+                    resolve(blob);
+                }, 'image/jpeg', 0.7); // 0.7 é a qualidade (70%)
+            };
+        };
+    });
+}
+
 // ============================================
 // 2. FUNÇÃO DE SUBMISSÃO PRINCIPAL
 // ============================================
@@ -660,21 +739,18 @@ if (!isValidYt) {
             nomeDoArtista = userDoc.data().nomeArtistico || userDoc.data().nome || nomeDoArtista;
         }
 
-       // B. Upload da Imagem (Cloudinary - otimizado)
-const file = coverFileInput.files[0];
+const originalFile = coverFileInput.files[0];
+const compressedBlob = await compressImage(originalFile, 500, 500); // Reduz para 500x500
 
 const formData = new FormData();
-formData.append("file", file);
+// Enviamos o blob comprimido em vez do arquivo original
+formData.append("file", compressedBlob);
 formData.append("upload_preset", UPLOAD_PRESET);
 formData.append("folder", `tune/posts/releases/${currentUser.uid}`);
 
-// 🔥 transformações (economia + padrão Spotify vibes)
-formData.append("width", 600);
-formData.append("height", 600);
-formData.append("crop", "fill");
-formData.append("gravity", "auto");
-formData.append("quality", "auto:eco");
-formData.append("fetch_format", "auto");
+// Removido o campo "transformation" que causava erro 400
+// O Cloudinary aplicará o que estiver definido no preset, 
+// mas como já diminuímos a imagem no canvas, ela já irá leve.
 
 const uploadResponse = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
@@ -687,6 +763,7 @@ const uploadResponse = await fetch(
 const uploadData = await uploadResponse.json();
 
 if (!uploadData.secure_url) {
+    console.error(uploadData);
     throw new Error("Erro ao enviar capa para o Cloudinary");
 }
 

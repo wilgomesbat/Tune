@@ -67,11 +67,13 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 const rtdb = getDatabase(app); // Inicializa o Realtime Database
 
+
 // -------------------------------
 // ☁️ Cloudinary (UPLOAD FRONT)
 // -------------------------------
-const CLOUD_NAME = "dsrrzjwuf";
-const UPLOAD_PRESET = "tune_unsigned";
+const CLOUD_NAME = "dykhzs0q0";
+const UPLOAD_PRESET = "tunestrg";
+
 
 export async function uploadImageToCloudinary(file) {
     if (!file) throw new Error("Nenhum arquivo selecionado");
@@ -99,6 +101,7 @@ export async function uploadImageToCloudinary(file) {
 
     return data.secure_url;
 }
+
 
 
 
@@ -1235,11 +1238,13 @@ function rgbToHsl(r, g, b) {
 
 
 async function setupAlbumPage(albumId) {
+    // Seletores dos elementos do DOM
     const detailHeader = document.querySelector('#album-header');
     const albumCoverDetail = document.getElementById('album-cover-detail');
+    const albumAnimatedDetail = document.getElementById('album-animated-detail'); // O GIF/Vídeo
     const albumTitleDetail = document.getElementById('album-title-detail');
     const artistNameDetail = document.getElementById('artist-name-detail');
-    const artistImageDetail = document.getElementById('artist-image-detail'); // Foto do Artista
+    const artistImageDetail = document.getElementById('artist-image-detail');
     const albumYearDetail = document.getElementById('album-year-detail');
     const countdownContainer = document.getElementById('countdown-container');
     const playButton = document.querySelector('.album-actions .play');
@@ -1255,7 +1260,52 @@ async function setupAlbumPage(albumId) {
         const albumData = albumSnap.data();
         const album = { id: albumSnap.id, ...albumData };
 
-        // --- 1. BUSCAR DADOS DO ARTISTA (PARA A FOTO) ---
+        // --- 1. LÓGICA DE CAPA (ESTÁTICA VS ANIMADA) ---
+        // Sempre define a estática primeiro (base para ColorThief)
+        albumCoverDetail.src = album.cover || './assets/default-cover.png';
+        albumCoverDetail.crossOrigin = "Anonymous";
+
+        // Verifica se a chave animatedCover contém um link válido
+        const animUrl = album.animatedCover;
+        if (animUrl && animUrl.trim() !== "" && animUrl !== "N/A") {
+            albumAnimatedDetail.src = animUrl;
+            
+            // Quando o GIF/Vídeo terminar de carregar
+            albumAnimatedDetail.onload = () => {
+                albumAnimatedDetail.classList.remove('hidden');
+                // Pequeno delay para garantir que o browser renderizou antes do fade
+                setTimeout(() => {
+                    albumAnimatedDetail.classList.replace('opacity-0', 'opacity-100');
+                }, 50);
+            };
+        } else {
+            // Se não houver animação, limpa e esconde o elemento
+            albumAnimatedDetail.classList.add('hidden');
+            albumAnimatedDetail.classList.replace('opacity-100', 'opacity-0');
+            albumAnimatedDetail.src = "";
+        }
+
+        // --- 2. CORES DINÂMICAS COM COLOR THIEF ---
+        albumCoverDetail.onload = () => {
+            try {
+                const colorThief = new ColorThief();
+                const color = colorThief.getColor(albumCoverDetail);
+                let { h, s, l } = rgbToHsl(color[0], color[1], color[2]);
+                
+                s = Math.max(s, 0.7); // Saturação vibrante
+                l = 0.4; // Brilho equilibrado
+                
+                const baseColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+                
+                if (detailHeader) {
+                    detailHeader.style.backgroundColor = baseColor;
+                    // Gradiente que vai da cor extraída para o preto do fundo da página
+                    detailHeader.style.backgroundImage = `linear-gradient(to bottom, ${baseColor} 0%, #030303 100%)`;
+                }
+            } catch (e) { console.warn("Erro ao extrair cores:", e); }
+        };
+
+        // --- 3. DADOS DO ARTISTA ---
         const artistId = albumData.artistId || albumData.uidars;
         if (artistId) {
             const artistSnap = await getDoc(doc(db, 'usuarios', artistId));
@@ -1267,56 +1317,28 @@ async function setupAlbumPage(albumId) {
             }
         }
 
-        // --- 2. CORES DINÂMICAS COM COLOR THIEF ---
-        const coverUrl = album.cover || './assets/default-cover.png';
-        albumCoverDetail.src = coverUrl;
-        albumCoverDetail.crossOrigin = "Anonymous";
-
-        albumCoverDetail.onload = () => {
-            try {
-                const colorThief = new ColorThief();
-                const color = colorThief.getColor(albumCoverDetail);
-                
-                // Turbinar a cor (Saturação e Brilho)
-                let { h, s, l } = rgbToHsl(color[0], color[1], color[2]);
-                s = Math.max(s, 0.7); // Força saturação
-                l = 0.4; // Brilho equilibrado
-                
-                const baseColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
-                
-                if (detailHeader) {
-                    detailHeader.style.backgroundColor = baseColor;
-                    detailHeader.style.backgroundImage = `linear-gradient(to bottom, ${baseColor} 0%, #000000 100%)`;
-                }
-            } catch (e) { console.warn("Erro ao extrair cores do álbum:", e); }
-        };
-
-        // --- 3. LÓGICA DE BLOQUEIO / COUNTDOWN ---
-        const now = new Date();
-        const scheduledDate = albumData.date ? new Date(albumData.date + "T00:00:00") : null;
-        const isLocked = scheduledDate && scheduledDate > now;
-
+        // --- 4. TEXTOS E STATUS ---
         albumTitleDetail.textContent = album.album;
         artistNameDetail.textContent = album.artist;
+        
+        const scheduledDate = albumData.date ? new Date(albumData.date + "T00:00:00") : null;
         albumYearDetail.textContent = album.releaseYear || (scheduledDate ? scheduledDate.getFullYear() : '—');
+
+        // Lógica de bloqueio (Release Date)
+        const now = new Date();
+        const isLocked = scheduledDate && scheduledDate > now;
 
         if (isLocked) {
             albumCoverDetail.style.filter = "grayscale(1) brightness(0.6)";
+            if (albumAnimatedDetail) albumAnimatedDetail.style.filter = "grayscale(1) brightness(0.6)";
             if (playButton) {
-                playButton.style.opacity = "0.3";
+                playButton.style.opacity = "0.5";
                 playButton.style.cursor = "not-allowed";
                 playButton.onclick = null;
             }
-            if (countdownContainer) {
-                countdownContainer.classList.remove('hidden');
-                startCountdown(albumData.date + "T00:00:00", album.cover);
-            }
-        } else {
-            albumCoverDetail.style.filter = "none";
-            if (countdownContainer) countdownContainer.classList.add('hidden');
         }
 
-        // --- 4. BUSCA DAS MÚSICAS ---
+        // --- 5. BUSCA E RENDERIZAÇÃO DAS MÚSICAS ---
         const musicQuery = query(
             collection(db, 'musicas'),
             where('album', '==', albumId),
