@@ -170,12 +170,36 @@ window.checkAndResetMonthlyStreams = function(track) {
     console.log("🛡️ Proteção de stream validada para:", nomeDaMusica);
 };
 
+// Função auxiliar para registrar atividade no log
+async function registrarLogMusica(track) {
+    const user = auth.currentUser;
+    
+    // Dados básicos do log
+    const logData = {
+        type: 'Música',
+        itemTitle: track.title || "Sem título",
+        itemId: track.id,
+        timestamp: new Date(), // Usa a data do servidor se possível, ou local
+        userId: user ? user.uid : "deslogado",
+        userName: user ? (user.displayName || "Usuário") : "Visitante"
+    };
+
+    try {
+        // Salva na coleção 'logs'
+        await addDoc(collection(db, "logs"), logData);
+        console.log("📝 Log registrado:", logData.itemTitle);
+    } catch (err) {
+        console.error("Erro ao registrar log:", err);
+    }
+}
+
 async function loadTrack(track) {
     if (!track || !track.audioURL) return;
 
     // 1. Limpeza de streams e timers anteriores
     clearTimeout(streamTimer);
     streamTimer = null; 
+    registrarLogMusica(track);
     
     currentTrack = track; 
     audio.src = track.audioURL;
