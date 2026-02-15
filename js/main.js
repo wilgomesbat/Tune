@@ -5,41 +5,39 @@ function initializeRouting() {
     let page = 'home';
     let id = null;
 
-    // 1. Divide o caminho em partes (ex: ["album", "123"])
-    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html");
+    // 1. Lógica para Produção (tunedks.com/page/id)
+    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
 
     if (pathParts.length > 0) {
         page = pathParts[0]; 
         id = pathParts[1] || null;
     } 
-    // 2. Fallback para ?page= (Localhost)
+    // 2. Fallback para Localhost (?page=home)
     else if (urlParams.has('page')) {
         page = urlParams.get('page');
         id = urlParams.get('id');
     }
 
-    // Limpeza de segurança para evitar loops ou carregar arquivos errados
+    // Limpeza de segurança
     if (page.includes('.html')) page = page.replace('.html', '');
-    if (page === 'menu' || page === 'index' || !page) page = 'home';
+    if (page === 'menu' || page === 'index' || !page || page === 'undefined') page = 'home';
 
-    console.log(`🚀 Roteamento inicial detectado: Página [${page}] ID [${id}]`);
+    console.log(`🚀 Roteamento inicial: Página [${page}] ID [${id}]`);
     
-    // Carrega o conteúdo sem criar um novo histórico (false)
+    // Tenta carregar o conteúdo
     loadContent(page, id, false);
-}
 
-/**
- * Escuta o botão voltar/avançar do navegador.
- */
-window.addEventListener('popstate', (e) => {
-    if (e.state && e.state.page) {
-        console.log("⬅️ Voltando para:", e.state.page);
-        loadContent(e.state.page, e.state.id, false);
-    } else {
-        // Fallback: se não houver estado, tenta reconstruir pela URL atual
-        initializeRouting();
-    }
-});
+    // 🔥 FUNÇÃO DE REDIRECIONAMENTO DE SEGURANÇA
+    // Se após 2.5 segundos a tela ainda estiver totalmente branca/vazia, força um reload para a Home real
+    setTimeout(() => {
+        const contentArea = document.getElementById('content-area');
+        if (!contentArea || contentArea.innerHTML.trim() === "" || contentArea.innerHTML.includes('undefined')) {
+            console.warn("⚠️ Falha no carregamento detectada. Redirecionando para garantir conteúdo...");
+            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+            window.location.href = isDev ? "menu.html?page=home" : "/home";
+        }
+    }, 2500);
+}
 
 // Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
@@ -1762,52 +1760,81 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
     const contentArea = document.getElementById('content-area');
     if (!contentArea || !pageName) return;
 
+    // --- 1. TRAVA DE CACHE PRIORITÁRIA (ECONOMIA DE DOCUMENTOS) ---
+    // Se for Home e já carregou uma vez, restaura o HTML e para a execução aqui.
+    if (pageName === 'home' && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
+        console.log("🏠 Home restaurada do cache (0 leituras Firestore)");
+        contentArea.innerHTML = window.__HOME_CACHE__.html;
+        
+        rebindHomeUI(); // Reativa os cliques nos botões
+        
+        if (shouldPushState) {
+            updateBrowserHistory(pageName, id);
+        }
+        return; // MATA A FUNÇÃO AQUI: Não faz fetch nem chama setupHomePage() denovo
+    }
+
     try {
-        // 1. Busca o arquivo HTML na pasta /pages
+        // --- 2. BUSCA O ARQUIVO HTML ---
         const response = await fetch(`/pages/${pageName}.html`);
         if (!response.ok) throw new Error(`Página ${pageName} não encontrada.`);
 
         const html = await response.text();
         contentArea.innerHTML = html;
 
-        // 2. Gerencia o Histórico do Navegador (URLs Limpas)
+        // --- 3. GERENCIA O HISTÓRICO (URLs LIMPAS) ---
         if (shouldPushState) {
-            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-            
-            // Define o caminho: /album/123 ou apenas /search
-            const cleanPath = id ? `/${pageName}/${id}` : `/${pageName}`;
-            
-            // Localhost usa ? para evitar problemas com servidores simples sem rewrite
-            const newUrl = isDev 
-                ? `?page=${pageName}${id ? `&id=${id}` : ''}` 
-                : cleanPath;
-            
-            window.history.pushState({ page: pageName, id: id }, '', newUrl);
+            updateBrowserHistory(pageName, id);
         }
 
-// 3. Setup específico de cada página
-setTimeout(() => {
-    console.log(`🛠️ Executando setup para: ${pageName}`);
-    
-    switch (pageName) {
-        case 'home': if (typeof setupHomePage === 'function') setupHomePage(); break;
-        case 'music': if (typeof setupMusicPage === 'function') setupMusicPage(id); break;
-        case 'album': if (typeof setupAlbumPage === 'function') setupAlbumPage(id); break;
-        case 'artist': if (typeof setupArtistPage === 'function') setupArtistPage(id); break;
-        case 'playlist': if (typeof setupPlaylistPage === 'function') setupPlaylistPage(id); break;
-        case 'library': if (typeof setupLibraryPage === 'function') setupLibraryPage(id); break; // ADICIONE ESTA LINHA
-        case 'liked': if (typeof setupLikedPage === 'function') setupLikedPage(); break;
-        case 'search': 
-            import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
-            break;
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}, 50);
+        // --- 4. SETUP ESPECÍFICO DE CADA PÁGINA ---
+        setTimeout(() => {
+            console.log(`🛠️ Executando setup para: ${pageName}`);
+            
+            switch (pageName) {
+                case 'home': 
+                    if (typeof setupHomePage === 'function') setupHomePage(); 
+                    break;
+                case 'music': 
+                    if (typeof setupMusicPage === 'function') setupMusicPage(id); 
+                    break;
+                case 'album': 
+                    if (typeof setupAlbumPage === 'function') setupAlbumPage(id); 
+                    break;
+                case 'artist': 
+                    if (typeof setupArtistPage === 'function') setupArtistPage(id); 
+                    break;
+                case 'playlist': 
+                    if (typeof setupPlaylistPage === 'function') setupPlaylistPage(id); 
+                    break;
+                case 'library': 
+                    if (typeof setupLibraryPage === 'function') setupLibraryPage(id); 
+                    break;
+                case 'liked': 
+                    if (typeof setupLikedPage === 'function') setupLikedPage(); 
+                    break;
+                case 'search': 
+                    import('./search.js')
+                        .then(m => m.setupSearchPage())
+                        .catch(e => console.error("Erro ao carregar busca:", e));
+                    break;
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 50);
 
     } catch (error) {
         console.error("❌ Erro ao carregar página:", error);
-        loadContent('home', null, false); // Fallback para home em caso de erro crítico
+        // Fallback: se a página falhar, tenta voltar para a home
+        if (pageName !== 'home') loadContent('home', null, false);
     }
+} // <--- FECHAMENTO DA FUNÇÃO loadContent
+
+// --- FUNÇÃO AUXILIAR PARA URL ---
+function updateBrowserHistory(pageName, id) {
+    const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+    const cleanPath = id ? `/${pageName}/${id}` : `/${pageName}`;
+    const newUrl = isDev ? `?page=${pageName}${id ? `&id=${id}` : ''}` : cleanPath;
+    window.history.pushState({ page: pageName, id: id }, '', newUrl);
 }
 
 // Inicializa tudo quando o DOM carregar

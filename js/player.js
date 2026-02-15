@@ -187,9 +187,9 @@ async function registrarLogMusica(track) {
     try {
         // Salva na coleção 'logs'
         await addDoc(collection(db, "logs"), logData);
-        console.log("📝 Log registrado:", logData.itemTitle);
+        
     } catch (err) {
-        console.error("Erro ao registrar log:", err);
+        
     }
 }
 
