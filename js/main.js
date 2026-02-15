@@ -1760,74 +1760,91 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
     const contentArea = document.getElementById('content-area');
     if (!contentArea || !pageName) return;
 
-    // --- 1. TRAVA DE CACHE PRIORITÁRIA (ECONOMIA DE DOCUMENTOS) ---
-    // Se for Home e já carregou uma vez, restaura o HTML e para a execução aqui.
+    // --- 1. TRAVA DE CACHE PRIORITÁRIA (ECONOMIA DE LEITURAS) ---
     if (pageName === 'home' && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
-        console.log("🏠 Home restaurada do cache (0 leituras Firestore)");
+        console.log("🏠 Restaurando Home do cache global (0 leituras Cloud)");
         contentArea.innerHTML = window.__HOME_CACHE__.html;
         
-        rebindHomeUI(); // Reativa os cliques nos botões
+        rebindHomeUI(); // Reativa os cliques nos botões [data-navigate]
         
         if (shouldPushState) {
             updateBrowserHistory(pageName, id);
         }
-        return; // MATA A FUNÇÃO AQUI: Não faz fetch nem chama setupHomePage() denovo
+        return; // MATA A EXECUÇÃO AQUI: Impede novas leituras no Firebase
     }
 
     try {
-        // --- 2. BUSCA O ARQUIVO HTML ---
-        const response = await fetch(`/pages/${pageName}.html`);
-        if (!response.ok) throw new Error(`Página ${pageName} não encontrada.`);
+        // --- 2. BUSCA DO ARQUIVO HTML ---
+        // Se as suas páginas estão na raiz, use `${pageName}.html`. 
+        // Se estão numa pasta, use `/pages/${pageName}.html`.
+        const response = await fetch(`/pages/${pageName}.html`); 
+        
+        if (!response.ok) throw new Error(`Página ${pageName} não encontrada no servidor.`);
 
         const html = await response.text();
         contentArea.innerHTML = html;
 
-        // --- 3. GERENCIA O HISTÓRICO (URLs LIMPAS) ---
+        // --- 3. GESTÃO DE HISTÓRICO ---
         if (shouldPushState) {
             updateBrowserHistory(pageName, id);
         }
 
-        // --- 4. SETUP ESPECÍFICO DE CADA PÁGINA ---
+        // --- 4. EXECUÇÃO DOS SETUPS (COM PROTEÇÃO CONTRA ERROS) ---
         setTimeout(() => {
             console.log(`🛠️ Executando setup para: ${pageName}`);
             
+            // Função interna para evitar que uma falha num setup quebre o site todo
+            const safeSetup = (fn, param = null) => {
+                try {
+                    if (typeof fn === 'function') fn(param);
+                } catch (e) {
+                    console.error(`Erro no setup de ${pageName}:`, e);
+                }
+            };
+
             switch (pageName) {
                 case 'home': 
-                    if (typeof setupHomePage === 'function') setupHomePage(); 
+                    safeSetup(setupHomePage); 
                     break;
                 case 'music': 
-                    if (typeof setupMusicPage === 'function') setupMusicPage(id); 
+                    safeSetup(setupMusicPage, id); 
                     break;
                 case 'album': 
-                    if (typeof setupAlbumPage === 'function') setupAlbumPage(id); 
+                    safeSetup(setupAlbumPage, id); 
                     break;
                 case 'artist': 
-                    if (typeof setupArtistPage === 'function') setupArtistPage(id); 
+                    safeSetup(setupArtistPage, id); 
                     break;
                 case 'playlist': 
-                    if (typeof setupPlaylistPage === 'function') setupPlaylistPage(id); 
+                    safeSetup(setupPlaylistPage, id); 
                     break;
                 case 'library': 
-                    if (typeof setupLibraryPage === 'function') setupLibraryPage(id); 
+                    safeSetup(setupLibraryPage, id); 
+                    if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
                     break;
                 case 'liked': 
-                    if (typeof setupLikedPage === 'function') setupLikedPage(); 
+                    safeSetup(setupLikedPage); 
                     break;
                 case 'search': 
                     import('./search.js')
                         .then(m => m.setupSearchPage())
-                        .catch(e => console.error("Erro ao carregar busca:", e));
+                        .catch(e => console.error("Erro ao carregar search.js:", e));
                     break;
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 50);
+        }, 100); // Aumentei para 100ms para garantir que o DOM está pronto
 
     } catch (error) {
-        console.error("❌ Erro ao carregar página:", error);
-        // Fallback: se a página falhar, tenta voltar para a home
-        if (pageName !== 'home') loadContent('home', null, false);
+        console.error("❌ Erro ao carregar conteúdo:", error);
+        // Se falhar, mostra uma mensagem amigável em vez de tela branca
+        contentArea.innerHTML = `
+            <div class="flex flex-col items-center justify-center p-10">
+                <p class="text-gray-400">Não foi possível carregar a página.</p>
+                <button onclick="location.reload()" class="mt-4 text-green-500">Tentar novamente</button>
+            </div>
+        `;
     }
-} // <--- FECHAMENTO DA FUNÇÃO loadContent
+}
 
 // --- FUNÇÃO AUXILIAR PARA URL ---
 function updateBrowserHistory(pageName, id) {
