@@ -1238,16 +1238,24 @@ function rgbToHsl(r, g, b) {
 
 
 async function setupAlbumPage(albumId) {
-    // Seletores dos elementos do DOM
-    const detailHeader = document.querySelector('#album-header');
-    const albumCoverDetail = document.getElementById('album-cover-detail');
-    const albumAnimatedDetail = document.getElementById('album-animated-detail'); // O GIF/Vídeo
-    const albumTitleDetail = document.getElementById('album-title-detail');
-    const artistNameDetail = document.getElementById('artist-name-detail');
-    const artistImageDetail = document.getElementById('artist-image-detail');
-    const albumYearDetail = document.getElementById('album-year-detail');
-    const countdownContainer = document.getElementById('countdown-container');
-    const playButton = document.querySelector('.album-actions .play');
+    // 1. Seletores com Verificação de Segurança
+    const elements = {
+        header: document.querySelector('#album-header'),
+        cover: document.getElementById('album-cover-detail'),
+        animated: document.getElementById('album-animated-detail'),
+        title: document.getElementById('album-title-detail'),
+        artistName: document.getElementById('artist-name-detail'),
+        artistImg: document.getElementById('artist-image-detail'),
+        year: document.getElementById('album-year-detail'),
+        countdown: document.getElementById('countdown-container'),
+        playBtn: document.querySelector('.album-actions .play')
+    };
+
+    // Sai da função se os elementos essenciais não existirem (evita erro de 'null')
+    if (!elements.cover || !elements.title) {
+        console.warn("⚠️ Abortando setupAlbumPage: Elementos do DOM não encontrados.");
+        return;
+    }
 
     if (!albumId) return;
 
@@ -1261,80 +1269,78 @@ async function setupAlbumPage(albumId) {
         const album = { id: albumSnap.id, ...albumData };
 
         // --- 1. LÓGICA DE CAPA (ESTÁTICA VS ANIMADA) ---
-        // Sempre define a estática primeiro (base para ColorThief)
-        albumCoverDetail.src = album.cover || './assets/default-cover.png';
-        albumCoverDetail.crossOrigin = "Anonymous";
+        // Sempre define a estática primeiro
+        elements.cover.src = album.cover || './assets/default-cover.png';
+        elements.cover.crossOrigin = "Anonymous";
 
-        // Verifica se a chave animatedCover contém um link válido
+        // Verifica a chave animatedCover
         const animUrl = album.animatedCover;
-        if (animUrl && animUrl.trim() !== "" && animUrl !== "N/A") {
-            albumAnimatedDetail.src = animUrl;
-            
-            // Quando o GIF/Vídeo terminar de carregar
-            albumAnimatedDetail.onload = () => {
-                albumAnimatedDetail.classList.remove('hidden');
-                // Pequeno delay para garantir que o browser renderizou antes do fade
-                setTimeout(() => {
-                    albumAnimatedDetail.classList.replace('opacity-0', 'opacity-100');
-                }, 50);
-            };
-        } else {
-            // Se não houver animação, limpa e esconde o elemento
-            albumAnimatedDetail.classList.add('hidden');
-            albumAnimatedDetail.classList.replace('opacity-100', 'opacity-0');
-            albumAnimatedDetail.src = "";
+        if (elements.animated) {
+            if (animUrl && animUrl.trim() !== "" && animUrl !== "N/A") {
+                elements.animated.src = animUrl;
+                elements.animated.onload = () => {
+                    elements.animated.classList.remove('hidden');
+                    setTimeout(() => {
+                        // Troca suave de opacidade
+                        elements.animated.classList.replace('opacity-0', 'opacity-100');
+                    }, 50);
+                };
+            } else {
+                elements.animated.classList.add('hidden');
+                elements.animated.classList.replace('opacity-100', 'opacity-0');
+                elements.animated.src = ""; // Limpa para economizar banda
+            }
         }
 
-        // --- 2. CORES DINÂMICAS COM COLOR THIEF ---
-        albumCoverDetail.onload = () => {
+        // --- 2. CORES DINÂMICAS (COLOR THIEF) ---
+        elements.cover.onload = () => {
             try {
                 const colorThief = new ColorThief();
-                const color = colorThief.getColor(albumCoverDetail);
+                const color = colorThief.getColor(elements.cover);
                 let { h, s, l } = rgbToHsl(color[0], color[1], color[2]);
                 
-                s = Math.max(s, 0.7); // Saturação vibrante
-                l = 0.4; // Brilho equilibrado
+                s = Math.max(s, 0.7); // Vibrante
+                l = 0.4; // Estético
                 
                 const baseColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
                 
-                if (detailHeader) {
-                    detailHeader.style.backgroundColor = baseColor;
-                    // Gradiente que vai da cor extraída para o preto do fundo da página
-                    detailHeader.style.backgroundImage = `linear-gradient(to bottom, ${baseColor} 0%, #030303 100%)`;
+                if (elements.header) {
+                    elements.header.style.backgroundColor = baseColor;
+                    elements.header.style.backgroundImage = `linear-gradient(to bottom, ${baseColor} 0%, #030303 100%)`;
                 }
             } catch (e) { console.warn("Erro ao extrair cores:", e); }
         };
 
         // --- 3. DADOS DO ARTISTA ---
         const artistId = albumData.artistId || albumData.uidars;
-        if (artistId) {
+        if (artistId && elements.artistImg) {
             const artistSnap = await getDoc(doc(db, 'usuarios', artistId));
             if (artistSnap.exists()) {
                 const artistData = artistSnap.data();
-                if (artistImageDetail) {
-                    artistImageDetail.src = artistData.fotoPerfil || artistData.foto || 'https://placehold.co/32x32';
-                }
+                elements.artistImg.src = artistData.fotoPerfil || artistData.foto || 'https://placehold.co/32x32';
             }
         }
 
         // --- 4. TEXTOS E STATUS ---
-        albumTitleDetail.textContent = album.album;
-        artistNameDetail.textContent = album.artist;
+        elements.title.textContent = album.album || "Sem título";
+        if (elements.artistName) elements.artistName.textContent = album.artist || "Artista";
         
         const scheduledDate = albumData.date ? new Date(albumData.date + "T00:00:00") : null;
-        albumYearDetail.textContent = album.releaseYear || (scheduledDate ? scheduledDate.getFullYear() : '—');
+        if (elements.year) {
+            elements.year.textContent = album.releaseYear || (scheduledDate ? scheduledDate.getFullYear() : '—');
+        }
 
-        // Lógica de bloqueio (Release Date)
+        // Lógica de Bloqueio
         const now = new Date();
         const isLocked = scheduledDate && scheduledDate > now;
 
         if (isLocked) {
-            albumCoverDetail.style.filter = "grayscale(1) brightness(0.6)";
-            if (albumAnimatedDetail) albumAnimatedDetail.style.filter = "grayscale(1) brightness(0.6)";
-            if (playButton) {
-                playButton.style.opacity = "0.5";
-                playButton.style.cursor = "not-allowed";
-                playButton.onclick = null;
+            elements.cover.style.filter = "grayscale(1) brightness(0.6)";
+            if (elements.animated) elements.animated.style.filter = "grayscale(1) brightness(0.6)";
+            if (elements.playBtn) {
+                elements.playBtn.style.opacity = "0.5";
+                elements.playBtn.style.cursor = "not-allowed";
+                elements.playBtn.onclick = null;
             }
         }
 
@@ -1349,15 +1355,18 @@ async function setupAlbumPage(albumId) {
         const tracks = [];
         musicSnap.forEach(docSnap => tracks.push({ id: docSnap.id, ...docSnap.data() }));
 
-        renderAlbumTracks(tracks, isLocked);
+        // Chama a renderização das tracks (Certifique-se que esta função existe no escopo)
+        if (typeof renderAlbumTracks === 'function') {
+            renderAlbumTracks(tracks, isLocked);
+        }
 
-        if (!isLocked && playButton && tracks.length) {
-            playButton.style.opacity = "1";
-            playButton.onclick = () => addToQueue(tracks);
+        if (!isLocked && elements.playBtn && tracks.length) {
+            elements.playBtn.style.opacity = "1";
+            elements.playBtn.onclick = () => addToQueue(tracks);
         }
 
     } catch (err) {
-        console.error("Erro no setupAlbumPage:", err);
+        console.error("Erro crítico no setupAlbumPage:", err);
     }
 }
 function renderAlbumTracks(tracks, isLocked) {

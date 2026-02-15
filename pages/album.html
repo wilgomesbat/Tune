@@ -197,6 +197,8 @@
 }
 
 
+
+
 .album-actions {
   display: flex;
   align-items: center;
@@ -413,44 +415,53 @@
 /* Estilos dos ícones (shuffle, add, download, mais) */
 
 </style>
-
-<div id="album" class="relative min-h-screen bg-[#000000] text-white">
-  <div id="album-header" class="relative main-header h-[450px] md:h-[500px] flex items-end p-6 md:p-10 rounded-[40px] overflow-hidden">
+<div id="album-header" class="relative main-header h-auto min-h-[450px] md:h-[500px] flex items-end p-6 md:p-10 rounded-[40px] overflow-hidden transition-all duration-700">
     <div id="album-cover-bg" class="absolute inset-0 bg-cover bg-center"></div>
     <div class="absolute inset-0 album-bg-gradient bg-gradient-to-b from-transparent to-[#000000]"></div>
-    <div class="relative z-10">
-<div class="flex flex-col md:flex-row items-start md:items-end space-y-4 md:space-y-0 md:space-x-6">
-        <img id="album-cover-detail" src="https://placehold.co/400x400" 
-             alt="Capa do Álbum" 
-             class="w-32 h-32 md:w-48 md:h-48 rounded-md shadow-lg object-cover">
-        <div>
-          <h1 id="album-title-detail" class="text-4xl md:text-6xl font-extrabold leading-tight">Nome do Álbum</h1>
-          <div class="flex items-center gap-x-2 text-sm text-gray-300 mt-2">
-            <img id="artist-image-detail" src="https://placehold.co/32x32" 
-                 alt="Artista" class="w-7 h-7 rounded-full object-cover">
-            <span id="artist-name-detail" class="font-semibold hover:underline cursor-pointer">Nome do Artista</span>
-            <span>•</span>
-            <span id="album-year-detail">2025</span>
-          </div>
-           
+    
+    <div class="relative z-10 w-full">
+        <div class="flex flex-col md:flex-row items-center md:items-end space-y-6 md:space-y-0 md:space-x-8">
+            
+            <div class="relative w-64 h-64 md:w-64 md:h-64 flex-shrink-0 overflow-hidden rounded-lg shadow-2xl bg-zinc-900 playlist-glow" id="album-cover-wrapper">
+                <img id="album-cover-detail" 
+                     src="https://placehold.co/400x400" 
+                     alt="Capa do Álbum" 
+                     class="w-full h-full object-cover transition-opacity duration-500">
+                
+                <img id="album-animated-detail" 
+                     src="" 
+                     alt="Capa Animada" 
+                     class="absolute top-0 left-0 w-full h-full object-cover hidden opacity-0 transition-opacity duration-700">
+
+                <div class="absolute inset-0 bg-black/5 pointer-events-none"></div>
+            </div>
+
+            <div class="flex flex-col items-center md:items-start text-center md:text-left">
+                <h1 id="album-title-detail" class="text-white font-extrabold leading-tight">
+                    Nome do Álbum
+                </h1>
+                <div class="flex items-center gap-x-2 text-sm text-gray-300 mt-2">
+                    <img id="artist-image-detail" src="https://placehold.co/32x32" class="w-7 h-7 rounded-full object-cover">
+                    <span id="artist-name-detail" class="font-semibold hover:underline cursor-pointer text-gray-00">Nome do Artista</span>
+                    <span>•</span>
+                    <span id="album-year-detail">2025</span>
+                </div>
+            </div>
         </div>
-      </div>
-
-       <div id="countdown-container" class="hidden"></div>
-       
-      
-      
+        
+        <div id="countdown-container" class="hidden"></div>
     </div>
-  </div>
+</div>
 
- <div class="album-actions">
+
+
+<div class="album-actions flex">
     <button class="btn play">
         <img src="/assets/play_arrow_50dp_000000_FILL1_wght400_GRAD0_opsz48.svg" alt="Play">
-    </button>
+        </button>
 
     <button id="album-like-button" class="btn like">
         <img src="/assets/like.svg" alt="Like">
-        
     </button>
     
     <button class="btn share">

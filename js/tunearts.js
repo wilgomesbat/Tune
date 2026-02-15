@@ -800,9 +800,6 @@ window.showToast("Lançamento configurado!", "success");
     }
 };
 
-// ============================================
-// 3. SUBMISSÃO DE ÁLBUM (CHAVES ORIGINAIS)
-// ============================================
 window.handleAlbumSubmission = async (e) => {
     e.preventDefault();
     
@@ -812,14 +809,12 @@ window.handleAlbumSubmission = async (e) => {
         return;
     }
 
-    // Captura dos inputs do formulário
     const albumTitle = document.getElementById('albumName').value.trim();
-    const albumOriginal = document.getElementById('albumOriginal').value.trim(); // Nome do álbum original (referência)
+    const albumOriginal = document.getElementById('albumOriginal').value.trim();
     const durationValue = document.getElementById('duration').value.trim();
     const releaseDate = document.getElementById('releaseDate').value;
     const coverFileInput = document.getElementById('relCoverAlbum');
 
-    // Validações básicas
     if (!albumTitle || !releaseDate || !coverFileInput.files[0]) {
         window.showToast("Preencha os campos obrigatórios e a capa!", "error");
         return;
@@ -829,44 +824,47 @@ window.handleAlbumSubmission = async (e) => {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO...';
 
     try {
-        // A. Busca Nome Artístico para a chave 'artist'
         let nomeDoArtista = "N/A";
         const userDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
         if (userDoc.exists()) {
             nomeDoArtista = userDoc.data().nomeArtistico || userDoc.data().nome || "N/A";
         }
 
-        // B. Upload da Capa (Cloudinary)
-        const file = coverFileInput.files[0];
+        // --- MELHORIA AQUI: Compressão antes do envio ---
+        const originalFile = coverFileInput.files[0];
+        const compressedBlob = await compressImage(originalFile, 600, 600); // Garante 600x600 via Canvas
+
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", compressedBlob); // Enviando o blob processado
         formData.append("upload_preset", UPLOAD_PRESET);
         formData.append("folder", `tune/albums/${currentUser.uid}`);
         
-        // Transformações padrão
-        formData.append("width", 600);
-        formData.append("height", 600);
-        formData.append("crop", "fill");
-
+        // Removido width/height/crop daqui para evitar erro 400 no Cloudinary
+        
         const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
             method: "POST",
             body: formData
         });
-        const uploadData = await uploadRes.json();
-        if (!uploadData.secure_url) throw new Error("Erro no upload da imagem");
 
-        // C. Salvamento com as CHAVES ORIGINAIS solicitadas
+        const uploadData = await uploadRes.json();
+
+        // Verificação detalhada do erro
+        if (!uploadData.secure_url) {
+            console.error("Detalhes do erro Cloudinary:", uploadData);
+            throw new Error(uploadData.error?.message || "Erro no upload da imagem");
+        }
+
         await addDoc(collection(db, "albuns"), {
-            album: albumTitle,          // Nome do Álbum
-            artist: nomeDoArtista,      // Nome do Artista (String)
-            country: "N/A",             // Padrão solicitado
+            album: albumTitle,
+            artist: nomeDoArtista,
+            country: "N/A",
             cover: uploadData.secure_url,
-            date: releaseDate,          // Data (YYYY-MM-DD)
-            duration: durationValue,    // Ex: "1h 11min"
-            label: "N/A",               // Padrão solicitado
-            uidars: currentUser.uid,    // ID do Artista (String)
-            status: "Em Revisão",       // Controle interno
-            album_original_ref: albumOriginal // Campo extra solicitado anteriormente
+            date: releaseDate,
+            duration: durationValue,
+            label: "N/A",
+            uidars: currentUser.uid,
+            status: "Em Revisão",
+            album_original_ref: albumOriginal
         });
 
         window.showToast("Álbum enviado com sucesso!", "success");
@@ -876,7 +874,7 @@ window.handleAlbumSubmission = async (e) => {
         }, 1500);
 
     } catch (err) {
-        console.error(err);
+        console.error("Erro completo:", err);
         window.showToast("Erro: " + err.message, "error");
         btn.disabled = false;
         btn.innerHTML = 'Enviar';

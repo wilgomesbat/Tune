@@ -275,6 +275,86 @@ async function validarStreamOficial(track) {
     }
 }
 
+window.loadYoutubeVideo = function(videoId) {
+    const { ytIframe } = getPlayerElements();
+
+    if (!ytPlayer) {
+        ytPlayer = new YT.Player('youtube-iframe', {
+            height: '100%',
+            width: '100%',
+            videoId: videoId,
+            host: 'https://www.youtube.com', // <--- AJUDA MUITO NO ERRO POSTMESSAGE
+            playerVars: {
+                'autoplay': 1,
+                'controls': 0, 
+                'rel': 0,
+                'showinfo': 0,
+                'modestbranding': 1,
+                'origin': window.location.origin, // <--- OBRIGATÓRIO
+                'enablejsapi': 1 // <--- OBRIGATÓRIO PARA getCurrentTime FUNCIONAR
+            },
+            events: {
+                'onReady': onPlayerReady,
+                'onStateChange': onPlayerStateChange
+            }
+        });
+    } else {
+        // Se já existe, carrega o novo
+        ytPlayer.loadVideoById(videoId);
+    }
+};
+
+function updateInterfaceLabels(current, total) {
+    const { fsProgressFill, fsCurrentTimeEl, fsTotalTimeEl } = getPlayerElements();
+    
+    // Proteção contra divisão por zero
+    let percent = 0;
+    if (total > 0) {
+        percent = (current / total) * 100;
+    }
+    
+    // Formata o tempo
+    const currentTimeFormatted = formatTime(current);
+    const totalTimeFormatted = formatTime(total);
+
+    // Aplica no DOM (Player Tela Cheia)
+    if (fsProgressFill) fsProgressFill.style.width = percent + "%";
+    if (fsCurrentTimeEl) fsCurrentTimeEl.textContent = currentTimeFormatted;
+    if (fsTotalTimeEl) fsTotalTimeEl.textContent = totalTimeFormatted;
+
+    // Aplica no DOM (Mini Player - Caso queira mostrar lá também)
+    const miniProgress = document.getElementById("progress-fill");
+    const miniCurrent = document.getElementById("current-time");
+    const miniTotal = document.getElementById("total-time");
+
+    if (miniProgress) miniProgress.style.width = percent + "%";
+    if (miniCurrent) miniCurrent.textContent = currentTimeFormatted;
+    if (miniTotal) miniTotal.textContent = totalTimeFormatted;
+}
+
+function startYoutubeTracking() {
+    stopYoutubeTracking(); // Limpa anterior se houver
+    
+    ytProgressInterval = setInterval(() => {
+        // Verifica se o player e as funções existem
+        if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function' || typeof ytPlayer.getDuration !== 'function') {
+            return;
+        }
+
+        try {
+            const currentTime = ytPlayer.getCurrentTime() || 0;
+            const duration = ytPlayer.getDuration() || 0;
+            
+            // ATUALIZAÇÃO FORÇADA:
+            // Mesmo que a duração seja 0 (carregando), mandamos atualizar para zerar os contadores visualmente
+            updateInterfaceLabels(currentTime, duration);
+
+        } catch (error) {
+            // Ignora erros momentâneos da API
+        }
+    }, 500);
+}
+
 function setupPlayerListeners() {
     if (listenersAttached) return; 
     listenersAttached = true;
@@ -426,9 +506,10 @@ if (fsCloseButton) {
     }
 }
 
-// ... (Resto das funções formatTime, handleTimeUpdate, handleVolumeChange, handleProgressClick, updateFullScreenBackground) ...
 function formatTime(seconds) {
-    if (isNaN(seconds)) return "0:00";
+    // Se não for número ou for negativo, retorna 0:00
+    if (!seconds || isNaN(seconds) || seconds < 0) return "0:00";
+    
     const min = Math.floor(seconds / 60);
     const sec = Math.floor(seconds % 60).toString().padStart(2, "0");
     return `${min}:${sec}`;

@@ -54,25 +54,52 @@ auth.onAuthStateChanged(async (user) => {
         }
     }
 });
+const CLOUD_NAME = "dykhzs0q0";
+const UPLOAD_PRESET = "tunestrg";
 
 
-// -------------------------------
-// ☁️ Cloudinary (UPLOAD FRONT)
-// -------------------------------
-const CLOUD_NAME = "dsrrzjwuf";
-const UPLOAD_PRESET = "tune_unsigned";
+async function compressImage(file, maxWidth = 500, maxHeight = 500) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
 
+                // Lógica de Crop Center (Quadrado)
+                const size = Math.min(width, height);
+                canvas.width = maxWidth;
+                canvas.height = maxHeight;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, (width - size) / 2, (height - size) / 2, size, size, 0, 0, maxWidth, maxHeight);
+                
+                canvas.toBlob((blob) => {
+                    resolve(blob);
+                }, 'image/jpeg', 0.8); // Qualidade em 80%
+            };
+        };
+    });
+}
+
+// ----------------------------------------------------------------------
+// FUNÇÃO DE UPLOAD (ATUALIZADA)
+// ----------------------------------------------------------------------
 export async function uploadImageToCloudinary(file) {
     if (!file) throw new Error("Nenhum arquivo selecionado");
 
-    if (file.size > 2 * 1024 * 1024) {
-        throw new Error("Imagem maior que 2MB");
-    }
+    // Chamamos a compressão aqui dentro para garantir que o que vai pro Cloudinary é o Blob leve
+    const compressedBlob = await compressImage(file, 500, 500);
 
     const formData = new FormData();
-    formData.append("file", file);
+    // Importante: enviamos o compressedBlob no lugar do file original
+    formData.append("file", compressedBlob);
     formData.append("upload_preset", UPLOAD_PRESET);
-    formData.append("folder", "tune/posts");
+    formData.append("folder", "tune/profiles"); // Pasta organizada para perfis
 
     const res = await fetch(
         `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
@@ -80,11 +107,7 @@ export async function uploadImageToCloudinary(file) {
     );
 
     const data = await res.json();
-
-    if (!data.secure_url) {
-        console.error(data);
-        throw new Error("Erro no upload");
-    }
+    if (!data.secure_url) throw new Error("Erro no upload");
 
     return data.secure_url;
 }
@@ -213,21 +236,12 @@ registerForm.addEventListener('submit', async (e) => {
     submitBtn.innerText = "Processando...";
 
     try {
-        // 2. Upload da foto para o Cloudinary (Substituindo Firebase Storage)
-        // Isso resolve o erro de CORS que você estava tendo com o Google
-        let photoURL;
-        try {
-            photoURL = await uploadImageToCloudinary(profileFile);
-        } catch (uploadError) {
-            console.error("Erro Cloudinary:", uploadError);
-            throw new Error("Falha ao subir imagem. Tente uma foto menor ou outro formato.");
-        }
+        // O uploadImageToCloudinary agora já comprime a imagem internamente
+        let photoURL = await uploadImageToCloudinary(profileFile);
 
-        // 3. Criar usuário no Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
         const userUid = userCredential.user.uid;
 
-        // 4. Salvar nome de usuário (para garantir que ninguém use o mesmo)
         await setDoc(doc(db, "nomes", user.toLowerCase()), {
             uid: userUid,
             criadoEm: new Date().toISOString()
