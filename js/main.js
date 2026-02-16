@@ -5,7 +5,8 @@ function initializeRouting() {
     let page = 'home';
     let id = null;
 
-    // 1. Lógica para Produção (tunedks.com/page/id)
+    // 1. Lógica para extrair dados da URL (tunedks.com/album/123)
+    // Removemos partes vazias e o nome do arquivo principal se aparecer
     const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
 
     if (pathParts.length > 0) {
@@ -20,23 +21,14 @@ function initializeRouting() {
 
     // Limpeza de segurança
     if (page.includes('.html')) page = page.replace('.html', '');
-    if (page === 'menu' || page === 'index' || !page || page === 'undefined') page = 'home';
+    if (!page || page === 'undefined' || page === 'null' || page === 'menu' || page === 'index') {
+        page = 'home';
+    }
 
     console.log(`🚀 Roteamento inicial: Página [${page}] ID [${id}]`);
     
-    // Tenta carregar o conteúdo
+    // Inicia o carregamento. O shouldPushState é 'false' no início para não duplicar a URL
     loadContent(page, id, false);
-
-    // 🔥 FUNÇÃO DE REDIRECIONAMENTO DE SEGURANÇA
-    // Se após 2.5 segundos a tela ainda estiver totalmente branca/vazia, força um reload para a Home real
-    setTimeout(() => {
-        const contentArea = document.getElementById('content-area');
-        if (!contentArea || contentArea.innerHTML.trim() === "" || contentArea.innerHTML.includes('undefined')) {
-            console.warn("⚠️ Falha no carregamento detectada. Redirecionando para garantir conteúdo...");
-            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-            window.location.href = isDev ? "menu.html?page=home" : "/home";
-        }
-    }, 2500);
 }
 
 // Importa as funções necessárias do Firebase
@@ -1760,93 +1752,85 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
     const contentArea = document.getElementById('content-area');
     if (!contentArea || !pageName) return;
 
-    // --- 1. TRAVA DE CACHE PRIORITÁRIA (ECONOMIA DE LEITURAS) ---
+    // --- A) TRAVA DE CACHE (ECONOMIA DE CLOUD) ---
     if (pageName === 'home' && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
         console.log("🏠 Restaurando Home do cache global (0 leituras Cloud)");
         contentArea.innerHTML = window.__HOME_CACHE__.html;
         
-        rebindHomeUI(); // Reativa os cliques nos botões [data-navigate]
+        rebindHomeUI(); // Reativa os cliques nos botões
         
-        if (shouldPushState) {
-            updateBrowserHistory(pageName, id);
-        }
-        return; // MATA A EXECUÇÃO AQUI: Impede novas leituras no Firebase
+        if (shouldPushState) updateBrowserHistory(pageName, id);
+        return; 
     }
 
     try {
-        // --- 2. BUSCA DO ARQUIVO HTML ---
-        // Se as suas páginas estão na raiz, use `${pageName}.html`. 
-        // Se estão numa pasta, use `/pages/${pageName}.html`.
+        // --- B) BUSCA DO ARQUIVO HTML ---
+        // Se as páginas estão na raiz, mude para: `${pageName}.html`
+        // Se estão em uma pasta, use: `/pages/${pageName}.html`
         const response = await fetch(`/pages/${pageName}.html`); 
         
-        if (!response.ok) throw new Error(`Página ${pageName} não encontrada no servidor.`);
+        if (!response.ok) {
+            throw new Error(`Página ${pageName} não encontrada no servidor.`);
+        }
 
         const html = await response.text();
         contentArea.innerHTML = html;
 
-        // --- 3. GESTÃO DE HISTÓRICO ---
+        // --- C) GESTÃO DE HISTÓRICO ---
         if (shouldPushState) {
             updateBrowserHistory(pageName, id);
         }
 
-        // --- 4. EXECUÇÃO DOS SETUPS (COM PROTEÇÃO CONTRA ERROS) ---
+        // --- D) SETUP DAS PÁGINAS ---
         setTimeout(() => {
             console.log(`🛠️ Executando setup para: ${pageName}`);
             
-            // Função interna para evitar que uma falha num setup quebre o site todo
+            // Tenta executar os setups apenas se as funções existirem (evita erros fatais)
             const safeSetup = (fn, param = null) => {
-                try {
-                    if (typeof fn === 'function') fn(param);
-                } catch (e) {
-                    console.error(`Erro no setup de ${pageName}:`, e);
-                }
+                try { if (typeof fn === 'function') fn(param); } 
+                catch (e) { console.error(`Erro no setup de ${pageName}:`, e); }
             };
 
             switch (pageName) {
-                case 'home': 
-                    safeSetup(setupHomePage); 
-                    break;
-                case 'music': 
-                    safeSetup(setupMusicPage, id); 
-                    break;
-                case 'album': 
-                    safeSetup(setupAlbumPage, id); 
-                    break;
-                case 'artist': 
-                    safeSetup(setupArtistPage, id); 
-                    break;
-                case 'playlist': 
-                    safeSetup(setupPlaylistPage, id); 
-                    break;
-                case 'library': 
+                case 'home':     safeSetup(setupHomePage); break;
+                case 'album':    safeSetup(setupAlbumPage, id); break;
+                case 'artist':   safeSetup(setupArtistPage, id); break;
+                case 'playlist': safeSetup(setupPlaylistPage, id); break;
+                case 'music':    safeSetup(setupMusicPage, id); break;
+                case 'library':  
                     safeSetup(setupLibraryPage, id); 
                     if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
                     break;
-                case 'liked': 
-                    safeSetup(setupLikedPage); 
-                    break;
+                case 'liked':    safeSetup(setupLikedPage); break;
                 case 'search': 
-                    import('./search.js')
-                        .then(m => m.setupSearchPage())
-                        .catch(e => console.error("Erro ao carregar search.js:", e));
+                    import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
                     break;
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 100); // Aumentei para 100ms para garantir que o DOM está pronto
+        }, 100);
 
     } catch (error) {
-        console.error("❌ Erro ao carregar conteúdo:", error);
-        // Se falhar, mostra uma mensagem amigável em vez de tela branca
-        contentArea.innerHTML = `
-            <div class="flex flex-col items-center justify-center p-10">
-                <p class="text-gray-400">Não foi possível carregar a página.</p>
-                <button onclick="location.reload()" class="mt-4 text-green-500">Tentar novamente</button>
-            </div>
-        `;
+        console.error("❌ Falha crítica ao carregar conteúdo:", error);
+        
+        // --- E) REDIRECIONAMENTO DE SEGURANÇA (VOLTA AO DOMÍNIO LIMPO) ---
+        const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        
+        if (!isDev) {
+            // Se der erro no tunedks.com/qualquer-coisa, volta para tunedks.com puro
+            window.location.href = "https://tunedks.com"; 
+        } else {
+            // Se for localhost, apenas força a volta para a home via parâmetro
+            contentArea.innerHTML = `<div class="p-10 text-center text-gray-400">Página não encontrada. Redirecionando...</div>`;
+            setTimeout(() => {
+                window.location.href = window.location.pathname + "?page=home";
+            }, 1500);
+        }
     }
 }
 
-// --- FUNÇÃO AUXILIAR PARA URL ---
+/**
+ * Função Auxiliar para atualizar a URL
+ */
 function updateBrowserHistory(pageName, id) {
     const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
     const cleanPath = id ? `/${pageName}/${id}` : `/${pageName}`;
