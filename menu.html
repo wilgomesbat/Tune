@@ -264,7 +264,11 @@
     overflow-x: hidden;
 }
 
-
+@media (max-width: 768px) {
+    #nav-top {
+        display: none !important;
+    }
+}
 
         #nav-top {
     position: sticky;
@@ -534,22 +538,24 @@ function updateActiveNavLink(pageName) {
 function handleNavigation(event) {
     event.preventDefault();
     
-    // Pega o elemento clicado (mesmo se clicar no ícone dentro do <a>)
     const clickedLink = event.currentTarget;
     const pageName = clickedLink.getAttribute('data-page'); 
 
     if (!pageName) return;
 
-    console.log(`Navigando para: ${pageName}`);
+    // Se já estivermos na página, não recarregar (opcional)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('page') === pageName) return;
 
-    // 1. Carrega o conteúdo
-    // O id é null para cliques no menu, e true para salvar no histórico
+    console.log(`Navegando para: ${pageName}`);
+
+    // 1. Carrega o conteúdo (o terceiro parâmetro 'true' deve disparar o pushState dentro da sua loadContent)
     if (typeof loadContent === 'function') {
         loadContent(pageName, null, true); 
     }
 
     // 2. Atualização Visual
-    updateVisualState(clickedLink);
+    updateActiveNavLink(pageName);
 }
 
 function updateVisualState(activeLink) {

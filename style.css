@@ -1185,7 +1185,7 @@ body {
 #mobile-nav-bar {
   background-color: #0b0b0ba7;
     position: fixed;
-    bottom: 0;
+    bottom: -1px;
     left: 0;
     width: 100%;
     height: 65px;
@@ -1193,9 +1193,7 @@ body {
     z-index: 1000;
     display: flex;
     overflow: hidden;
-    /* Variáveis do Vidro */
-    --bg-glass: rgba(0, 0, 0, 0.249);
-    --glass-border: rgba(255, 255, 255, 0.2);
+
 }
 
 /* Esconde o mobile-nav-bar em telas maiores que 1024px (Tablets e Desktops) */
@@ -1205,28 +1203,7 @@ body {
     }
 }
 
-/* Camadas de fundo */
-.glass-filter, .glass-overlay, .glass-specular {
-    position: absolute;
-    inset: 0;
-}
 
-.glass-filter {
-    z-index: 1;
-    backdrop-filter: blur(12px) saturate(160%);
-    /* Aplica a distorção líquida ao que está ATRÁS da barra */
-    filter: url(#glass-distortion); 
-}
-
-.glass-overlay {
-    z-index: 2;
-    background: var(--bg-glass);
-}
-
-.glass-specular {
-    z-index: 3;
-    box-shadow: inset 0 1px 0 var(--glass-border);
-}
 
 /* Container dos ícones acima do vidro */
 .nav-content {
