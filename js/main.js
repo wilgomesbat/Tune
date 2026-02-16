@@ -1817,20 +1817,15 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }, 100);
 
-    } catch (error) {
-        console.error("❌ Falha crítica ao carregar conteúdo:", error);
-        
-        const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-        
-        if (!isDev) {
-            window.location.href = "https://tunedks.com"; 
-        } else {
-            contentArea.innerHTML = `<div class="p-10 text-center text-gray-400">Página não encontrada. Redirecionando...</div>`;
-            setTimeout(() => {
-                window.location.href = window.location.pathname + "?page=home";
-            }, 1500);
-        }
+// No catch do seu loadContent no main.js:
+} catch (error) {
+    console.error("❌ Falha crítica:", error);
+    const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+    if (!isDev) {
+        // No domínio real, se der erro, força o recarregamento total da raiz
+        window.location.href = "https://tunedks.com"; 
     }
+}
 }
 
 /**
