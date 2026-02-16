@@ -5,30 +5,36 @@ function initializeRouting() {
     let page = 'home';
     let id = null;
 
-    // 1. Lógica para extrair dados da URL (tunedks.com/album/123)
-    // Removemos partes vazias e o nome do arquivo principal se aparecer
+    // 1. Extrai a página e ID de URLs limpas (Ex: tunedks.com/album/123)
     const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
 
     if (pathParts.length > 0) {
         page = pathParts[0]; 
         id = pathParts[1] || null;
     } 
-    // 2. Fallback para Localhost (?page=home)
+    // 2. Fallback para parâmetros de URL (Útil em Localhost)
     else if (urlParams.has('page')) {
         page = urlParams.get('page');
         id = urlParams.get('id');
     }
 
-    // Limpeza de segurança
+    // Limpeza de segurança para evitar erros de extensão ou valores nulos
     if (page.includes('.html')) page = page.replace('.html', '');
-    if (!page || page === 'undefined' || page === 'null' || page === 'menu' || page === 'index') {
-        page = 'home';
-    }
+    if (!page || page === 'undefined' || page === 'null') page = 'home';
 
-    console.log(`🚀 Roteamento inicial: Página [${page}] ID [${id}]`);
+    console.log(`🚀 Roteamento inicial: [${page}] com ID [${id}]`);
     
-    // Inicia o carregamento. O shouldPushState é 'false' no início para não duplicar a URL
+    // Carrega o conteúdo inicial (false para não duplicar o histórico no início)
     loadContent(page, id, false);
+
+    // TRAVA DE SEGURANÇA: Se o site abrir em branco, força o reload para a Home funcional
+    setTimeout(() => {
+        const contentArea = document.getElementById('content-area');
+        if (!contentArea || contentArea.innerHTML.trim() === "") {
+            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+            window.location.href = isDev ? "menu.html?page=home" : "/home";
+        }
+    }, 2500);
 }
 
 // Importa as funções necessárias do Firebase
@@ -1720,7 +1726,8 @@ window.addEventListener('popstate', (event) => {
         
         // Chamamos loadContent diretamente para renderizar o estado salvo.
         // Não chamamos navigateTo para evitar que ele tente manipular o histórico.
-        loadContent(page, id); 
+        loadContent(page, id);
+        loadContent(event.state.page, event.state.id, false); 
     } else {
         // Fallback: Se não houver estado (ex: primeira página do site), lê da URL e renderiza 'home'.
         const urlParams = new URLSearchParams(window.location.search);
@@ -1765,8 +1772,6 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
 
     try {
         // --- B) BUSCA DO ARQUIVO HTML ---
-        // Se as páginas estão na raiz, mude para: `${pageName}.html`
-        // Se estão em uma pasta, use: `/pages/${pageName}.html`
         const response = await fetch(`/pages/${pageName}.html`); 
         
         if (!response.ok) {
@@ -1785,26 +1790,29 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
         setTimeout(() => {
             console.log(`🛠️ Executando setup para: ${pageName}`);
             
-            // Tenta executar os setups apenas se as funções existirem (evita erros fatais)
             const safeSetup = (fn, param = null) => {
                 try { if (typeof fn === 'function') fn(param); } 
                 catch (e) { console.error(`Erro no setup de ${pageName}:`, e); }
             };
 
             switch (pageName) {
-                case 'home':     safeSetup(setupHomePage); break;
-                case 'album':    safeSetup(setupAlbumPage, id); break;
-                case 'artist':   safeSetup(setupArtistPage, id); break;
-                case 'playlist': safeSetup(setupPlaylistPage, id); break;
-                case 'music':    safeSetup(setupMusicPage, id); break;
+                case 'home':         safeSetup(setupHomePage); break;
+                case 'music':        safeSetup(setupMusicPage, id); break;
+                case 'album':        safeSetup(setupAlbumPage, id); break;
+                case 'artist':       safeSetup(setupArtistPage, id); break;
+                case 'playlist':     safeSetup(setupPlaylistPage, id); break;
+                case 'liked':        safeSetup(setupLikedPage); break;
                 case 'library':  
                     safeSetup(setupLibraryPage, id); 
                     if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
                     break;
-                case 'liked':    safeSetup(setupLikedPage); break;
+                case 'loginartists': safeSetup(setupLoginartistsPage, id); break;
+                case 'banida':       console.warn("Usuário acessando tela de banimento."); break;
                 case 'search': 
                     import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
                     break;
+                default:
+                    console.warn(`Nenhum setup específico encontrado para: ${pageName}`);
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }, 100);
@@ -1812,14 +1820,11 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
     } catch (error) {
         console.error("❌ Falha crítica ao carregar conteúdo:", error);
         
-        // --- E) REDIRECIONAMENTO DE SEGURANÇA (VOLTA AO DOMÍNIO LIMPO) ---
         const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
         
         if (!isDev) {
-            // Se der erro no tunedks.com/qualquer-coisa, volta para tunedks.com puro
             window.location.href = "https://tunedks.com"; 
         } else {
-            // Se for localhost, apenas força a volta para a home via parâmetro
             contentArea.innerHTML = `<div class="p-10 text-center text-gray-400">Página não encontrada. Redirecionando...</div>`;
             setTimeout(() => {
                 window.location.href = window.location.pathname + "?page=home";
@@ -1829,12 +1834,17 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
 }
 
 /**
- * Função Auxiliar para atualizar a URL
+ * Atualiza a URL do navegador de forma amigável.
  */
 function updateBrowserHistory(pageName, id) {
     const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+    
+    // Formato de produção: /album/123 | Formato dev: ?page=album&id=123
     const cleanPath = id ? `/${pageName}/${id}` : `/${pageName}`;
-    const newUrl = isDev ? `?page=${pageName}${id ? `&id=${id}` : ''}` : cleanPath;
+    const newUrl = isDev 
+        ? `?page=${pageName}${id ? `&id=${id}` : ''}` 
+        : cleanPath;
+
     window.history.pushState({ page: pageName, id: id }, '', newUrl);
 }
 
