@@ -136,20 +136,31 @@ function setupAddAlbumPage() {
 }
 
 onAuthStateChanged(auth, (user) => {
+    // 1. Limpa o caminho para verificar se estamos na raiz
+    // No Firebase Hosting, "/" é o mesmo que "index.html"
+    const path = window.location.pathname.replace(/^\/|\/$/g, '');
+    const isAtRoot = path === "" || path === "index.html" || path === "index";
 
     if (!user) {
-        console.warn("Usuário não logado, redirecionando...");
-        window.location.href = "index.html";
+        console.warn("Usuário não logado.");
+        
+        // SÓ redireciona se o utilizador NÃO estiver na raiz
+        if (!isAtRoot) {
+            console.log("Redirecionando para a página de login...");
+            window.location.href = "/"; // Use "/" em vez de "index.html" para evitar loops
+        }
         return;
     }
 
+    // --- UTILIZADOR LOGADO ---
     console.log("✅ Usuário autenticado:", user.uid);
-
-    // Guarda UID se quiser usar depois
     window.currentUserUid = user.uid;
 
-    // Só inicia o roteamento depois da autenticação confirmar
-    if (typeof initializeRouting === "function") {
+    // Se ele estiver logado mas na página de login, carrega a home sem dar refresh
+    if (isAtRoot) {
+        window.loadContent('home', null, false);
+    } else {
+        // Se ele já estiver numa página específica, inicializa as rotas
         initializeRouting();
     }
 });
