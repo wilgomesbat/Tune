@@ -1,5 +1,4 @@
-import { loadTrack } from '/js/player.js';
-
+import { loadTrack } from './player.js'; // Verifique se o caminho está correto
 // Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { getFirestore, serverTimestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
@@ -143,36 +142,21 @@ function setupAddAlbumPage() {
     console.log("Iniciando setup de novo álbum...");
 }
 
-
-// Remova o initializeRouting do DOMContentLoaded (deixe apenas o Firebase controlar)
-// document.addEventListener('DOMContentLoaded', initializeRouting);
-
 onAuthStateChanged(auth, (user) => {
-    // 1. Pega o path atual e limpa barras extras
-    const path = window.location.pathname.replace(/^\/|\/$/g, '');
-    
-    // 2. Define o que é "página de entrada" (ajustado para Firebase Hosting)
-    const isAtLogin = path === "" || path === "index.html" || path === "index";
 
     if (!user) {
-        console.warn("Status: Não autenticado");
-        // SÓ redireciona se tentar acessar algo interno E não estiver na raiz
-        if (!isAtLogin) {
-            console.log("Proteção de rota: Enviando para a raiz");
-            window.location.href = "/"; 
-        }
+        console.warn("Usuário não logado, redirecionando...");
+        window.location.href = "index.html";
         return;
     }
 
-    // 3. Usuário logado
-    console.log("✅ Autenticado como:", user.uid);
+    console.log("✅ Usuário autenticado:", user.uid);
+
+    // Guarda UID se quiser usar depois
     window.currentUserUid = user.uid;
 
-    // Se ele está logado e caiu na index, leva para a home sem dar refresh (SPA style)
-    if (isAtLogin) {
-        window.loadContent('home', null, false);
-    } else {
-        // Se ele já estava em uma rota (ex: /perfil), apenas inicializa
+    // Só inicia o roteamento depois da autenticação confirmar
+    if (typeof initializeRouting === "function") {
         initializeRouting();
     }
 });
@@ -1772,7 +1756,8 @@ window.addEventListener('popstate', (event) => {
         
         // Chamamos loadContent diretamente para renderizar o estado salvo.
         // Não chamamos navigateTo para evitar que ele tente manipular o histórico.
-       loadContent(page, id, false);
+        loadContent(page, id);
+        loadContent(event.state.page, event.state.id, false); 
     } else {
         // Fallback: Se não houver estado (ex: primeira página do site), lê da URL e renderiza 'home'.
         const urlParams = new URLSearchParams(window.location.search);
@@ -1797,6 +1782,8 @@ document.querySelectorAll('[data-page]').forEach(link => {
     });
 });
 
+// Chame a função quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', initializeRouting);
 
 async function loadContent(pageName, id = null, shouldPushState = true) {
     const contentArea = document.getElementById('content-area');
@@ -1886,6 +1873,8 @@ function updateBrowserHistory(pageName, id) {
     window.history.pushState({ page: pageName, id: id }, '', newUrl);
 }
 
+// Inicializa tudo quando o DOM carregar
+document.addEventListener('DOMContentLoaded', initializeRouting);
 
 async function setupLibraryPage() {
     console.log("🔧 Carregando página Library...");
@@ -3801,3 +3790,6 @@ document.body.addEventListener('click', (e) => {
     }
 });
 
+document.addEventListener("DOMContentLoaded", () => {
+    initializeRouting();
+});

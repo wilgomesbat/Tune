@@ -1,9 +1,12 @@
-import { getFirestore, doc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+// Importa as funções da biblioteca do Firebase
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-// 2. IMPORTA AS INSTÂNCIAS JÁ EXISTENTES DO SEU MAIN.JS
-// Certifique-se de que o caminho '../js/main.js' ou './main.js' esteja correto
-import { db, auth } from './main.js';
+// Importa as instâncias já configuradas do seu main.js
+// Use './main.js' se estiverem na mesma pasta ou '../main.js' se o player estiver em /js/
+import { auth, db } from './firebase-config.js';
+// Agora você pode usar auth e db aqui livremente
+// ... restante do código (loadTrack, etc)
 
 // FUNÇÃO GLOBAL PADRÃO DO TUNE
 window.playTrackGlobal = function(track) {
