@@ -136,34 +136,37 @@ function setupAddAlbumPage() {
 }
 
 onAuthStateChanged(auth, (user) => {
-    // 1. Limpa o caminho para verificar se estamos na raiz
-    // No Firebase Hosting, "/" é o mesmo que "index.html"
-    const path = window.location.pathname.replace(/^\/|\/$/g, '');
-    const isAtRoot = path === "" || path === "index.html" || path === "index";
+    // 1. Detecta o caminho real. No Firebase, a home é "/"
+    const path = window.location.pathname;
+    
+    // Verifica se é a página de login/raiz de forma segura
+    const isAtLogin = path === "/" || path.includes("index.html") || path === "/index";
 
     if (!user) {
         console.warn("Usuário não logado.");
-        
-        // SÓ redireciona se o utilizador NÃO estiver na raiz
-        if (!isAtRoot) {
-            console.log("Redirecionando para a página de login...");
-            window.location.href = "/"; // Use "/" em vez de "index.html" para evitar loops
+
+        // SÓ redireciona se o usuário tentar acessar uma página interna (não raiz)
+        if (!isAtLogin) {
+            console.log("Proteção: Redirecionando para raiz");
+            window.location.href = "/"; 
         }
         return;
     }
 
-    // --- UTILIZADOR LOGADO ---
+    // --- USUÁRIO LOGADO ---
     console.log("✅ Usuário autenticado:", user.uid);
     window.currentUserUid = user.uid;
 
-    // Se ele estiver logado mas na página de login, carrega a home sem dar refresh
-    if (isAtRoot) {
+    // Se estiver logado e na raiz, apenas carrega a home sem refresh
+    if (isAtLogin) {
         window.loadContent('home', null, false);
     } else {
-        // Se ele já estiver numa página específica, inicializa as rotas
+        // Se estiver em uma URL profunda (ex: /perfil), roda o roteador
         initializeRouting();
     }
 });
+
+
 function handleInitialRoute() {
     const params = new URLSearchParams(window.location.search);
 
@@ -3771,9 +3774,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-  handleInitialRoute();
-});
 
 // Este "vigia" nunca morre, não importa quantas vezes você mude o conteúdo
 document.body.addEventListener('click', (e) => {
