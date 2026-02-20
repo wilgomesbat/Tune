@@ -955,9 +955,9 @@ window.rejectArtist = async function(artistId) {
                 const data = docSnap.data();
                 document.getElementById('artistDocId').value = artistId; 
                 document.getElementById('modalArtistTitle').textContent = `Editar: ${data.nome || 'N/A'}`;
-                document.getElementById('modalArtistName').value = data.nome || '';
+                document.getElementById('modalArtistName').value = data.nomeArtistico || '';
                 document.getElementById('modalArtistPhoto').value = data.foto || '';
-                document.getElementById('modalArtistCountry').value = data.country || '';
+
                 
                 // Interface de Banimento
                 const isBanned = data.banido === "true"; 
@@ -1401,195 +1401,179 @@ const ALBUMS_PER_PAGE = 20;
 let currentPage = 1;
 let importedTracks = []; 
 
+// --- FUNÇÃO GLOBAL PARA O ONCLICK DO HTML FUNCIONAR ---
+window.openEditModal = async (albumId) => {
+    const modal = document.getElementById('editAlbumModal');
+    try {
+        const snap = await getDoc(doc(db, "albuns", albumId));
+        if (!snap.exists()) return;
+        const data = snap.data();
+
+        // Preenche os campos do modal
+        document.getElementById('albumDocId').value = albumId;
+        document.getElementById('modalItemName').value = data.album || '';
+        document.getElementById('modalItemCover').value = data.cover || '';
+        document.getElementById('modalReleaseDate').value = data.date || '';
+        document.getElementById('modalDuration').value = data.duration || '';
+        document.getElementById('modalArtistName').value = data.artist || '';
+        document.getElementById('modalArtistUid').value = data.uidars || '';
+        document.getElementById('modalCountry').value = data.country || '';
+        document.getElementById('modalLabel').value = data.label || '';
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    } catch (e) { console.error("Erro ao abrir modal:", e); }
+};
+
 async function setupEditAlbumsPage() {
     const albumsGrid = document.getElementById('albumsGrid');
     const modal = document.getElementById('editAlbumModal');
     const searchInput = document.getElementById('albumSearchInput');
     
-    // --- 1. FUNÇÃO DE PAGINAÇÃO (Corrigindo o ReferenceError) ---
-    function updatePaginationButtons(totalAprovados) {
-        const prevBtn = document.getElementById('prevPageButton');
-        const nextBtn = document.getElementById('nextPageButton');
-        const display = document.getElementById('currentPageDisplay');
-
-        if (prevBtn && nextBtn && display) {
-            prevBtn.disabled = currentPage === 1;
-            nextBtn.disabled = (currentPage * ALBUMS_PER_PAGE) >= totalAprovados;
-            display.textContent = `Página ${currentPage}`;
-
-            prevBtn.onclick = () => { if(currentPage > 1) { currentPage--; fetchAlbums(); }};
-            nextBtn.onclick = () => { currentPage++; fetchAlbums(); };
-        }
-    }
-
-    // --- 2. CARREGAMENTO DOS CARDS (AJUSTADO PARA ORDENAÇÃO) ---
-async function fetchAlbums() {
     if (!albumsGrid) return;
-    albumsGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center py-10">Carregando acervo...</p>';
 
-    try {
-        const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
-        // Busca inicial do Firestore
-        const snapshot = await getDocs(query(collection(db, "albuns"), orderBy("date", "desc")));
-        
-        let allDocs = snapshot.docs;
+    // --- 1. CARREGAMENTO DOS CARDS (TODOS OS STATUS) ---
+    async function fetchAlbums() {
+        albumsGrid.innerHTML = '<p class="text-gray-400 col-span-full text-center py-10">Carregando acervo...</p>';
 
-        // 1. Aplica filtro de busca se houver
-        if (searchTerm) {
-            allDocs = allDocs.filter(d => {
-                const data = d.data();
-                return data.album?.toLowerCase().includes(searchTerm) || 
-                       data.artist?.toLowerCase().includes(searchTerm);
-            });
-        }
-
-        // 2. Separa os grupos
-        const pendentes = allDocs.filter(d => d.data().status !== "Aprovado");
-        
-        // 3. Garante a ordenação dos aprovados pela data (mais recentes primeiro)
-        const aprovados = allDocs
-            .filter(d => d.data().status === "Aprovado")
-            .sort((a, b) => {
-                const dateA = new Date(a.data().date || 0);
-                const dateB = new Date(b.data().date || 0);
-                return dateB - dateA; // Descendente: mais novo no topo
-            });
-
-        albumsGrid.innerHTML = ''; 
-
-        // Renderiza Pendentes
-        if (pendentes.length > 0) {
-            renderSection("Aguardando Configuração", "text-amber-500", pendentes, true);
-        }
-
-        // Renderiza Aprovados Ordenados com Paginação
-        if (aprovados.length > 0) {
-            renderSection("Álbuns Publicados", "text-gray-500", aprovados.slice((currentPage - 1) * ALBUMS_PER_PAGE, currentPage * ALBUMS_PER_PAGE), false);
-        }
-
-        updatePaginationButtons(aprovados.length);
-    } catch (error) {
-        console.error("Erro:", error);
-        albumsGrid.innerHTML = '<p class="text-red-500 col-span-full text-center">Erro ao carregar álbuns.</p>';
-    }
-}
-
-    // --- 3. RENDERIZAÇÃO ---
-    function renderSection(title, color, docs, isPendente) {
-        const h = document.createElement('h2');
-        h.className = `col-span-full font-bold text-xs uppercase tracking-widest mt-6 mb-2 ${color}`;
-        h.textContent = title;
-        albumsGrid.appendChild(h);
-
-        docs.forEach(docSnap => {
-            const album = docSnap.data();
-            const card = document.createElement('div');
-            card.className = `bg-black rounded-lg overflow-hidden border ${isPendente ? 'border-amber-500/50' : 'border-gray-900'} relative group shadow-lg`;
-            card.innerHTML = `
-                <div class="relative h-44 overflow-hidden">
-                    <img src="${album.cover}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${isPendente ? 'opacity-50' : ''}">
-                    ${isPendente ? '<span class="absolute top-2 left-2 bg-amber-500 text-black text-[10px] font-bold px-2 py-1 rounded">PENDENTE</span>' : ''}
-                    <button onclick="openEditModal('${docSnap.id}')" class="absolute bottom-2 right-2 bg-white text-black w-10 h-10 rounded-full shadow-2xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all transform hover:scale-110 z-20">
-                        <i class='bx bxs-pencil text-xl'></i>
-                    </button>
-                </div>
-                <div class="p-3">
-                    <h4 class="text-white text-xs font-bold truncate uppercase">${album.album || "Sem Nome"}</h4>
-                    <p class="text-gray-500 text-[10px] truncate">${album.artist || "Artista"}</p>
-                </div>`;
-            albumsGrid.appendChild(card);
-        });
-    }
-
-    // --- 4. LOGICA DO MODAL (Exposta globalmente) ---
-    window.openEditModal = async (albumId) => {
         try {
-            const snap = await getDoc(doc(db, "albuns", albumId));
-            if (!snap.exists()) return;
-            const data = snap.data();
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+            const snapshot = await getDocs(query(collection(db, "albuns"), orderBy("date", "desc")));
+            
+            let allDocs = snapshot.docs;
 
-            document.getElementById('albumDocId').value = albumId;
-            document.getElementById('modalItemName').value = data.album || '';
-            document.getElementById('modalItemCover').value = data.cover || '';
-            document.getElementById('modalReleaseDate').value = data.date || '';
-            document.getElementById('modalDuration').value = data.duration || '';
-            document.getElementById('modalArtistName').value = data.artist || '';
-            document.getElementById('modalArtistUid').value = data.uidars || '';
-            document.getElementById('modalCountry').value = data.country || '';
-            document.getElementById('modalLabel').value = data.label || '';
+            // Filtro de busca
+            if (searchTerm) {
+                allDocs = allDocs.filter(d => {
+                    const data = d.data();
+                    return data.album?.toLowerCase().includes(searchTerm) || 
+                           data.artist?.toLowerCase().includes(searchTerm);
+                });
+            }
 
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        } catch (e) { console.error(e); }
-    };
+            albumsGrid.innerHTML = ''; 
 
-    // --- 5. EVENTOS DE BUSCA E BOTÕES ---
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            currentPage = 1;
-            fetchAlbums();
-        });
+            allDocs.forEach(docSnap => {
+                const album = docSnap.data();
+                const isPendente = album.status !== "Aprovado";
+                
+                // Cache Buster para atualizar a imagem visualmente na hora
+                const imageUrl = album.cover ? `${album.cover}?t=${new Date().getTime()}` : '';
+
+                const card = document.createElement('div');
+                card.className = `bg-black rounded-lg overflow-hidden border ${isPendente ? 'border-amber-500/50' : 'border-gray-900'} relative group shadow-lg`;
+                card.innerHTML = `
+                    <div class="relative h-44 overflow-hidden">
+                        <img src="${imageUrl}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${isPendente ? 'opacity-50' : ''}">
+                        ${isPendente ? '<span class="absolute top-2 left-2 bg-amber-500 text-black text-[10px] font-bold px-2 py-1 rounded">PENDENTE</span>' : ''}
+                        <button onclick="openEditModal('${docSnap.id}')" class="absolute bottom-2 right-2 bg-white text-black w-10 h-10 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-all transform hover:scale-110 z-20">
+                            <i class='bx bxs-pencil text-xl'></i>
+                        </button>
+                    </div>
+                    <div class="p-3">
+                        <h4 class="text-white text-xs font-bold truncate uppercase">${album.album || "Sem Nome"}</h4>
+                        <p class="text-gray-500 text-[10px] truncate">${album.artist || "Artista"}</p>
+                    </div>`;
+                albumsGrid.appendChild(card);
+            });
+
+        } catch (error) { console.error("Erro ao listar álbuns:", error); }
     }
 
-    const btnPreview = document.getElementById('btnPreviewTracks');
-    if (btnPreview) {
-        btnPreview.onclick = async () => {
-            const url = document.getElementById("ytPlaylistUrl").value.trim();
-            const playlistId = url.match(/[&?]list=([^&]+)/i)?.[1];
-            if (!playlistId) return alert("Playlist inválida!");
-
-            try {
-                const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}`);
-                const data = await res.json();
-                importedTracks = data.items || [];
-                document.getElementById('trackListPreview').innerHTML = importedTracks.map((t, i) => `<li class="py-1 border-b border-gray-800">${i+1}. ${t.snippet.title}</li>`).join('');
-                document.getElementById('previewContainer').classList.remove('hidden');
-                document.getElementById('trackStatus').innerHTML = `<span class="text-green-500">${importedTracks.length} faixas.</span>`;
-            } catch (e) { alert("Erro ao acessar YouTube"); }
-        };
-    }
-
-    const btnFinalize = document.getElementById('btnFinalizeImport');
-    if (btnFinalize) {
-        btnFinalize.onclick = async () => {
+    // --- 2. SALVAR ALTERAÇÕES (FIREBASE BATCH) ---
+    const editForm = document.getElementById('editAlbumForm');
+    if (editForm) {
+        editForm.onsubmit = async (e) => {
+            e.preventDefault();
             const albumId = document.getElementById('albumDocId').value;
+            const newCover = document.getElementById('modalItemCover').value.trim();
+            const btnSalvar = editForm.querySelector('button[type="submit"]');
+
+            btnSalvar.disabled = true;
+            btnSalvar.innerText = "Salvando...";
+
             const batch = writeBatch(db);
-            const albumData = {
+            const albumRef = doc(db, "albuns", albumId);
+
+            const updatedData = {
                 album: document.getElementById('modalItemName').value,
-                cover: document.getElementById('modalItemCover').value,
+                cover: newCover,
                 date: document.getElementById('modalReleaseDate').value,
                 duration: document.getElementById('modalDuration').value,
                 artist: document.getElementById('modalArtistName').value,
                 uidars: document.getElementById('modalArtistUid').value,
-                status: "Aprovado" 
+                country: document.getElementById('modalCountry').value,
+                label: document.getElementById('modalLabel').value,
+                status: "Aprovado" // Ao salvar manualmente, ele aprova o álbum
             };
 
-            batch.update(doc(db, "albuns", albumId), albumData);
+            // 1. Atualiza o Álbum
+            batch.update(albumRef, updatedData);
+
+            // 2. Sincroniza a capa com todas as músicas deste álbum
+            try {
+                const qMusicas = query(collection(db, "musicas"), where("album", "==", albumId));
+                const musicSnap = await getDocs(qMusicas);
+                musicSnap.forEach(mDoc => {
+                    batch.update(mDoc.ref, { cover: newCover });
+                });
+            } catch (err) { console.warn("Erro ao buscar músicas vinculadas."); }
+
+            try {
+                await batch.commit();
+                modal.classList.add('hidden');
+                fetchAlbums(); // Atualiza a lista na tela sem recarregar a página
+                alert("Álbum e músicas atualizados com sucesso!");
+            } catch (err) { alert("Erro ao salvar: " + err.message); }
+            finally {
+                btnSalvar.disabled = false;
+                btnSalvar.innerText = "Salvar Alterações";
+            }
+        };
+    }
+
+    // --- 3. IMPORTAÇÃO YOUTUBE (FAIXAS) ---
+    const btnFinalizeImport = document.getElementById('btnFinalizeImport');
+    if (btnFinalizeImport) {
+        btnFinalizeImport.onclick = async () => {
+            const albumId = document.getElementById('albumDocId').value;
+            const cover = document.getElementById('modalItemCover').value;
+            const batch = writeBatch(db);
+
             importedTracks.forEach((t, i) => {
                 const mRef = doc(collection(db, "musicas"));
                 batch.set(mRef, {
                     album: albumId,
-                    artist: albumData.uidars,
-                    artistName: albumData.artist,
+                    artist: document.getElementById('modalArtistUid').value,
+                    artistName: document.getElementById('modalArtistName').value,
                     audioURL: t.snippet.resourceId.videoId,
-                    cover: albumData.cover,
+                    cover: cover,
                     title: t.snippet.title,
                     trackNumber: i + 1,
                     streams: 0,
                     timestamp: serverTimestamp()
                 });
             });
+
             await batch.commit();
-            location.reload();
+            document.getElementById('importPlaylistModal').classList.add('hidden');
+            alert("Músicas importadas com sucesso!");
         };
     }
 
-    document.getElementById('closeModalButton').onclick = () => modal.classList.add('hidden');
-    document.getElementById('modalCancelButton').onclick = () => modal.classList.add('hidden');
+    // --- BOTÕES DE FECHAR ---
+    const closeBtn = document.getElementById('closeModalButton');
+    if (closeBtn) closeBtn.onclick = () => modal.classList.add('hidden');
     
+    const cancelBtn = document.getElementById('modalCancelButton');
+    if (cancelBtn) cancelBtn.onclick = () => modal.classList.add('hidden');
+
+    if (searchInput) searchInput.oninput = () => fetchAlbums();
+
     fetchAlbums();
 }
 
+// Inicializa a página
 setupEditAlbumsPage();
 // Adicione esta função ao seu arquivo tt.js
 async function setupAddSinglePage() {
@@ -1656,6 +1640,17 @@ async function setupAddSinglePage() {
             btn.innerText = "LANÇAR SINGLE AGORA";
         }
     });
+
+    // --- Proteção contra elementos nulos ---
+const closeModalBtn = document.getElementById('closeModalButton');
+if (closeModalBtn) {
+    closeModalBtn.onclick = () => modal.classList.add('hidden');
+}
+
+const cancelModalBtn = document.getElementById('modalCancelButton');
+if (cancelModalBtn) {
+    cancelModalBtn.onclick = () => modal.classList.add('hidden');
+}
 }
 
 async function setupLogsPage() {
@@ -2023,6 +2018,13 @@ async function loadContent(pageName) {
         console.error("Content area not found!");
         return;
     }
+
+    const btnRank = document.getElementById('btn-update-ranking');
+    if (btnRank) {
+        console.log("Ouvinte de clique adicionado ao botão de Ranking.");
+        btnRank.onclick = refreshGlobalRanking; 
+    }
+
 
     const filePath = `./tuneteam/${pageName}.html`;
 

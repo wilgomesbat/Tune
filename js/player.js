@@ -1,8 +1,8 @@
-// main.js
 
+// ... restante do seu código (imports, loadTrack, etc)
 // Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js"; // Adicionei signOut para o logout
 
@@ -22,6 +22,21 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const LOGIN_URL = "index.html";
 
+// FUNÇÃO GLOBAL PADRÃO DO TUNE
+window.playTrackGlobal = function(track) {
+    if (!track) return;
+
+    console.log("🎵 TUNE GLOBAL PLAY:", track.title);
+
+    // Abre mini player
+    const mini = document.getElementById("music-player");
+    if (mini) mini.classList.remove("hidden");
+
+    // Carrega música
+    loadTrack(track);
+};
+
+
 // --- ESTADO GLOBAL E PROTEÇÃO ---
 const audio = new Audio();
 audio.preload = "auto";
@@ -36,6 +51,28 @@ if (!window.streamGuard) {
         userStreamHistory: new Map()
     };
 }
+
+
+
+
+// No topo do seu player.js
+let playlistAtual = []; // Armazena o array de objetos das músicas
+let indiceAtual = 0;    // Posição da música na fila
+
+// 🎵 FUNÇÃO GLOBAL DE FILA
+window.carregarFila = function(lista, index = 0) {
+    if (!lista || !lista.length) return;
+
+    playlistAtual = lista;
+    indiceAtual = index;
+
+    if (typeof window.playTrackGlobal === "function") {
+        window.playTrackGlobal(playlistAtual[indiceAtual]);
+    }
+};
+
+
+
 
 // --- Elementos do DOM (Adicionados da sua lógica de perfil) ---
 const userProfileContainer = document.getElementById('user_profile_sidebar');
@@ -84,6 +121,106 @@ function getPlayerElements() {
         ytContainer: document.getElementById("youtube-embed-container"),
         ytIframe: document.getElementById("youtube-iframe")
     };
+}
+
+// --- 1. FUNÇÕES DE SUPORTE NO ESCOPO GLOBAL ---
+async function safePlay() {
+    if (audio.src && audio.src !== "" && !audio.src.includes("youtube.com")) {
+        try {
+            await audio.play();
+        } catch (err) {
+            console.warn("Play bloqueado ou sem source.");
+        }
+    }
+}
+
+// No topo do arquivo, junto com as outras variáveis globais (audio, currentTrack)
+let ytPlayer = null; 
+let ytProgressInterval = null; // Para rastrear o tempo do vídeo
+
+// Chame isso ao abrir um álbum ou playlist
+function carregarFila(listaDeMusicas, indexInicial = 0) {
+    playlistAtual = listaDeMusicas;
+    indiceAtual = indexInicial;
+    loadTrack(playlistAtual[indiceAtual]);
+}
+
+function setupQueueControls() {
+    const el = getPlayerElements();
+
+    // Botão Próximo
+    if (el.fsNextBtn) {
+        el.fsNextBtn.onclick = (e) => {
+            e.stopPropagation();
+            pularParaProxima();
+        };
+    }
+
+    // Botão Anterior
+    if (el.fsPrevBtn) {
+        el.fsPrevBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (playlistAtual.length > 0) {
+                // Lógica para voltar: (atual - 1 + total) % total
+                indiceAtual = (indiceAtual - 1 + playlistAtual.length) % playlistAtual.length;
+                loadTrack(playlistAtual[indiceAtual]);
+            }
+        };
+    }
+}
+
+function fecharPlayerFullScreen() {
+    const el = getPlayerElements();
+    if (!el.fullScreenPlayer) return;
+
+    document.body.classList.remove('fs-active');
+    
+    // Animação de saída
+    const animation = el.fullScreenPlayer.animate([
+        { transform: el.fullScreenPlayer.style.transform || 'translateY(0)', opacity: 1 },
+        { transform: 'translateY(100%)', opacity: 0 }
+    ], { 
+        duration: 500, 
+        easing: 'cubic-bezier(0.32, 0.72, 0, 1)',
+        fill: 'forwards' 
+    });
+
+    animation.onfinish = () => {
+        el.fullScreenPlayer.classList.add('hidden');
+        el.fullScreenPlayer.style.transform = ''; 
+        
+        // 🛑 REMOVIDO: el.ytIframe.src = ""; 
+        // Não limpamos o src para o vídeo continuar carregado/tocando em background se necessário
+        
+        animation.cancel();
+    };
+}
+
+// --- 2. GESTO DE SLIDE (SWIPE DOWN) ---
+let touchStartY = 0;
+function setupSwipeToClose() {
+    const fsPlayer = document.getElementById('full-screen-player');
+    if (!fsPlayer) return;
+
+    fsPlayer.addEventListener('touchstart', (e) => {
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    fsPlayer.addEventListener('touchmove', (e) => {
+        const deltaY = e.touches[0].clientY - touchStartY;
+        if (deltaY > 0) {
+            fsPlayer.style.transform = `translateY(${deltaY}px)`;
+            fsPlayer.style.transition = 'none';
+        }
+    }, { passive: true });
+
+    fsPlayer.addEventListener('touchend', (e) => {
+        const deltaY = e.changedTouches[0].clientY - touchStartY;
+        fsPlayer.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+        
+        if (deltaY > 150) fecharPlayerFullScreen();
+        else fsPlayer.style.transform = 'translateY(0)';
+    });
 }
 
 function updateScrollAnimation() {
@@ -193,140 +330,358 @@ async function registrarLogMusica(track) {
     }
 }
 
-async function loadTrack(track) {
-    if (!track || !track.audioURL) return;
+/**
+ * FUNÇÕES DE SUPORTE AO RASTREIO
+ * Declaradas como 'function' para evitar erros de referência (Hoisting)
+ */
+function stopYoutubeTracking() {
+    if (ytProgressInterval) {
+        clearInterval(ytProgressInterval);
+        ytProgressInterval = null;
+        console.log("🛑 Rastreio do YouTube parado.");
+    }
+}
 
-    // 1. Limpeza de streams e timers anteriores
-    clearTimeout(streamTimer);
-    streamTimer = null; 
-    registrarLogMusica(track);
+function startYoutubeTracking() {
+    // 1. Limpa qualquer rastreio anterior para não sobrepor
+    stopYoutubeTracking(); 
+
+    console.log("⏱️ Iniciando rastreio de progresso...");
     
-    currentTrack = track; 
-    audio.src = track.audioURL;
+    ytProgressInterval = setInterval(() => {
+        // Verifica se o player do YT está pronto e se a função existe
+        if (window.ytPlayer && typeof window.ytPlayer.getCurrentTime === 'function') {
+            const currentTime = window.ytPlayer.getCurrentTime();
+            const duration = window.ytPlayer.getDuration();
+            
+            if (duration > 0) {
+                // Atualiza a barra de progresso e os textos de tempo
+                updateInterfaceLabels(currentTime, duration);
+            }
+        }
+    }, 1000);
+}
+async function loadTrack(track) {
+    if (!track) return;
+
     const elements = getPlayerElements();
+    clearTimeout(streamTimer);
+    stopYoutubeTracking();
+    currentTrack = track;
+
+    // === DEFINE PRIMEIRO ===
     const coverUrl = track.cover || "assets/10.png";
 
-    // 2. Visibilidade e Animação de Entrada
-    if (elements.musicPlayer) elements.musicPlayer.classList.remove('hidden');
-    
-    if (elements.fullScreenPlayer) {
-        elements.fullScreenPlayer.classList.remove('hidden');
-        requestAnimationFrame(() => {
-            document.body.classList.add('fs-active');
-            elements.fullScreenPlayer.animate([
-                { transform: 'translateY(100%)', opacity: 0 },
-                { transform: 'translateY(0)', opacity: 1 }
-            ], {
-                duration: 600,
-                easing: 'cubic-bezier(0.32, 0.72, 0, 1)'
-            });
-        });
-    }
+    function safeSetImage(imgElement, url) {
+        if (!imgElement) return;
 
-    
-
-    // 3. Reset Interface de Vídeo (YT escondido por padrão)
-    if (elements.ytContainer) elements.ytContainer.classList.add('hidden');
-    if (elements.fsPlayerCover) elements.fsPlayerCover.classList.remove('hidden');
-    if (elements.ytIframe) elements.ytIframe.src = "";
-
-    // 4. Cores Dinâmicas (ColorThief) e Fundo
-    if (elements.miniPlayerCover) {
-        elements.miniPlayerCover.src = coverUrl;
-        elements.miniPlayerCover.crossOrigin = "Anonymous";
-        elements.miniPlayerCover.onload = function() {
-            try {
-                const colorThief = new ColorThief();
-                const color = colorThief.getColor(elements.miniPlayerCover);
-                const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                
-                if (elements.musicPlayer) {
-                    elements.musicPlayer.style.backgroundColor = rgb;
-                    elements.musicPlayer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3))`;
-                }
-                
-                // Atualiza o background da tela cheia (Aurora ou Canvas)
-                updateFullScreenBackground(track);
-                
-            } catch (e) { console.warn("Erro nas cores:", e); }
+        imgElement.onerror = () => {
+            imgElement.src = "assets/10.png";
         };
-    }
-    if (elements.fsPlayerCover) elements.fsPlayerCover.src = coverUrl;
 
-    // 5. Dados do Artista e Título
-    let artistName = "Artista";
-    let artistUid = track.artist || track.uidars;
-    if (artistUid) {
-        try {
-            const artistSnap = await getDoc(doc(db, "usuarios", artistUid));
-            if (artistSnap.exists()) artistName = artistSnap.data().nomeArtistico || "Artista";
-        } catch (err) { console.error(err); }
+        imgElement.src = url;
     }
 
-    if (elements.playerTitle) elements.playerTitle.textContent = track.title || "Sem título";
-    if (elements.playerArtist) elements.playerArtist.textContent = artistName;
-    if (elements.fsPlayerTitle) elements.fsPlayerTitle.textContent = track.title || "Sem título";
-    if (elements.fsPlayerArtist) elements.fsPlayerArtist.textContent = artistName;
+    // Reset audio nativo
+    if (window.audio) {
+        window.audio.pause();
+        window.audio.src = "";
+    }
 
-    // 6. Finalização
-    setTimeout(updateScrollAnimation, 100);
-    audio.play().catch(() => console.log("Aguardando interação."));
-    syncPlayPauseState();
+    // Interface básica
+    if (elements.musicPlayer) elements.musicPlayer.classList.remove("hidden");
+
+    safeSetImage(elements.miniPlayerCover, coverUrl);
+    safeSetImage(elements.fsPlayerCover, coverUrl);
+
+    if (elements.playerTitle)
+        elements.playerTitle.textContent = track.title || "Sem título";
+
+    if (elements.fsPlayerTitle)
+        elements.fsPlayerTitle.textContent = track.title || "Sem título";
+
+    // === EXTRAÇÃO ID YOUTUBE ===
+    let videoId = "";
+    const url = track.audioURL || "";
+
+    if (url.includes("v=")) {
+        videoId = url.split("v=")[1].split("&")[0];
+    } else if (url.includes("youtu.be/")) {
+        videoId = url.split("youtu.be/")[1].split("?")[0];
+    } else if (url.length >= 10 && url.length <= 15) {
+        videoId = url;
+    }
+
+    // === CARREGA YOUTUBE ===
+    if (videoId) {
+        if (elements.ytContainer)
+            elements.ytContainer.classList.remove("hidden");
+
+        if (elements.fsPlayerCover)
+            elements.fsPlayerCover.classList.add("hidden");
+
+        if (window.loadYoutubeVideo)
+            window.loadYoutubeVideo(videoId);
+
+        startYoutubeTracking();
+
+        streamTimer = setTimeout(() => {
+            if (typeof validarStreamOficial === "function") {
+                validarStreamOficial(track);
+            }
+        }, TIME_TO_STREAM);
+    }
+
+    // === ABRE PLAYER FULLSCREEN ===
+    if (
+        elements.fullScreenPlayer &&
+        elements.fullScreenPlayer.classList.contains("hidden")
+    ) {
+        elements.fullScreenPlayer.classList.remove("hidden");
+        document.body.classList.add("fs-active");
+    }
+
+    updateArtistLabels(track.artist || track.uidars);
+
+    if (typeof updateFullScreenBackground === "function") {
+        updateFullScreenBackground(track);
+        updateMiniPlayerBackground(track);
+    }
+
     localStorage.setItem("currentTrack", JSON.stringify(track));
 }
-
-async function validarStreamOficial(track) {
-    if (!track || !track.id) return;
-    if (!window.streamGuard) window.streamGuard = { lastGlobalStreamTime: 0 };
-
-    const now = Date.now();
-    if (now - window.streamGuard.lastGlobalStreamTime < 5000) return;
-    window.streamGuard.lastGlobalStreamTime = now;
-
+window.loadTrack = loadTrack;
+async function updateArtistLabels(artistUid) {
+    if (!artistUid) return;
+    
+    const elements = getPlayerElements();
     try {
-        const valorAleatorio = Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000;
-        const musicaRef = doc(db, "musicas", track.id);
-        
-        await updateDoc(musicaRef, {
-            streams: increment(valorAleatorio),
-            streamsMensal: increment(valorAleatorio),
-            lastMonthlyStreamDate: new Date()
-        });
-
-        console.log(`🚀 ✅ Stream validado (20s YT): ${track.title} | +${valorAleatorio.toLocaleString()} streams`);
+        const artistSnap = await getDoc(doc(db, "usuarios", artistUid));
+        if (artistSnap.exists()) {
+            const artistName = artistSnap.data().nomeArtistico || "Artista";
+            if (elements.playerArtist) elements.playerArtist.textContent = artistName;
+            if (elements.fsPlayerArtist) elements.fsPlayerArtist.textContent = artistName;
+        }
     } catch (err) {
-        console.error("Erro Firebase:", err);
+        console.error("Erro ao carregar nome do artista no player:", err);
     }
 }
 
-window.loadYoutubeVideo = function(videoId) {
-    const { ytIframe } = getPlayerElements();
 
-    if (!ytPlayer) {
-        ytPlayer = new YT.Player('youtube-iframe', {
-            height: '100%',
-            width: '100%',
-            videoId: videoId,
-            host: 'https://www.youtube.com', // <--- AJUDA MUITO NO ERRO POSTMESSAGE
-            playerVars: {
-                'autoplay': 1,
-                'controls': 0, 
-                'rel': 0,
-                'showinfo': 0,
-                'modestbranding': 1,
-                'origin': window.location.origin, // <--- OBRIGATÓRIO
-                'enablejsapi': 1 // <--- OBRIGATÓRIO PARA getCurrentTime FUNCIONAR
-            },
-            events: {
-                'onReady': onPlayerReady,
-                'onStateChange': onPlayerStateChange
+
+async function checkCurrentTrackLikedState(musicId) {
+    const user = auth.currentUser;
+    // Seleciona o ícone correto dentro do container de botões de ação
+    const likeBtnIcon = document.querySelector('.fs-action-buttons .fs-icon-btn:first-child img');
+    
+    if (!user || !musicId || !likeBtnIcon) return;
+
+    const likedCollectionName = `likedmusics${user.uid}`;
+    const musicRef = doc(db, "usuarios", user.uid, likedCollectionName, musicId);
+
+    try {
+        const snap = await getDoc(musicRef);
+        if (snap.exists()) {
+            // Se existir: mostra o ícone PREENCHIDO (FILL1)
+            likeBtnIcon.src = "./assets/heart_minus_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg"; 
+        } else {
+            // Se não existir: mostra o ícone VAZIO (FILL0)
+            likeBtnIcon.src = "./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+        }
+    } catch (error) {
+        console.error("Erro ao verificar estado de curtida:", error);
+    }
+}
+
+async function toggleLike(musicData) {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const likedCollectionName = `likedmusics${user.uid}`;
+    const musicRef = doc(db, "usuarios", user.uid, likedCollectionName, musicData.id);
+    const likeBtnIcon = document.querySelector('.fs-action-buttons .fs-icon-btn:first-child img');
+
+    try {
+        const snap = await getDoc(musicRef);
+        if (snap.exists()) {
+            // Agora o deleteDoc vai funcionar!
+            await deleteDoc(musicRef);
+            if (likeBtnIcon) {
+                // Volta para o ícone de "Mais" (vazio)
+                likeBtnIcon.src = "./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+            }
+            console.log("Removido das curtidas");
+        } else {
+            // Adiciona às curtidas
+            await setDoc(musicRef, {
+                id: musicData.id,
+                title: musicData.title || musicData.nome,
+                artist: musicData.artistName || "Artista",
+                cover: musicData.cover,
+                timestamp: new Date()
+            });
+            if (likeBtnIcon) {
+                // Muda para o ícone de "Menos/Preenchido"
+                likeBtnIcon.src = "./assets/heart_minus_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg";
+            }
+            console.log("Adicionado às curtidas");
+        }
+    } catch (error) {
+        console.error("Erro ao processar curtida:", error);
+    }
+}
+
+async function openSharePlayer(data) {
+    // 1. Fecha o player de tela cheia imediatamente
+    fecharPlayerFullScreen();
+
+    // 2. Garante o carregamento do html2canvas
+    let h2c = window.html2canvas;
+    if (!h2c) {
+        try {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+            h2c = window.html2canvas;
+        } catch (err) {
+            return console.error("Erro ao carregar biblioteca de imagem.");
+        }
+    }
+
+    // 3. Verifica se o elemento do card existe
+    const card = document.getElementById('story-share-card');
+    if (!card) {
+        console.error("Elemento 'story-share-card' não encontrado no HTML.");
+        return;
+    }
+
+    // 4. Preenchimento Seguro das informações
+    const storyTitle = document.getElementById('story-title');
+    const storyArtist = document.getElementById('story-artist');
+    const storyCover = document.getElementById('story-cover');
+    const storyBg = document.getElementById('story-bg-blur');
+
+    if (storyTitle) storyTitle.innerText = data.title || "Música";
+    if (storyArtist) storyArtist.innerText = data.artistName || "Artista";
+    
+    if (storyCover) {
+        const nocacheCover = data.cover + (data.cover.includes('?') ? '&' : '?') + "t=" + Date.now();
+        storyCover.crossOrigin = "anonymous";
+        storyCover.src = nocacheCover;
+        if (storyBg) storyBg.style.backgroundImage = `url(${nocacheCover})`;
+
+        // Aguarda a imagem da capa carregar para não sair em branco
+        await new Promise(r => {
+            if (storyCover.complete) r();
+            else {
+                storyCover.onload = r;
+                setTimeout(r, 1500); // Timeout de segurança
             }
         });
-    } else {
-        // Se já existe, carrega o novo
-        ytPlayer.loadVideoById(videoId);
     }
+
+    // 5. Gera a imagem e abre o menu de compartilhamento do sistema
+    try {
+        const canvas = await h2c(card, { 
+            useCORS: true, 
+            scale: 2, 
+            backgroundColor: "#030303",
+            logging: false 
+        });
+        
+        canvas.toBlob(async (blob) => {
+            const file = new File([blob], `TUNE-${data.title}.png`, { type: 'image/png' });
+            
+            // Tenta abrir o compartilhamento nativo (Instagram/Outros)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'Tune Music',
+                    text: 'Confira essa música no Tune!'
+                });
+            } else {
+                // Fallback para PC: baixa a imagem
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `TUNE-${data.title}.png`;
+                link.click();
+            }
+        }, 'image/png');
+
+    } catch (err) {
+        console.error("Erro ao gerar imagem de compartilhamento:", err);
+    }
+
+    // 6. Copia o link como backup
+    const shareLink = `${window.location.origin}/music.html?id=${data.id}`;
+    try { await navigator.clipboard.writeText(shareLink); } catch (e) {}
+}
+
+// 2. API DO YOUTUBE
+window.onYouTubeIframeAPIReady = function() {
+    console.log("✅ API do YouTube pronta.");
 };
+
+window.loadYoutubeVideo = function(videoId) {
+    if (!videoId) return;
+
+    const container = document.getElementById("youtube-player");
+    if (!container) {
+        console.error("❌ #youtube-player não encontrado no HTML");
+        return;
+    }
+
+    // Se já existe player, só troca vídeo
+    if (window.ytPlayer && typeof window.ytPlayer.loadVideoById === 'function') {
+        window.ytPlayer.loadVideoById(videoId);
+        return;
+    }
+
+    // Se YT API ainda não carregou
+    if (typeof YT === "undefined" || typeof YT.Player === "undefined") {
+        console.warn("⏳ API do YouTube ainda não carregou");
+        return;
+    }
+
+    window.ytPlayer = new YT.Player("youtube-player", {
+        videoId: videoId,
+        width: "100%",
+        height: "100%",
+        playerVars: {
+            autoplay: 1,
+            controls: 0,
+            modestbranding: 1,
+            rel: 0,
+            playsinline: 1
+        },
+        events: {
+            onReady: (event) => {
+                event.target.playVideo();
+                console.log("▶️ YouTube pronto");
+            },
+            onStateChange: onPlayerStateChange
+        }
+    });
+};
+
+function onPlayerStateChange(event) {
+    if (event.data === YT.PlayerState.ENDED) pularParaProxima();
+    if (event.data === YT.PlayerState.PLAYING) startYoutubeTracking();
+}
+
+function pularParaProxima() {
+    if (playlistAtual.length > 0) {
+        // Incrementa o índice e volta ao zero se for o fim da lista
+        indiceAtual = (indiceAtual + 1) % playlistAtual.length;
+        loadTrack(playlistAtual[indiceAtual]); 
+    }
+}
+
+
 
 function updateInterfaceLabels(current, total) {
     const { fsProgressFill, fsCurrentTimeEl, fsTotalTimeEl } = getPlayerElements();
@@ -356,177 +711,173 @@ function updateInterfaceLabels(current, total) {
     if (miniTotal) miniTotal.textContent = totalTimeFormatted;
 }
 
-function startYoutubeTracking() {
-    stopYoutubeTracking(); // Limpa anterior se houver
-    
-    ytProgressInterval = setInterval(() => {
-        // Verifica se o player e as funções existem
-        if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function' || typeof ytPlayer.getDuration !== 'function') {
-            return;
-        }
 
-        try {
-            const currentTime = ytPlayer.getCurrentTime() || 0;
-            const duration = ytPlayer.getDuration() || 0;
-            
-            // ATUALIZAÇÃO FORÇADA:
-            // Mesmo que a duração seja 0 (carregando), mandamos atualizar para zerar os contadores visualmente
-            updateInterfaceLabels(currentTime, duration);
+function setupYoutubeAction() {
+    const { fsPlayPauseBtn } = getPlayerElements();
 
-        } catch (error) {
-            // Ignora erros momentâneos da API
-        }
-    }, 500);
+    if (fsPlayPauseBtn) {
+        fsPlayPauseBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (!currentTrack) return;
+
+            // Já que agora tudo é YouTube, basta chamar a loadTrack
+            window.loadTrack(currentTrack);
+
+            // Inicia o contador para validar o Stream (20 segundos)
+            streamTimer = setTimeout(() => {
+                if (typeof validarStreamOficial === 'function') {
+                    validarStreamOficial(currentTrack);
+                }
+            }, 20000); // 20 segundos
+        };
+    }
 }
 
+/**
+ * CONFIGURAÇÃO DOS LISTENERS DO PLAYER
+ * Gerencia cliques em Play, Pause, Like, Share e Volume.
+ */
 function setupPlayerListeners() {
-    if (listenersAttached) return; 
-    listenersAttached = true;
-    
+    // Evita duplicar os ouvintes de eventos se a função for chamada várias vezes
+    if (window.listenersAttached) return; 
+    window.listenersAttached = true;
+
     const elements = getPlayerElements();
     const { 
         playBtn, fsPlayPauseBtn, volumeSlider, fsVolumeSlider, 
-        musicPlayer, fsCloseButton, ytContainer, ytIframe, fsPlayerCover 
+        musicPlayer, fsCloseButton, ytContainer, fsPlayerCover 
     } = elements;
 
-    // --- 1. BOTÃO DO YOUTUBE (Gera Stream após 20s) ---
+    // --- 1. BOTÃO PLAY/PAUSE (TELA CHEIA) ---
     if (fsPlayPauseBtn) {
-        fsPlayPauseBtn.addEventListener('click', (e) => {
-            e.preventDefault(); e.stopPropagation();
-            if (!currentTrack || !currentTrack.id) return;
-
-            let videoId = "";
-            const url = currentTrack.audioURL;
-            if (url.includes("v=")) videoId = url.split("v=")[1].split("&")[0];
-            else if (url.includes("youtu.be/")) videoId = url.split("youtu.be/")[1].split("?")[0];
-
-            if (fsPlayerCover) fsPlayerCover.classList.add('hidden');
-            if (ytContainer) ytContainer.classList.remove('hidden');
-            
-            if (ytIframe && videoId) {
-                ytIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&origin=${window.location.origin}`;
-                console.log("📺 Modo YouTube iniciado. Aguardando 20s para stream...");
-                
-                clearTimeout(streamTimer); 
-                streamTimer = setTimeout(() => {
-                    validarStreamOficial(currentTrack);
-                }, TIME_TO_STREAM);
-            }
-            audio.pause(); 
-        });
-    }
-
-    // --- 2. PLAY/PAUSE NATIVO ---
-    if (playBtn) {
-        playBtn.addEventListener("click", (e) => {
+        fsPlayPauseBtn.onclick = (e) => {
+            e.preventDefault();
             e.stopPropagation();
-            if (audio.paused) audio.play(); else audio.pause();
-        });
-    }
 
-    // --- 3. EVENTOS DE ÁUDIO ---
-    audio.addEventListener("play", () => {
-        syncPlayPauseState();
-        console.log("🎵 Áudio nativo tocando (Sem stream).");
-    });
-    audio.addEventListener("pause", syncPlayPauseState);
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("ended", () => clearTimeout(streamTimer));
+            if (!currentTrack) return;
 
-    // --- 4. CONTROLE DE VOLUME ---
-    const handleVol = (e) => {
-        audio.volume = e.target.value;
-        if (volumeSlider) volumeSlider.value = e.target.value;
-        if (fsVolumeSlider) fsVolumeSlider.value = e.target.value;
-    };
-    if (volumeSlider) volumeSlider.addEventListener("input", handleVol);
-    if (fsVolumeSlider) fsVolumeSlider.addEventListener("input", handleVol);
-
-    // --- 5. PROGRESSO E CLIQUE NA BARRA ---
-    const pBar = document.querySelector(".progress-bar");
-    const fsPBar = document.getElementById("fs-player-bar-container");
-    if (pBar) pBar.addEventListener("click", (e) => handleProgressClick(e, pBar, elements.progressFill));
-    if (fsPBar) fsPBar.addEventListener("click", (e) => handleProgressClick(e, fsPBar, elements.fsProgressFill));
-
-    // --- 6. ABRIR E FECHAR PLAYER ---
-    if (musicPlayer) {
-        musicPlayer.addEventListener('click', (e) => {
-            if (e.target.closest('.player-center') || e.target.closest('.player-right') || e.target.closest('.progress-bar')) return;
-            if (currentTrack && elements.fullScreenPlayer) {
-                elements.fullScreenPlayer.classList.remove('hidden');
-                requestAnimationFrame(() => document.body.classList.add('fs-active'));
+            // Se o Player do YouTube existir, alterna entre Play e Pause
+            if (window.ytPlayer && typeof window.ytPlayer.getPlayerState === 'function') {
+                const state = window.ytPlayer.getPlayerState();
+                if (state === 1) { // 1 = YT.PlayerState.PLAYING
+                    window.ytPlayer.pauseVideo();
+                    console.log("⏸️ YouTube Pausado");
+                } else {
+                    window.ytPlayer.playVideo();
+                    console.log("▶️ YouTube Reproduzindo");
+                }
+            } else {
+                // Caso o player ainda não tenha sido criado, tenta carregar
+                loadTrack(currentTrack);
             }
-        });
-    }
-
-    if (fsCloseButton) {
-        fsCloseButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            console.log("❌ Player fechado. Stream cancelado.");
-            clearTimeout(streamTimer); 
-            
-            document.body.classList.remove('fs-active');
-            const animation = elements.fullScreenPlayer.animate([
-                { transform: 'translateY(0)', opacity: 1 },
-                { transform: 'translateY(100%)', opacity: 0 }
-            ], { duration: 500, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
-
-            animation.onfinish = () => {
-                elements.fullScreenPlayer.classList.add('hidden');
-                if (ytIframe) ytIframe.src = ""; 
-                animation.cancel();
-            };
-        });
-    
-    
-
-        
-    }if (musicPlayer && elements.fullScreenPlayer) {
-        
-       musicPlayer.addEventListener('click', (e) => {
-    // ... seus filtros de clique ...
-    if (currentTrack) {
-        const player = elements.fullScreenPlayer;
-        player.classList.remove('hidden');
-        document.body.classList.add('fs-active');
-
-        // Animação de entrada
-        player.animate([
-            { transform: 'translateY(100%)', opacity: 0 },
-            { transform: 'translateY(0)', opacity: 1 }
-        ], {
-            duration: 500,
-            easing: 'cubic-bezier(0.32, 0.72, 0, 1)'
-        });
-    }
-});
-
-if (fsCloseButton) {
-    fsCloseButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const player = elements.fullScreenPlayer;
-
-        // 1. Remove a classe do body imediatamente para efeitos visuais extras
-        document.body.classList.remove('fs-active');
-
-        // 2. Cria a animação de saída (Slide Down + Fade Out)
-        const animation = player.animate([
-            { transform: 'translateY(0)', opacity: 1 },    // Início (Visível)
-            { transform: 'translateY(100%)', opacity: 0 } // Fim (Escondido embaixo)
-        ], {
-            duration: 500,
-            easing: 'cubic-bezier(0.32, 0.72, 0, 1)',
-            fill: 'forwards' // Mantém o estado final após acabar
-        });
-
-        // 3. Quando a animação TERMINAR, aí sim colocamos o hidden
-        animation.onfinish = () => {
-            player.classList.add('hidden');
-            // Limpa a animação para não bugar a próxima abertura
-            animation.cancel(); 
         };
+    }
+
+    // --- 2. BOTÃO PLAY/PAUSE (MINI PLAYER) ---
+    if (playBtn) {
+        playBtn.onclick = (e) => {
+            e.stopPropagation();
+            // Espelha o comportamento do botão de tela cheia
+            if (fsPlayPauseBtn) fsPlayPauseBtn.click();
+        };
+    }
+
+    // === ABRIR FULL SCREEN AO CLICAR NO MINI PLAYER ===
+if (musicPlayer) {
+    musicPlayer.addEventListener("click", (e) => {
+        // Não abrir se clicar em botão ou progress bar
+        if (
+            e.target.closest("button") ||
+            e.target.closest(".progress-bar") ||
+            e.target.closest("input")
+        ) return;
+
+        const fs = document.getElementById("full-screen-player");
+        if (!fs) {
+            console.warn("❌ #full-screen-player não encontrado");
+            return;
+        }
+
+        fs.classList.remove("hidden");
+        document.body.classList.add("fs-active");
+
+        console.log("📲 Full Screen aberto");
     });
 }
+
+    // --- 3. BOTÕES DE AÇÃO (LIKE E SHARE) ---
+    const actionBtns = document.querySelectorAll('.fs-action-buttons .fs-icon-btn');
+    if (actionBtns.length >= 2) {
+        const likeBtn = actionBtns[0];
+        const shareBtn = actionBtns[1];
+
+        if (likeBtn) {
+            likeBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (currentTrack) toggleLike(currentTrack);
+            };
+        }
+
+        if (shareBtn) {
+            shareBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (currentTrack) openSharePlayer(currentTrack);
+            };
+        }
+    }
+
+    // --- 4. CONTROLE DE VOLUME (SINCRONIZADO) ---
+    const handleVol = (e) => {
+        const vol = e.target.value;
+        // Ajusta volume no áudio nativo (caso use)
+        if (window.audio) window.audio.volume = vol;
+        // Ajusta volume no YouTube
+        if (window.ytPlayer && typeof window.ytPlayer.setVolume === 'function') {
+            window.ytPlayer.setVolume(vol * 100);
+        }
+        // Sincroniza os dois sliders
+        if (volumeSlider) volumeSlider.value = vol;
+        if (fsVolumeSlider) fsVolumeSlider.value = vol;
+    };
+
+    if (volumeSlider) volumeSlider.oninput = handleVol;
+    if (fsVolumeSlider) fsVolumeSlider.oninput = handleVol;
+
+    // --- 5. PROGRESSO (CLIQUE NA BARRA) ---
+    const fsPBar = document.getElementById("fs-player-bar-container");
+    if (fsPBar) {
+        fsPBar.onclick = (e) => {
+            if (window.ytPlayer && typeof window.ytPlayer.getDuration === 'function') {
+                const rect = fsPBar.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                const duration = window.ytPlayer.getDuration();
+                window.ytPlayer.seekTo(pos * duration, true);
+            }
+        };
+    }
+
+    // --- 6. FECHAR O PLAYER FULL SCREEN ---
+    if (fsCloseButton) {
+        fsCloseButton.onclick = (e) => {
+            e.stopPropagation();
+            console.log("❌ Fechando Player Full Screen");
+            
+            document.body.classList.remove('fs-active');
+            
+            if (elements.fullScreenPlayer) {
+                const animation = elements.fullScreenPlayer.animate([
+                    { transform: 'translateY(0)', opacity: 1 },
+                    { transform: 'translateY(100%)', opacity: 0 }
+                ], { duration: 500, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
+
+                animation.onfinish = () => {
+                    elements.fullScreenPlayer.classList.add('hidden');
+                    animation.cancel();
+                };
+            }
+        };
     }
 }
 
@@ -654,6 +1005,42 @@ function rgbToHsl(r, g, b) {
     return { h, s, l };
 }
 
+function updateMiniPlayerBackground(track) {
+    const miniPlayer = document.getElementById("music-player");
+    if (!miniPlayer) return;
+
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+
+    img.onload = function () {
+        try {
+            const colorThief = new ColorThief();
+            const [r, g, b] = colorThief.getColor(img);
+
+            let { h, s, l } = rgbToHsl(r, g, b);
+
+            s = Math.max(s, 0.8);
+            l = Math.min(Math.max(l, 0.35), 0.45);
+
+            const strongColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+
+            // escurece levemente a cor
+l = Math.max(l - 0.15, 0.15); 
+
+const darkColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+
+miniPlayer.style.background = darkColor;
+
+        } catch (e) {
+            miniPlayer.style.background = "#121212";
+        }
+    };
+
+    img.src = track.cover
+        ? `${track.cover}?t=${Date.now()}`
+        : "assets/10.png";
+}
+
 // --- LÓGICA DE PERFIL E AUTENTICAÇÃO (MANTIDA/CORRIGIDA) ---
 
 async function fetchAndRenderUserProfile(user) {
@@ -775,8 +1162,7 @@ if (searchInput) {
     });
 }
 
-// 🚀 EXPORTAÇÃO GLOBAL: Permite que outros scripts (tunearts.js) chamem loadTrack
-window.playTrackGlobal = loadTrack;
+
 
 function checkCurrentTrack() {
     setupPlayerListeners(); // Mantém os botões funcionando
@@ -826,8 +1212,11 @@ function checkCurrentTrack() {
     }
 }
 
-// Evento disparado quando outra aba salva uma música
-window.addEventListener("storage", () => checkCurrentTrack());
+document.addEventListener("DOMContentLoaded", () => {
+    setupPlayerListeners();
+    setupSwipeToClose();
+    setupQueueControls();
+});
+// No final do seu player.js
+export { loadTrack };
 
-// Inicialização
-document.addEventListener('DOMContentLoaded', checkCurrentTrack);

@@ -278,31 +278,6 @@ ul.playlists li.serie-item a {
 
 
 
-#principal {
-  background-color: #0a0a0afb;;;
-  transition: background-color 1s ease;
-  color: #fff;
-}
-
-
-#principal #feed {
-  background: linear-gradient(
-    180deg,
-    #121212 80%,
-    #202020 100%
-  );
-  border-radius: 30px 30px 0 0; /* Arredonda os cantos superiores */
-
-  overflow-y: auto;
-}
-
-#principal #feed #topNav {
-  transition: background-color .3s ease;
-  position: sticky;
-  top: 0;
-  z-index: 999;
-}
-
 
 
 #principal #feed #topNav #arrowMenu button {
@@ -1160,6 +1135,7 @@ body {
 #youtube-player-container {
     position: absolute;
     width: 1px;
+    z-index: 5000;
     height: 1px;
     top: -9999px;
     left: -9999px;
@@ -2612,4 +2588,63 @@ font-family: 'Nationale Black';
 .fan-text .section-title {
     margin: 0; /* Remove a margem padrão para alinhar com o "Para fãs de" */
     font-size: 28px;
+}
+
+/* Container principal que segura a grade */
+#favorites-grid-container {
+    width: 100%;
+    padding: 0 16px; /* Adiciona o respiro nas laterais para não encostar fora */
+    box-sizing: border-box; /* Garante que o padding não aumente a largura total */
+}
+
+.favorites-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 8px; /* Espaço entre os cards */
+    width: 100%;
+}
+
+@media (min-width: 1024px) {
+    #favorites-grid-container {
+        padding: 0 32px; /* Mais espaço no PC */
+    }
+    .favorites-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+}
+
+/* Estilo do card individual */
+.fav-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    height: 56px; /* Altura padrão mobile */
+    transition: background 0.2s;
+}
+
+.fav-img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.fav-text-container {
+    flex: 1;
+    padding: 0 12px;
+    overflow: hidden; /* Importante para o truncate funcionar */
+}
+
+.fav-text {
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.831);
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.2;
 }

@@ -81,44 +81,42 @@ const MAIN_HTML_FILE = 'tuneartists.html';
 let currentUser = null;
 window.currentArtistUid = null;
 
-// ================================
-// 2. ESTADO DE AUTENTICAÇÃO E VERIFICAÇÃO DE PERFIL
-// ================================
 onAuthStateChanged(auth, async (user) => {
+
     if (!user) {
-        window.location.href = "index.html";
-        return;
+        console.log("Usuário ainda não autenticado...");
+        return; // 🔥 NÃO redireciona aqui imediatamente
     }
 
     try {
         const userDocRef = doc(db, "usuarios", user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
-        if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-
-            // AJUSTE AQUI: Verifica se é diferente de "true" para bloquear
-            // Se for "true", ele ignora o IF e segue para o painel.
-            if (userData.artista !== "true") { 
-                console.warn("Acesso negado: Usuário não possui perfil de artista.");
-                window.location.href = "index.html"; 
-                return;
-            }
-
-            // Se chegou aqui, é porque userData.artista === "true"
-            currentUser = user;
-            window.currentArtistUid = user.uid;
-            console.log("Artista verificado e conectado:", user.uid);
-
-            if (typeof initializePageNavigation === "function") {
-                initializePageNavigation();
-            }
-            
-        } else {
+        if (!userDocSnap.exists()) {
             window.location.href = "index.html";
+            return;
         }
+
+        const userData = userDocSnap.data();
+
+        const isArtist =
+            typeof userData.artista === "string" &&
+            userData.artista.trim().toLowerCase() === "true";
+
+        if (!isArtist) {
+            window.location.href = "index.html";
+            return;
+        }
+
+        currentUser = user;
+        window.currentArtistUid = user.uid;
+
+        if (typeof initializePageNavigation === "function") {
+            initializePageNavigation();
+        }
+
     } catch (error) {
-        console.error("Erro ao verificar permissões:", error);
+        console.error(error);
         window.location.href = "index.html";
     }
 });

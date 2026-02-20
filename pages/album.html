@@ -21,482 +21,410 @@
 <meta name="twitter:card" content="summary_large_image">
 
 <style>
-
-  /* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+/* --- 1. DEFINIÇÕES DE FONTES NATIONALE --- */
 @font-face {
     font-family: 'Nationale Regular';
-    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
-         url('./fonts/Nationale-Regular.woff') format('woff');
+    src: url('/fonts/Nationale-Regular.woff2') format('woff2');
     font-weight: normal;
-    font-style: normal;
 }
 @font-face {
     font-family: 'Nationale Bold';
-    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
-         url('./fonts/Nationale-Bold.woff') format('woff');
+    src: url('/fonts/Nationale-Bold.woff2') format('woff2');
     font-weight: bold;
-    font-style: normal;
 }
 @font-face {
     font-family: 'Nationale Black';
-    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
-         url('./fonts/Nationale-Black.woff') format('woff');
-    font-weight: bold;
-    font-style: normal;
+    src: url('/fonts/Nationale-Black.woff2') format('woff2');
+    font-weight: 900;
 }
 
-/* No arquivo principal */
-html, body {
-    background-color: #000000 !important; /* Cor que o navegador exibirá "por fora" */
+/* --- 2. RESET E FUNDO IMERSIVO --- */
+:root {
+    --dynamic-bg: #1a1a1a;
+}
+
+body {
+        padding: 0 !important;
+    margin: 0 !important;
     margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
+    
+    background-color: #000;
+       font-family: 'Nationale Regular';
+    overflow-x: hidden;
 }
 
-
-  /* NOVO: Estilo para alinhar o número da faixa */
-.track-number-display {
-    /* Define uma largura fixa para o número, garantindo consistência */
-    width: 20px; 
-    /* Força o alinhamento do texto para a direita dentro dessa largura de 20px */
-    text-align: right; 
+#bg-image-layer {
+    
+    opacity: 0.65 !important; 
+    filter: blur(100px) saturate(140%);
+    transform: scale(1.5);
+    transition: background-image 1s ease-in-out;
 }
 
-.track-item {
-    display: grid;
-    /* Colunas fixas no mobile: ID(35px) | Capa(48px) | Texto(1fr) | Tempo(50px) */
-    grid-template-columns: 20px 48px 1fr 50px;
-    align-items: center;
-    gap: 12px;
+#bg-color-overlay {
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.616) 100%) !important;
+    transition: background-color 1s ease;
+}
 
-    height: 64px; /* Altura fixa impede o erro da imagem fdcfcc */
-    width: 100%;
-    border-radius: 8px;
-    box-sizing: border-box;
+#main-wrapper { 
+        margin-top: -20px;
+    margin-bottom: 100px;
+    background-color: transparent !important; 
+}
+
+/* Esconder Scrollbar */
+::-webkit-scrollbar { display: none; }
+
+/* --- 3. ESTILIZAÇÃO DE TEXTOS (SEM UPPERCASE) --- */
+.album-title { 
+    font-family: 'Nationale Black', sans-serif; 
+    font-size: 26px; 
+    letter-spacing: -0.03em; 
+    color: #fff; 
+    text-transform: none;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.artist-name { 
+    font-family: 'Nationale Bold', sans-serif; 
+    font-size: 20px; 
+    color: rgba(255, 255, 255, 0.9); 
+    margin-top: 2px; 
+    text-transform: none;
+}
+
+.metadata-row { 
+    font-family: 'Nationale Regular', sans-serif; 
+    font-size: 13px; 
+    color: rgba(255, 255, 255, 0.4); 
+    margin-top: 8px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 6px; 
+    text-transform: none;
+}
+
+.album-description { 
+    font-family: 'Nationale Regular', sans-serif; 
+    font-size: 14px; 
+    line-height: 1.4; 
+    color: rgba(255, 255, 255, 0.5); 
+    margin-top: 20px; 
+    text-transform: none;
+}
+
+.more-link {
+    font-family: 'Nationale Bold', sans-serif;
+    color: rgba(255, 255, 255, 0.8);
     cursor: pointer;
-    transition: background 0.2s;
 }
 
-/* Garante que o texto ocupe o meio sem empurrar as colunas fixas */
-.track-info-container {
-    min-width: 0; 
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-/* Força as reticências (...) sem quebrar a linha */
-.track-info-container span, 
-.track-info-container div {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.track-cover {
-    width: 48px;
-    height: 48px;
-    border-radius: 4px;
-
-    flex-shrink: 0;
-}
-
-
-.track-duration {
-    width: 50px;
-    text-align: right;
-    flex-shrink: 0;
-}
-
-        .track-item:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .track-item:active {
-            transform: scale(0.98);
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        /* Capa com Glow */
-        .playlist-glow {
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-            transition: transform 0.3s ease;
-        }
-
-        .playlist-glow:hover {
-            transform: scale(1.02);
-        }
-
-        /* Aplicando nos IDs específicos */
-#playlist-title-detail {
-    font-family: 'Nationale Black', sans-serif; /* Título bem pesado */
-}
-
-#playlist-description-detail {
-    font-family: 'Nationale Regular', sans-serif; /* Descrição leve */
-}
-
-.track-name {
-    font-family: 'Nationale Bold', sans-serif; /* Nome da música em negrito */
-}
-
-.artist-name {
-    font-family: 'Nationale Regular', sans-serif; /* Artista leve */
-}
-
-  .explicit-tag {
-    font-family: 'Nationale Regular';
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 8px; /* Tamanho da fonte 'E' */
-    font-weight: bold;
-    color: #141414; /* Cor do texto (cinza claro) */
-    background-color: #a7a7a7;
-    border: 1px solid #a7a7a7; /* Borda cinza clara */
-    border-radius: 2px;
-    padding: 1px 3px;
-    margin-left: 6px;
-    line-height: 1; /* Alinhamento vertical */
-    vertical-align: middle;
-}
-
-     #album-title-detail {
-      font-family: 'Nationale Black';
-        /* Garante que o texto se adapte à largura */
-        word-break: break-word;
-        overflow-wrap: break-word;
-        font-size: 5.6rem;
-    }
-
-/* --- ADAPTAÇÃO MOBILE (MEDIA QUERY) --- */
-@media (max-width: 768px) {
-
-       #album-title-detail {
-      font-family: 'Nationale Black';
-        /* Garante que o texto se adapte à largura */
-        word-break: break-word;
-        overflow-wrap: break-word;
-        font-size: 1.6rem;
-    }
-
-    /* ⭐ NOVO: Ajusta o contêiner do texto (<div> que contém o <p> e <h1>) ⭐ */
-    .flex.flex-col > div:last-child {
-        width: 100%; /* Garante que o texto ocupe toda a largura */
-    }
-
-    /* Ajusta o padding do cabeçalho para telas muito pequenas */
-    .main-header {
-        padding: 24px !important; /* Padrão 6 (24px) */
-    }
-}
-
-/* Opcional: Efeito hover na linha toda */
-.group:hover .explicit-tag {
-    border-color: white;
-    color: white;
-}
-
-
-
-
-.album-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px; /* espaço entre os botões */
-  margin-top: 26px;
-  margin-left: 26px;
-}
-/* Tamanho dos ícones */
-.album-actions .play img {
-  width: 30px;   /* ícone play maior */
-  height: 30px;
-}
-
-.album-actions .like img,
-.album-actions .repeat img {
-  width: 30px;   /* ícones menores */
-  height: 30px;
-}
-
-.album-actions .btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.album-actions .btn img {
-  display: block;
-}
-
-/* Play button maior e verde */
-.album-actions .play {
-  width: 48px;
-  height: 48px;
-  margin-left: 10px;
-  border-radius: 50%;
-  background-color: #ffffff; /* verde Spotify */
-}
-
-.album-actions .play:hover {
-  transform: scale(1.1);
-}
-
-/* Like e Repeat menores e cinza */
-.album-actions .like,
-.album-actions .share {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background-color: #9d9d9d23;
-}
-
-.album-actions .like:hover,
-.album-actions .repeat:hover {
-  background-color: #010101;
-}
-.countdown-wrapper {
-    /* Contêiner principal para posicionamento do botão Pre-Save */
-    position: relative;
-    margin-top: 25px;
-    margin-bottom: 20px;
-    max-width: fit-content;
-}
-
-.countdown-box {
+/* --- 4. BOTÕES E ANIMAÇÕES --- */
+.play-button-main { 
     font-family: 'Nationale Bold';
-    display: flex;
-    align-items: center;
-    
-    /* Voltando para o estilo compacto com fundo sólido e bordas suaves */
-    background-color: rgba(10, 10, 10, 0.252); 
-    backdrop-filter: blur(10px); /* Efeito de vidro esfumaçado */
--webkit-backdrop-filter: blur(10px);-webkit-backdrop-filter:none;
-    margin-top: 25px;
-    padding: 10px 16px; /* Padding ajustado */
-    border-radius: 8px; /* Cantos menos arredondados para o estilo compacto */
-    border: 1px solid rgba(255, 255, 255, 0.1);
- /* ⭐ CORREÇÃO DE ALTURA: Fixa para que o separador funcione ⭐ */
-    height: 90px; 
-    width: fit-content; /* Garante que a caixa só ocupe o espaço necessário */
+    flex: 1; 
+    height: 50px; 
+    background: #fff; 
+    border-radius: 25px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 8px; 
+    cursor: pointer; 
+    border: none; 
+    transition: all 0.2s ease;
 }
 
-.countdown-image-wrapper {
-    margin-right: 15px; 
-    width: 65px; 
-    height: 65px;
-    overflow: hidden;
-    border-radius: 4px; 
-    flex-shrink: 0; 
+.play-button-main:hover {
+    transform: scale(1.03);
+    background-color: #f0f0f0;
 }
 
-.countdown-segment {
-    /* ⭐ CORREÇÃO: Removendo min-width para que o padding controle o espaçamento ⭐ */
-    /* min-width: 60px; <-- Removido */ 
-    
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    color: white;
-    font-family: sans-serif; 
-    
-    /* O padding é a margem de segurança. Deve ser igual nos lados. */
-    padding: 0 10px; 
-    text-align: center;
-    flex-shrink: 0;
+.play-button-main:active {
+    transform: scale(0.96);
 }
 
-.countdown-separator {
-    width: 1px; 
-    height: 20%; 
-    
-    /* ⭐ CORREÇÃO DA VISIBILIDADE: Cor mais clara para o separador ⭐ */
-    background-color: #888888; 
-    
-    align-self: center; 
-    /* Margem para separar o segmento. Ajustado para ser mais compacto */
-    margin: 0 4px; 
-    
-    flex-shrink: 0;
+.play-button-main span { 
+    font-family: 'Nationale Bold', sans-serif; 
+    font-size: 17px; 
+    color: #000; 
 }
 
-.countdown-value {
-    font-family: 'Nationale Bold';
-    font-size: 2.8rem; /* Tamanho do número maior */
-    font-weight: 700; /* Bold */
-    line-height: 1.1;
-    letter-spacing: -1px; /* Para parecer mais compacto */
+/* 4. BOTÕES (CORREÇÃO DE TAMANHO) */
+    header .flex.items-center.gap-4.mt-10 {
+        grid-column: 2 !important;
+        justify-content: flex-start !important;
+        width: auto !important;
+        max-width: none !important; /* Remove limite de largura do mobile */
+        margin-top: 25px !important;
+        gap: 20px !important; /* Mais espaço entre os botões no PC */
+    }
+
+    /* Botão Play principal */
+    .play-button-main {
+        flex: none !important; /* Impede que ele tente preencher espaço */
+        padding: 0 45px !important; /* Padding lateral maior para o botão não ser pequeno */
+        height: 54px !important; /* Altura de PC */
+        min-width: 180px !important;
+    }
+
+    .play-button-main span {
+        font-size: 18px !important;
+    }
+
+.play-hole { 
+    width: 25px; 
+    height: 25px; 
+    background-color: var(--dynamic-bg); 
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 5v14l11-7z'/%3E%3C/svg%3E") no-repeat; 
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 5v14l11-7z'/%3E%3C/svg%3E") no-repeat; 
 }
 
-.countdown-label {
-      font-family: 'Nationale Regular';
-    font-size: 0.85rem; /* Tamanho do label (Days, Hours...) */
-    color: #a7a7a7;
-    margin-top: 5px;
-    text-transform: uppercase; /* Opcional: Labels em maiúsculas */
-    font-weight: 500;
-}
-
-/* 3. Estilo para o Botão Pre-Save */
-.pre-save-button {
-    position: absolute;
-    top: -15px; /* Levanta o botão acima do topo do contêiner */
-    right: 0;
-    display: flex;
-    align-items: center;
-    padding: 8px 15px;
-    border-radius: 9999px; /* Totalmente arredondado */
-    background-color: #00FF5B; /* Verde vibrante (Ditto) */
-    color: #121212;
-    font-weight: 700;
-    font-size: 0.9rem;
+.action-circle { 
+    width: 50px; 
+    height: 50px; 
+    background: rgba(255, 255, 255, 0.1); 
+    border-radius: 50%; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    border: none; 
+    transition: all 0.2s ease;
     cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-    transition: transform 0.2s;
 }
 
-.pre-save-button:hover {
+.action-circle:hover {
+    background: rgba(255, 255, 255, 0.2);
     transform: scale(1.05);
 }
 
-#album-header {
-    transition: background-color 0.8s ease; /* Suaviza a troca de cor */
-    background-size: cover;
-    background-position: center;
+
+
+/* Puxa o conteúdo do álbum para cima da área de navegação */
+.album-header {
+        padding-top: 0 !important;
 }
 
-.pre-save-icon {
-    font-size: 1.2rem;
-    line-height: 1;
-    margin-right: 5px;
+/* No Mobile, a nav pode estar ocupando espaço invisível */
+nav.flex {
+    margin-bottom: -10px !important;
 }
 
-/* --- ADAPTAÇÃO MOBILE (MEDIA QUERY) --- */
-@media (max-width: 768px) {
-    /* 1. Ajuste do Container Principal */
-    .countdown-box {
-        padding: 10px; 
-        width: 100%; 
-        box-sizing: border-box; 
+.action-circle:active {
+    transform: scale(0.92);
+}
+
+/* Glow da Capa */
+.album-cover-glow {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.album-cover-glow:hover {
+    transform: scale(1.02);
+}
+
+/* --- 5. TRACKLIST (LINHAS E HOVERS) --- */
+.track-row { 
+    display: flex; 
+    align-items: center; 
+    padding: 12px 10px; 
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.05); 
+    cursor: pointer; 
+    transition: background 0.2s ease, transform 0.1s ease;
+    border-radius: 6px;
+    margin: 0 -10px;
+}
+
+.track-row:hover { 
+    background: rgba(255, 255, 255, 0.08); 
+}
+
+.track-row:active {
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(0.995);
+}
+
+.track-number { 
+    font-family: 'Nationale Black'; 
+    width: 35px; 
+    color: rgba(255, 255, 255, 0.3); 
+    font-size: 15px; 
+}
+
+.track-title { 
+    font-family: 'Nationale Bold'; 
+    font-size: 16px; 
+    color: #fff; 
+    text-transform: none;
+}
+
+.track-artist { 
+    font-family: 'Nationale Regular'; 
+    font-size: 14px; 
+    color: rgba(255, 255, 255, 0.4); 
+    text-transform: none;
+}
+
+
+
+/* --- 6. MEDIA QUERY: LAYOUT EXTREMO PARA PC (IGUAL IMAGEM BAD BUNNY) --- */
+@media (min-width: 1024px) {
+    /* Header Horizontal */
+    header.flex-col {
+        flex-direction: row !important;
+        align-items: flex-end !important;
+        text-align: left !important;
+
+        gap: 50px !important;
     }
 
-    /* 2. Redução da Imagem */
-    .countdown-image-wrapper {
-        width: 50px; 
-        height: 50px; 
-        margin-right: 10px; 
+    /* Fixa tamanho da capa no Desktop */
+    header .relative.w-64.h-64, 
+    header .album-cover-glow {
+        width: 320px !important;
+        height: 320px !important;
+        flex-shrink: 0 !important;
+        margin-bottom: 0 !important;
     }
 
-    /* 3. Ajuste dos Valores e Labels */
-    .countdown-segment {
-        padding: 0 15px; 
+    /* Alinha infos à esquerda */
+    .info-section {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        text-align: left !important;
+        flex: 1 !important;
     }
 
-    .countdown-value {
-        font-size: 1.8rem; 
-        line-height: 1;
+    .album-title { font-size: 48px !important; }
+
+    .metadata-row {
+        justify-content: flex-start !important;
+        margin-top: 15px !important;
     }
 
-    .countdown-label {
-        font-size: 0.7rem; 
+    /* Botões no PC */
+    header .flex.items-center.gap-4.mt-10 {
+        justify-content: flex-start !important;
+        width: auto !important;
+        max-width: none !important;
+    }
+
+    /* Bio no PC */
+    .album-description {
+        text-align: left !important;
+        max-width: 600px !important;
+        margin-left: 0 !important;
+    }
+
+    /* Tracklist em Grid Tabela */
+    #tracks-container {
+        max-width: none !important;
+
+        margin-top: 60px !important;
+    }
+
+    .track-row {
+        display: grid !important;
+        grid-template-columns: 50px 1fr 1fr 100px !important; /* # | TÍTULO | ARTISTA | OPÇÕES */
+        padding: 15px 20px !important;
+        margin: 0;
+    }
+
+    /* Ajusta os textos internos para o grid */
+    .track-row > .flex-1 {
+        display: contents !important;
     }
     
-    .pre-save-button {
-        top: -10px;
-        right: 10px;
-        font-size: 0.8rem;
-        padding: 6px 12px;
+    .track-artist {
+        display: block !important;
+        opacity: 0.6;
     }
-
 }
 
-/* Estilos dos ícones (shuffle, add, download, mais) */
+@media (min-width: 1024px) {
+    .track-row {
+        /* Layout tabular: ID | Título | Artista | Ações */
+        display: grid !important;
+        grid-template-columns: 50px 1fr 1fr 120px !important; 
+        align-items: center !important;
+        padding-right: 20px !important;
+    }
+
+    .track-row .flex.items-center.gap-5 {
+        justify-content: flex-end !important; /* Alinha estrela e '...' à direita */
+    }
+    
+    .track-like-btn {
+        transition: transform 0.2s ease;
+    }
+    
+    .track-like-btn:hover {
+        transform: scale(1.2);
+    }
+}
 
 </style>
-<div id="album-header" class="relative main-header h-auto min-h-[450px] md:h-[500px] flex items-end p-6 md:p-10 rounded-[40px] overflow-hidden transition-all duration-700">
-    <div id="album-cover-bg" class="absolute inset-0 bg-cover bg-center"></div>
-    <div class="absolute inset-0 album-bg-gradient bg-gradient-to-b from-transparent to-[#000000]"></div>
-    
-    <div class="relative z-10 w-full">
-        <div class="flex flex-col md:flex-row items-center md:items-end space-y-6 md:space-y-0 md:space-x-8">
-            
-            <div class="relative w-64 h-64 md:w-64 md:h-64 flex-shrink-0 overflow-hidden rounded-lg shadow-2xl bg-zinc-900 playlist-glow" id="album-cover-wrapper">
-                <img id="album-cover-detail" 
-                     src="https://placehold.co/400x400" 
-                     alt="Capa do Álbum" 
-                     class="w-full h-full object-cover transition-opacity duration-500">
-                
-                <img id="album-animated-detail" 
-                     src="" 
-                     alt="Capa Animada" 
-                     class="absolute top-0 left-0 w-full h-full object-cover hidden opacity-0 transition-opacity duration-700">
+<div id="app-container" class="relative min-h-screen overflow-x-hidden bg-black text-white">
 
-                <div class="absolute inset-0 bg-black/5 pointer-events-none"></div>
+<div id="dynamic-bg-container" class="fixed inset-0 z-0 overflow-hidden bg-black">
+    <div id="bg-image-layer" class="absolute inset-0 bg-cover bg-center scale-150 blur-[100px] opacity-60 transition-all duration-1000"></div>
+    <div id="bg-color-overlay" class="absolute inset-0 transition-colors duration-1000"></div>
+</div>
+
+
+
+    <div id="main-wrapper" class="relative z-10 min-h-screen">
+        <nav class="flex justify-between items-center p-6">
+            <button class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full backdrop-blur-md">
+                <img src="/assets/chevron-left.svg" class="w-6 " alt="Back">
+            </button>
+            <div class="flex gap-4">
+                <button class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full backdrop-blur-md">
+                    <img src="/assets/share-2.svg" class="w-5 " alt="Share">
+                </button>
+                
+            </div>
+        </nav>
+
+        <header class="flex flex-col items-center px-8 pt-4 text-center">
+            <div class="relative w-64 h-64 md:w-72 md:h-72 mb-10 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+                <img id="album-cover-detail" src="https://placehold.co/600x600" class="w-full h-full object-cover rounded-lg border-[0.5px] border-white/10">
             </div>
 
-            <div class="flex flex-col items-center md:items-start text-center md:text-left">
-                <h1 id="album-title-detail" class="text-white font-extrabold leading-tight">
-                    Nome do Álbum
-                </h1>
-                <div class="flex items-center gap-x-2 text-sm text-gray-300 mt-2">
-                    <img id="artist-image-detail" src="https://placehold.co/32x32" class="w-7 h-7 rounded-full object-cover">
-                    <span id="artist-name-detail" class="font-semibold hover:underline cursor-pointer text-gray-00">Nome do Artista</span>
-                    <span>•</span>
-                    <span id="album-year-detail">2025</span>
+            <div class="info-section">
+                <h1 id="album-title-detail" class="album-title">Fancy That</h1>
+                <p id="artist-name-detail" class="artist-name">PinkPantheress</p>
+                
+                <div class="metadata-row">
+                    <span id="album-genre">Pop</span> • 
+                    <span id="album-year-detail">2025</span>  
+                    
                 </div>
             </div>
-        </div>
-        
-        <div id="countdown-container" class="hidden"></div>
+
+           <div class="flex items-center gap-4 mt-10 w-full max-w-[340px]">
+    
+    
+    <button id="main-play-btn" class="play-button-main">
+        <div class="play-hole"></div>
+        <span>Play</span>
+    </button>
+
+    <button id="album-like-btn" class="action-circle">
+        <img src="/assets/star_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="w-6 opacity-40">
+    </button>
+</div>
+
+            
+        </header>
+
+        <main id="tracks-container" class="mt-12 px-6 pb-32 max-w-3xl mx-auto">
+            </main>
     </div>
 </div>
-
-
-
-<div class="album-actions flex">
-    <button class="btn play">
-        <img src="/assets/play_arrow_50dp_000000_FILL1_wght400_GRAD0_opsz48.svg" alt="Play">
-        </button>
-
-    <button id="album-like-button" class="btn like">
-        <img src="/assets/like.svg" alt="Like">
-    </button>
-    
-    <button class="btn share">
-        <img src="/assets/share-2.svg" alt="Share">
-    </button>
-</div>
-
-<div 
-    id="app-toast" 
-    class="fixed bottom-35 left-1/2 transform -translate-x-1/2 mb-6 p-3 rounded-lg shadow-2xl transition-all duration-300 ease-out opacity-0 translate-y-full z-50 pointer-events-none **toast-font-override**" 
-    style="background-color: #282828; min-height: 20px; min-width: 300px;"
->    <div class="flex items-center space-x-3">
-        <svg id="toast-icon" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#b8ffcb;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#41b841;stop-opacity:1" />
-                </linearGradient>
-            </defs>
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="url(#gradient)"/>
-        </svg>
-        
-        <span id="toast-message" class="text-white font-medium text-sm"></span>
-        
-          </div>
-</div>
-
-<div id="tracks-container" class="w-full p-4 md:p-0 mt-8">
-</div>
-
-
-</div>
-
 <script type="module" src="/js/main.js"></script>
 <script type="module" src="/js/iflog.js"></script>
 <script type="module" src="/js/player.js"></script>

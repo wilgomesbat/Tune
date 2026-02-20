@@ -30,7 +30,7 @@
     left: 0 !important;
     width: 100% !important;
     /* Valor astronômico para passar a sidebar */
-    z-index: 9999999 !important;
+    z-index: 9999 !important;
      display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -95,7 +95,7 @@ body.fs-active #music-player {
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    z-index: 9999999 !important;
+    z-index: 9999 !important;
     height: 70px; /* Espaço para o conteúdo principal */
 }
 
@@ -280,6 +280,34 @@ body.fs-active #music-player {
 #volume-slider {
     width: 90px;
     accent-color: #ffffff;
+}
+
+.fs-volume-section {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    z-index: 50; /* Garante que fique acima do fundo aurora */
+}
+
+.speaker {
+    width: 30x;
+    height: 0px;
+}
+
+.vlCtrl {
+    width: 100%;
+    max-width: 280px;
+    height: 27px;
+    cursor: pointer;
+    touch-action: none; /* Desativa gestos padrão do navegador nesta área */
+}
+
+.volElem {
+    fill: none;
+    stroke-width: 6; /* Aumentado para facilitar o toque no mobile */
+    stroke-linecap: round;
 }
 
 /* BARRA DE PROGRESSO (NOVA POSIÇÃO INFERIOR) */
@@ -470,424 +498,234 @@ body.fs-active #music-player {
     font-weight: bold;
     font-style: normal;
 }
-
+/* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2');
+    font-weight: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2');
+    font-weight: bold;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2');
+    font-weight: 900;
+}
 
 /* ============================================================
-   PLAYER TELA CHEIA (FULL SCREEN) - CSS COMPLETO
+   PLAYER TELA CHEIA (FULL SCREEN) - DESIGN FINAL
    ============================================================ */
 
-@keyframes rotating {
+#full-screen-player {
+    position: fixed;
+    inset: 0;
+    z-index: 9999999;
+    background-color: #000; /* Fundo sólido para evitar transparência no slide */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 50px 32px 40px 39px;
+    transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1);
+    transform: translateY(100%); /* Escondido por padrão no mobile */
+    overflow: hidden;
+    touch-action: none;
+    color: white;
+    font-family: 'Nationale Regular', sans-serif;
+    touch-action: pan-y; /* Habilita o gesto de fechar */
+}
+
+body.fs-active #full-screen-player {
+    transform: translateY(0);
+}
+
+/* --- FUNDO AURORA E OVERLAY --- */
+#fs-aurora-bg {
+    position: absolute;
+    inset: -50%;
+    background: radial-gradient(circle at center, var(--artist-dominant-color, #333), #000);
+    filter: blur(80px);
+    z-index: 0;
+    animation: rotateAurora 20s linear infinite;
+}
+
+@keyframes rotateAurora {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
 
-/* Camada da Aurora (Fundo Dinâmico) */
-#fs-aurora-bg {
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%; /* Aumentado para cobrir a tela durante a rotação */
-    height: 200%;
-    z-index: 0;
-    overflow: hidden;
-    pointer-events: none;
-    filter: blur(80px) brightness(0.6); /* Desfoque intenso para o efeito aurora */
-    animation: rotating 60s linear infinite; /* Rotação lenta e suave */
-    transition: background 1.5s ease-in-out;
-}
-
-#full-screen-player {
-    font-family: 'Nationale Regular', sans-serif;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 9999999 !important;
-    background-color: #000000;
-    color: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    box-sizing: border-box;
-    justify-content: center; /* Mude de space-between para center */
-    padding: 20px 4px 40px 4px; /* Reduza o topo de 60px para 20px */
-    gap: 20px; /* Adiciona um espaço fixo entre os elementos */
-    /* Transição suave de entrada (Slide Up) */
-    transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.5s ease;
-    transform: translateY(100%); 
-    opacity: 0;
-    pointer-events: none;
-    overflow: hidden;
-}
-
-
-body.fs-active {
-    overflow: hidden; /* Impede que a página de baixo (playlist) role */
-}
-
-/* Container que envolve o ícone do YouTube */
-.fs-external-links {
-    display: flex;
-    justify-content: flex-start; /* Alinha à esquerda conforme o novo padrão */
-    width: 100%;
-    margin-bottom: 12px; /* Espaço entre o ícone e o título da música */
-    z-index: 10;
-}
-
-/* Estilização do Botão/Ícone do YouTube */
-.platform-btn {
-    background: rgba(255, 255, 255, 0); /* Fundo leve arredondado como na imagem */
-    border-radius: 8px;
-    padding: 20px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-}
-
-
-
-.platform-btn img, 
-.platform-btn svg {
-    width: 24px; /* Tamanho proporcional ao texto */
-    height: auto;
-    opacity: 0.9;
-    filter: brightness(0) invert(1); /* Deixa o ícone branco se for colorido */
-}
-
-/* --- CONTAINER DE DETALHES EXPANDIDO --- */
-.fs-player-content, 
-.fs-player-details-column {
-    width: 100%;
-    max-width: 100%; /* Remove a limitação de 400px/450px */
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start; /* Alinhamento à esquerda conforme solicitado */
-    text-align: left;
-    z-index: 10;
-    padding: 0 20px; /* Pequeno respiro nas bordas */
-}
-
-/* Estado Ativo */
-body.fs-active #full-screen-player {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-}
-
-/* --- FUNDO DINÂMICO --- */
-#fs-player-canvas-bg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: 0;
-    filter: blur(30px) brightness(0.6); /* Efeito de profundidade */
-    transform: scale(1.1); /* Evita bordas brancas no blur */
-}
-
 #fs-player-overlay {
-    position: absolute !important;
-    top: 0;
-    left: 0;
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.7) 100%);
+    z-index: 1;
+}
+
+/* --- ELEMENTOS DE TOPO --- */
+.fs-top-bar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    z-index: 20;
+}
+.fs-grabber {
+    width: 36px;
+    height: 5px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+}
+
+#fs-player-close-btn {
+    display: none; /* Escondido no mobile, controlado via Media Query */
+}
+
+/* --- ÁREA DA CAPA E VÍDEO --- */
+.fs-player-cover-container {
+    width: 100%;
+    max-width: 330px;
+    aspect-ratio: 1;
+    margin: 20px 0 40px 0;
+    z-index: 10;
+    position: relative;
+}
+
+#fs-player-cover, #youtube-embed-container {
     width: 100%;
     height: 100%;
-    z-index: 1;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.8) 100%);
-}
-
-/* --- BOTÃO FECHAR (SETA) --- */
-#fs-player-close-btn {
-    position: absolute;
-    top: 20px;
-    right: 20px; /* Alterado de left para right */
-    z-index: 2100;
-    background: rgba(0, 0, 0, 0.354);
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    padding: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-#fs-player-close-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-#fs-player-close-btn svg {
-    width: 10px;
-    height: 10px;
-    fill: rgb(221, 221, 221);
-}
-/* --- CONTAINER DA CAPA --- */
-.fs-player-cover-container {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    z-index: 10;
-}
-
-#fs-player-cover {
-    width: 80vw;
-    max-width: 340px;
-    aspect-ratio: 1 / 1;
     border-radius: 12px;
     object-fit: cover;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
 
-/* --- INFORMAÇÕES E CONTROLES (CENTRALIZADOS NO MOBILE) --- */
-.fs-player-content {
-    position: relative;
-    z-index: 2147483647 !important;
+/* --- TEXTOS E INFORMAÇÕES (ALINHADOS À ESQUERDA) --- */
+.fs-main-content {
     width: 100%;
-    max-width: 450px;
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Centraliza tudo horizontalmente */
-    text-align: center;
-}
-
-/* Container principal dos botões de controle */
-.fs-player-controls {
-    display: flex;
-    justify-content: center; /* Centraliza o grupo de botões horizontalmente */
-    align-items: center;     /* Alinha verticalmente */
-    gap: 40px;               /* Espaçamento entre Anterior, Play e Próximo */
-    width: 100%;
-    margin-bottom: 40px;
-}
-
-/* Estilo do Botão de Play/Pause (O círculo branco) */
-.fs-play-btn {
-    width: 72px;
-    height: 72px;
-    background-color: white;
-    border-radius: 50%;
-    border: none;
-    display: flex;
-    align-items: center;     /* Centraliza o ícone do YouTube verticalmente */
-    justify-content: center;  /* Centraliza o ícone do YouTube horizontalmente */
-    cursor: pointer;
-    transition: transform 0.2s ease;
-    padding: 0;              /* Remove paddings que podem entortar o ícone */
-}
-
-.fs-play-btn:hover {
-    transform: scale(1.08);
-}
-
-/* O ícone do YouTube dentro do botão de Play */
-#btn-show-video.platform-btn {
-    background: none !important;
-    border: none !important;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#btn-show-video.platform-btn img {
-    width: 40px;            /* Tamanho do ícone do YouTube no centro */
-    height: auto;
-    /* Se o ícone for a logo colorida e você quiser centralizar apenas a forma: */
-    display: block;
-}
-
-/* Botões de Skip (Anterior/Próximo) */
-#fs-prev-btn, #fs-next-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    opacity: 0.8;
-}
-
-#fs-prev-btn img, #fs-next-btn img {
-    width: 35px;
-    height: 35px;
-}
-
-
-/* Título e Artista */
-.fs-player-info {
-    width: 100%;
-    margin-bottom: 30px;
-    display: flex;
-    flex-direction: column;
-    /* Alinha o ícone e os textos para o início (esquerda) */
-    align-items: flex-start; 
-    /* Garante que o texto dentro dos spans/h2 também siga à esquerda */
-    text-align: left;
+    max-width: 400px;
     z-index: 10;
+    display: flex;
+    flex-direction: column;
 }
 
-#fs-player-title {
-    font-size: 1.75rem;
-    font-family: 'Nationale Bold', sans-serif;
-    margin: 0 0 8px 0;
-    display: block;
-    width: 100%; /* Ocupa a largura total para respeitar o text-align */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-#fs-player-artist {
-    font-size: 1.2rem;
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0;
+.fs-info-row {
     width: 100%;
-}
-
-/* Barra de Progresso */
-.fs-player-progress {
-    width: 100%;
-    margin-bottom: 30px;
-}
-
-#fs-player-bar-container {
-    width: 100%;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    position: relative;
-}
-
-#fs-player-bar-fill {
-    width: 0%;
-    height: 100%;
-    background: #fff;
-    border-radius: 2px;
-    transition: width 0.1s linear;
-}
-
-.fs-player-time {
     display: flex;
     justify-content: space-between;
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-/* Botões de Controle */
-.fs-player-controls {
-    display: flex;
-    justify-content: center;
     align-items: center;
-    gap: 35px;
-    width: 100%;
-    margin-bottom: 40px;
+    margin-bottom: 24px;
 }
 
-.fs-player-controls button {
+.fs-text-group { text-align: left; max-width: 70%; }
+#fs-player-title { font-size: 1.5rem; font-family: 'Nationale Bold'; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#fs-player-artist { font-size: 1.3rem; opacity: 0.6; margin: 2px 0 0 0; }
+
+.fs-action-buttons { display: flex; gap: 12px; }
+.fs-icon-btn { 
+    background: rgba(255,255,255,0.1); border: none; 
+    width: 36px; height: 36px; border-radius: 50%; 
+    display: flex; align-items: center; justify-content: center; 
+}
+.fs-icon-btn img { width: 20px; }
+
+/* --- BARRA DE PROGRESSO --- */
+.fs-progress-section { width: 100%; margin-bottom: 35px; }
+#fs-player-bar-container { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-bottom: 12px; }
+#fs-player-bar-fill { height: 100%; background: #fff; width: 0%; border-radius: 10px; opacity: 0.9; }
+.fs-time-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); font-weight: bold; }
+
+/* --- CONTROLES (SEM CÍRCULO BRANCO - ÍCONES DIRETOS) --- */
+.fs-controls-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    margin-bottom: 50px;
+}
+
+.fs-play-btn-transparent {
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s, opacity 0.2s;
+    padding: 0;
 }
 
-.fs-player-controls button:active {
-    transform: scale(0.95);
+/* Ajuste dos ícones PNG */
+.fs-play-btn-transparent img {
+    width: 48px; /* Destaque maior para o Play central */
+    height: auto;
 }
 
-.fs-player-controls img {
-    width: 32px;
-    height: 32px;
-}
+.fs-skip { background: none; border: none; cursor: pointer; }
+.fs-skip img { width: 38px; height: auto; }
 
-/* Botão Play/Pause Especial */
-.fs-play-btn {
-    width: 72px;
-    height: 72px;
-    background: white;
-    border-radius: 50%;
-}
-
-.fs-play-btn img {
-    width: 38px !important;
-    height: 38px !important;
-    /* Se o ícone for branco no arquivo, use: filter: invert(1); */
-}
-
-/* Links Externos (Spotify/YT) */
-.fs-external-links {
+/* --- BARRA DE VOLUME (EQUALIZADA) --- */
+.fs-volume-section {
+    width: 100%;
     display: flex;
-    gap: 30px;
-    opacity: 0.6;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 60px;
+    padding: 0 10px;
 }
 
-.platform-btn img {
-    width: 24px;
-    height: 24px;
+.vol-icon {
+    height: 18px; /* Altura fixa igual para ambos os ícones */
+    width: auto;
+    opacity: 0.5;
 }
+
+.fs-vol-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 10px; }
+.fs-vol-fill { width: 50%; height: 100%; background: white; border-radius: 10px; }
+
+/* --- FOOTER ACTIONS --- */
+.fs-footer-actions { width: 100%; display: flex; justify-content: space-around; }
+.fs-footer-btn { background: none; border: none; margin-top: 50px; }
+.fs-footer-btn img { width: 24px; }
 
 /* ============================================================
-   AJUSTES PARA DESKTOP (LADO A LADO)
+   MEDIA QUERIES - ADAPTAÇÃO PC (DESKTOP)
    ============================================================ */
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
     #full-screen-player {
+        transform: translateY(0) !important;
+        opacity: 0;
+        pointer-events: none;
         flex-direction: row;
         justify-content: center;
         padding: 0 10%;
-        gap: 80px;
+        gap: 100px;
     }
 
-    .fs-player-cover-container {
-        flex: 0 0 auto;
-        width: 400px;
+    body.fs-active #full-screen-player {
+        opacity: 1;
+        pointer-events: auto;
     }
 
-    #fs-player-cover {
-        width: 400px;
-        max-width: none;
+    #fs-player-close-btn {
+        display: flex !important;
+        position: absolute;
+        top: 40px;
+        right: 40px;
+        background: rgba(255,255,255,0.1);
+        border: none;
+        border-radius: 50%;
+        padding: 12px;
+        cursor: pointer;
+        z-index: 100;
     }
 
-    .fs-player-content {
-        align-items: flex-start; /* Alinha à esquerda no desktop */
-        text-align: left;
-        max-width: 500px;
-    }
-
-    #fs-player-title {
-        font-size: 3.5rem;
-        white-space: normal;
-    }
-
-    #fs-player-artist {
-        font-size: 1.6rem;
-    }
-
-    .fs-player-controls {
-        justify-content: flex-start;
-    }
-    
-    .fs-external-links {
-        justify-content: flex-start;
-    }
+    #fs-player-close-btn img { width: 20px; }
+    .fs-top-bar { display: none; }
+    .fs-player-cover-container { flex: 0 0 450px; max-width: 450px; margin: 0; }
+    .fs-main-content { max-width: 500px; justify-content: center; }
+    #fs-player-title { font-size: 3rem; white-space: normal; }
+    #fs-player-artist { font-size: 1.8rem; }
 }
 
 .hidden { display: none !important; }
-
-/* Adicione isso ao final do arquivo para forçar a sobreposição total */
-body.fs-active #full-screen-player {
-    left: 0 !important;
-    width: 100vw !important;
-    z-index: 1000000 !important;
-}

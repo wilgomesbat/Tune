@@ -1,191 +1,77 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TUNE - Artist Page</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
-
-  <style>
-    @font-face { font-family: 'Nationale Regular'; src: url('./fonts/Nationale-Regular.woff2') format('woff2'); font-weight: normal; }
-    @font-face { font-family: 'Nationale Bold'; src: url('./fonts/Nationale-Bold.woff2') format('woff2'); font-weight: bold; }
-    @font-face { font-family: 'Nationale Black'; src: url('./fonts/Nationale-Black.woff2') format('woff2'); font-weight: 900; }
-
-
-
-/* No arquivo principal */
-html, body {
-    background-color: #000000 !important; /* Cor que o navegador exibirá "por fora" */
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-}
-
-    :root {
-    --artist-dominant-color: #121212; /* Nome padronizado para o JS */
-}
-
-#artist {
-  font-family: 'Nationale Regular'; src: url('./fonts/Nationale-Black.woff2') format('woff2'); font-weight: 900; 
-    /* Gradiente que nasce da cor do artista e morre no preto */
-    background: linear-gradient(to bottom, var(--artist-dominant-color) 0%, #12121299 50%, #000000 100%);
-    background-attachment: local; /* O fundo acompanha o scroll do conteúdo */
-    transition: background 0.8s ease-in-out;
-}
-
-.artist-header-overlay {
-  
-    /* Faz o degradê da foto sumir suavemente para o fundo dinâmico */
-    background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(18,18,18,0.7) 100%);
-    position: absolute;
-    inset: 0;
-    z-index: 10;
-}
-
-/* Base para os clones laterais */
-#artist-cover-bg::before,
-#artist-cover-bg::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    width: 100%; /* Ocupa a largura total para garantir preenchimento */
-    height: 100%;
-    background-image: inherit; /* Puxa a foto do artista automaticamente */
-    background-size: cover;
-    background-position: center;
-    z-index: 1;
-    display: none; /* Escondido no Mobile */
-}
-
-/* Clone da Esquerda */
-#artist-cover-bg::before {
-    left: -100%; /* Posiciona fora da tela à esquerda */
-    transform: translateX(30%); /* Traz uma parte para dentro da visão */
-}
-
-/* Clone da Direita */
-#artist-cover-bg::after {
-    right: -100%; /* Posiciona fora da tela à direita */
-    transform: translateX(-30%);
-}
-
-/* A Imagem Central (Original) */
-#artist-cover-bg {
-    position: absolute;
-    inset: 0;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: cover; /* Mobile: Ocupa tudo */
-    z-index: 5; /* Fica acima dos clones */
-}
-
-/* --- MODO DESKTOP (PC) --- */
-@media (min-width: 1024px) {
-    #artist-cover-bg::before,
-    #artist-cover-bg::after {
-        display: block; /* Ativa os clones no PC */
-    }
-
-    #artist-cover-bg {
-        background-size: contain; /* Centraliza a foto sem cortar */
-        width: 100%;
-        max-width: 1200px; /* Opcional: limita largura da foto central */
-        margin: 0 auto;
-        left: 0;
-        right: 0;
-    }
-}
-
-    /* --- GRID DE MÚSICAS POPULARES (LARGURA TOTAL) --- */
-    .track-item {
-        display: grid !important;
-        grid-template-columns: 32px 48px 4fr 2fr 60px;
-        align-items: center;
-        gap: 16px;
-        padding: 8px 16px;
-        border-radius: 4px;
-        transition: background-color 0.2s ease;
-        cursor: pointer;
-    }
-    .track-item:hover { background-color: rgba(255, 255, 255, 0.1); }
-
-    /* --- SISTEMA DE SCROLL HORIZONTAL (ÁLBUNS E SINGLES) --- */
-    .scroll-container {
-    display: flex;
-    overflow-x: auto;
-    gap: 18px;
-    padding-bottom: 15px;
-    scrollbar-width: none; /* Firefox */
-}
-.scroll-container::-webkit-scrollbar { display: none; } /* Chrome/Safari */
-
-.scroll-item {
-    flex: 0 0 180px; /* Largura fixa para não amassar */
-}
-
-    .btn-play-green {
-        background-color: #1ed760;
-        transition: transform 0.2s ease;
-    }
-    .btn-play-green:hover { transform: scale(1.05); }
-
-    #ban-indicator { display: none; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tune - Perfil do Artista</title>
+    <link rel="stylesheet" href="artist.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
-<body>
-  <div id="artist" class="relative min-h-screen pb-24">
-    
-    <div id="artist-header" class="relative h-[40vh] md:h-[60vh] w-full overflow-hidden flex items-end">
-      <div id="artist-cover-bg" class="absolute inset-0 bg-cover bg-center transition-opacity duration-700"></div>
-      <div class="absolute inset-0 artist-header-overlay z-10"></div>
 
-      <button onclick="window.history.back()" class="absolute top-6 left-6 z-30 p-2 bg-black/30 hover:bg-black/50 rounded-full backdrop-blur-md">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
+<body class="bg-main">
 
-      <div class="relative z-20 w-full px-8 pb-10">
-        <div id="verified-status-container" class="flex items-center gap-2 mb-2 text-blue-400 font-bold text-sm"></div>
-        <div id="ban-indicator" class="inline-flex items-center gap-2 mb-4 text-red-500 font-bold text-xs uppercase tracking-widest bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20 hidden">
-            Conta Restrita
+        
+
+<header id="artist-header" class="artist-header">
+    <div class="header-side-bg left-bg"></div>
+    <div class="header-main-bg"></div>
+    <div class="header-side-bg right-bg"></div>
+    <div class="header-overlay"></div>
+
+    <div class="header-content">
+        <h1 id="artist-name"></h1>
+        <p class="stats"><span id="total-streams">0</span> streams</p>
+        
+        <div class="action-bar">
+            <button class="btn-play">
+                <span class="material-symbols-outlined">play_arrow</span> Reproduzir
+            </button>
+            <div class="action-circle btn-seguir" title="Seguir">
+                <img src="assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="icon-asset">
+            </div>
+            
         </div>
-
-        <h1 id="artist-name" class="flex items-center gap-3 text-4xl md:text-7xl font-black mb-4 drop-shadow-2xl text-white">
-          <span id="name-text">Carregando...</span>
-          <img id="verified-icon" src="/assets/verificado.png" class="w-8 h-8 md:w-12 md:h-12 hidden" alt="Verificado">
-        </h1>
-        <p id="artist-listeners" class="text-gray-200 text-base font-medium mb-6 drop-shadow-md"></p>
-      </div>
     </div>
+</header>
 
-    <div class="relative z-20 px-8 mt-4">
+<section class="popular-songs-section">
+    <h2 class="section-title">Populares</h2>
+    <div id="popular-songs-list" class="songs-list"></div>
+</section>
 
-      <div id="top-tracks-section" class="mb-8">
+<div class="section">
+    <h2 class="section-title">Singles e EPs</h2>
+    <div class="section-scroll">
+        <button id="singles-scroll-left" class="scroll-btn left">
+            <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+        
+        <div class="card-row" id="artist-singles-list">
+            </div>
 
-        <div id="top-tracks-container" class="w-full flex flex-col gap-1">
-          </div>
-      </div>
-
-      <div id="singles-section" class="mb-8 relative group">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Singles e EPs</h2>
-          <span class="text-sm font-bold text-gray-400 hover:underline cursor-pointer">Mostrar tudo</span>
-        </div>
-        <div id="singles-container" class="scroll-container flex overflow-x-auto gap-4">
-          </div>
-      </div>
-
-      <div id="albums-section" class="mb-8 relative group">
-        <h2 class="text-2xl font-bold mb-4">Álbuns</h2>
-        <div id="albums-container" class="scroll-container flex overflow-x-auto gap-4">
-          </div>
-      </div>
-
+        <button id="singles-scroll-right" class="scroll-btn right">
+            <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
     </div>
-  </div>
+</div>
 
-  <script type="module" src="/js/main.js"></script>
+<div class="section">
+    <h2 class="section-title">Álbuns</h2>
+    <div class="section-scroll">
+        <button id="albums-scroll-left" class="scroll-btn left">
+            <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+        
+        <div class="card-row" id="artist-albums-list">
+            </div>
+
+        <button id="albums-scroll-right" class="scroll-btn right">
+            <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
+        </button>
+    </div>
+</div>
+
+
+
 </body>
+</html>

@@ -1,45 +1,7 @@
-function initializeRouting() {
-    const pathname = window.location.pathname;
-    const urlParams = new URLSearchParams(window.location.search);
-
-    let page = 'home';
-    let id = null;
-
-    // 1. Extrai a página e ID de URLs limpas (Ex: tunedks.com/album/123)
-    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
-
-    if (pathParts.length > 0) {
-        page = pathParts[0]; 
-        id = pathParts[1] || null;
-    } 
-    // 2. Fallback para parâmetros de URL (Útil em Localhost)
-    else if (urlParams.has('page')) {
-        page = urlParams.get('page');
-        id = urlParams.get('id');
-    }
-
-    // Limpeza de segurança para evitar erros de extensão ou valores nulos
-    if (page.includes('.html')) page = page.replace('.html', '');
-    if (!page || page === 'undefined' || page === 'null') page = 'home';
-
-    console.log(`🚀 Roteamento inicial: [${page}] com ID [${id}]`);
-    
-    // Carrega o conteúdo inicial (false para não duplicar o histórico no início)
-    loadContent(page, id, false);
-
-    // TRAVA DE SEGURANÇA: Se o site abrir em branco, força o reload para a Home funcional
-    setTimeout(() => {
-        const contentArea = document.getElementById('content-area');
-        if (!contentArea || contentArea.innerHTML.trim() === "") {
-            const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-            window.location.href = isDev ? "menu.html?page=home" : "/home";
-        }
-    }, 2500);
-}
-
+import { loadTrack } from './player.js'; // Verifique se o caminho está correto
 // Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, Timestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, serverTimestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
@@ -63,6 +25,41 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 const rtdb = getDatabase(app); // Inicializa o Realtime Database
 
+
+// --- TORNAR AS FUNÇÕES GLOBAIS IMEDIATAMENTE ---
+window.loadContent = loadContent;
+window.navigateTo = navigateTo;
+
+// --- ROTEAMENTO CORRIGIDO ---
+function initializeRouting() {
+    const pathname = window.location.pathname;
+    const urlParams = new URLSearchParams(window.location.search);
+
+    let page = 'home';
+    let id = null;
+
+    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
+
+    if (pathParts.length > 0) {
+        page = pathParts[0]; 
+        id = pathParts[1] || null;
+    } else if (urlParams.has('page')) {
+        page = urlParams.get('page');
+        id = urlParams.get('id');
+    }
+
+    if (page.includes('.html')) page = page.replace('.html', '');
+    if (!page || page === 'undefined' || page === 'null') page = 'home';
+
+    console.log(`🚀 Roteamento inicial: [${page}] com ID [${id}]`);
+    
+    // Pequeno delay para garantir que o Firebase e o DOM estejam prontos
+    setTimeout(() => {
+        if (typeof window.loadContent === 'function') {
+            window.loadContent(page, id, false);
+        }
+    }, 100);
+}
 
 // -------------------------------
 // ☁️ Cloudinary (UPLOAD FRONT)
@@ -625,6 +622,242 @@ function getTrendIndicator(lastStreamDate) {
     }
 }
 
+// Função para formatar números (ex: 100k, 1.2m)
+function formatNumber(num) {
+    if (!num) return "0";
+    if (num >= 1000000000) return (num / 1000000000).toFixed(1).replace(/\.0$/, '') + 'b';
+    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
+    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return num.toString();
+}
+
+export async function setupArtistPage(artistUid) {
+    if (!artistUid) return;
+
+    // 1. Mostrar o loading antes de iniciar as buscas
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const mainContent = document.getElementById('main-content');
+    
+    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+    if (mainContent) mainContent.classList.remove('loaded');
+
+    try {
+        // 2. CARREGAR PERFIL (Header)
+        const artistDoc = await getDoc(doc(db, "usuarios", artistUid));
+        if (artistDoc.exists()) {
+            const data = artistDoc.data();
+            const headerEl = document.getElementById('artist-header');
+            if (headerEl && data.foto) {
+                headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
+                headerEl.style.backgroundImage = 'none';
+            }
+            document.getElementById('artist-name').innerText = data.nomeArtistico || "Artista";
+            const bioEl = document.getElementById('artist-bio-text');
+            if (bioEl) bioEl.innerText = data.bio || `${data.nomeArtistico} é um destaque no Tune.`;
+        }
+
+        // 3. CALCULAR TOTAL DE STREAMS
+        const musicasRef = collection(db, "musicas");
+        const qStreams = query(musicasRef, where("artist", "==", artistUid));
+        const streamsSnap = await getDocs(qStreams);
+        let total = 0;
+        streamsSnap.forEach(d => total += Number(d.data().streams || 0));
+        document.getElementById('total-streams').innerText = formatNumber(total);
+
+        // 4. EXECUTAR FUNÇÕES DE CONTEÚDO EM PARALELO
+        await Promise.all([
+            loadTopSongs(artistUid),
+            loadArtistAlbums(artistUid),
+            loadArtistSingles(artistUid),
+            checkFollowStatus(artistUid)
+        ]);
+
+        // 5. CONFIGURAR BOTÃO SEGUIR
+        const followBtn = document.querySelector('.btn-seguir');
+        if (followBtn) {
+            followBtn.onclick = () => toggleFollow(artistUid);
+        }
+
+        // 6. SUCESSO: Apenas chama a função, sem declará-la de novo
+        if (typeof hideLoadingAndShowContent === 'function') {
+            hideLoadingAndShowContent();
+        }
+
+    } catch (error) {
+        console.error("Erro no setup da página:", error);
+        if (typeof hideLoadingAndShowContent === 'function') {
+            hideLoadingAndShowContent();
+        }
+    }
+}
+/**
+ * FUNÇÃO 1: Músicas Populares (Top 5)
+ */
+async function loadTopSongs(artistUid) {
+    const container = document.getElementById('popular-songs-list');
+    if (!container) return;
+
+    try {
+        const q = query(collection(db, "musicas"), where("artist", "==", artistUid), orderBy("streams", "desc"), limit(5));
+        const snap = await getDocs(q);
+        
+        container.innerHTML = '';
+        snap.forEach((doc) => {
+            const song = doc.data();
+            container.innerHTML += `
+                <div class="song-item" onclick="playMusic('${doc.id}')">
+                    <img src="${song.cover}" class="song-cover">
+                    <div class="song-info-main">
+                        <span class="song-title">${song.title}</span>
+                        ${song.explicit ? '<span class="explicit-badge">E</span>' : ''}
+                    </div>
+                    <div class="song-streams-count">${formatNumber(song.streams)}</div>
+                </div>`;
+        });
+    } catch (e) { console.error("Erro Populares:", e); }
+}
+
+/**
+ * FUNÇÃO PARA ÁLBUNS: Aplica a criação de cards e scroll
+ */
+async function loadArtistAlbums(artistUid) {
+    const container = document.getElementById('artist-albums-list');
+    if (!container) return;
+
+    try {
+        // Busca na coleção 'albuns' onde 'uidars' é o ID do artista
+        const q = query(collection(db, "albuns"), where("uidars", "==", artistUid));
+        const snap = await getDocs(q);
+        
+        container.innerHTML = '';
+        
+        snap.forEach((doc) => {
+            const data = doc.data();
+            // Aplica a mesma estrutura do createAlbumCard do main.js
+            const albumCard = document.createElement('div');
+            albumCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
+            albumCard.setAttribute('data-navigate', 'album');
+            albumCard.setAttribute('data-id', doc.id);
+
+            albumCard.innerHTML = `
+                <div class="relative w-full pb-[100%] rounded-md">
+                    <img src="${data.cover || '/assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
+                </div>
+                <div class="mt-2 w-full">
+                    <h3 class="text-sm font-semibold text-white truncate">${data.album}</h3>
+                    <p class="text-gray-400 text-xs truncate">${data.date ? data.date.split('-')[0] : 'Álbum'}</p>
+                </div>
+            `;
+            container.appendChild(albumCard);
+        });
+
+        // Aplica a função de scroll nos botões da seção
+        if (typeof setupScrollButtons === 'function') {
+            setupScrollButtons('albums-scroll-left', 'albums-scroll-right', 'artist-albums-list');
+        }
+
+    } catch (e) { console.error("Erro Álbuns:", e); }
+}
+
+/**
+ * FUNÇÃO PARA SINGLES: Aplica a lógica de Single e scroll
+ */
+async function loadArtistSingles(artistUid) {
+    const container = document.getElementById('artist-singles-list');
+    if (!container) return;
+
+    try {
+        // Busca na coleção 'musicas' onde 'artist' é o artista e 'single' é "true"
+        const q = query(
+            collection(db, "musicas"), 
+            where("artist", "==", artistUid),
+            where("single", "==", "true")
+        );
+        const snap = await getDocs(q);
+
+        container.innerHTML = '';
+        snap.forEach((doc) => {
+            const data = doc.data();
+            // REGRA: O campo album deve ser "Single" para carregar aqui
+            if (data.album === "Single") {
+                const singleCard = document.createElement('div');
+                singleCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
+                
+                // Clique para tocar a música diretamente
+                singleCard.onclick = () => playMusic(doc.id);
+
+                singleCard.innerHTML = `
+                    <div class="relative w-full pb-[100%] rounded-md">
+                        <img src="${data.cover || '/assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
+                    </div>
+                    <div class="mt-2 w-full">
+                        <div class="flex items-center gap-1">
+                            <h3 class="text-sm font-semibold text-white truncate">${data.title}</h3>
+                            ${(data.explicit === true || data.explicit === "true") ? '<span class="explicit-badge-small">E</span>' : ''}
+                        </div>
+                        <p class="text-gray-400 text-xs truncate">Single</p>
+                    </div>
+                `;
+                container.appendChild(singleCard);
+            }
+        });
+
+        // Aplica a função de scroll nos botões da seção
+        if (typeof setupScrollButtons === 'function') {
+            setupScrollButtons('singles-scroll-left', 'singles-scroll-right', 'artist-singles-list');
+        }
+
+    } catch (e) { console.error("Erro Singles:", e); }
+}
+
+/**
+ * FUNÇÃO 4: Sistema de Seguir
+ */
+async function checkFollowStatus(artistUid) {
+    const user = auth.currentUser;
+    if (!user) return;
+    const followRef = doc(db, `usuarios/${user.uid}/seguindo`, artistUid);
+    const docSnap = await getDoc(followRef);
+    const followIcon = document.querySelector('.btn-seguir img');
+    if (followIcon) {
+        followIcon.src = docSnap.exists() ? 
+            "assets/cancel_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg" : 
+            "assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+    }
+}
+
+async function toggleFollow(artistUid) {
+    const user = auth.currentUser;
+    if (!user) return alert("Inicia sessão para seguir!");
+    const followRef = doc(db, `usuarios/${user.uid}/seguindo`, artistUid);
+    const docSnap = await getDoc(followRef);
+    if (docSnap.exists()) await deleteDoc(followRef);
+    else await setDoc(followRef, { artistId: artistUid, dataSeguida: serverTimestamp() });
+    checkFollowStatus(artistUid);
+}
+
+async function playMusic(musicId) {
+    try {
+        const docSnap = await getDoc(doc(db, "musicas", musicId));
+
+        if (!docSnap.exists()) return;
+
+        const track = {
+            id: musicId,
+            ...docSnap.data()
+        };
+
+        if (typeof window.playTrackGlobal === 'function') {
+            window.playTrackGlobal(track);
+        }
+
+    } catch (e) {
+        console.error("Erro ao tocar música:", e);
+    }
+}
+
+window.setupArtistPage = setupArtistPage;
+window.playMusic = playMusic;
 async function setupPlaylistPage(playlistId) {
     // 1. Captura de elementos do DOM
     const playlistImgDetail = document.getElementById("playlist-cover-detail");
@@ -762,94 +995,82 @@ function isPortuguese(title) {
 }
 
 async function toggleLike(type, itemId, buttonElement) {
-    // Verifica se o usuário está logado
-   if (!currentUserUid || !itemId) {
-        alert("Você precisa estar logado para interagir.");
-        console.warn("Tentativa de curtir falhou: currentUserUid ou itemId ausente.");
+    if (!currentUserUid || !itemId) {
+        showToast('Você precisa estar logado para interagir.', 'error');
         return;
     }
 
-    try {
-        const userLikesRef = collection(db, `usuarios/${currentUserUid}/curtidas`);
-        const q = query(userLikesRef, where("itemId", "==", itemId), where("type", "==", type));
-        const querySnapshot = await getDocs(q);
+    // Define o caminho correto baseado no tipo
+    const collectionPrefix = (type === 'music' || type === 'track') ? 'likedmusics' : 'likedalbuns';
+    const collectionPath = `${collectionPrefix}${currentUserUid}`;
+    const docRef = doc(db, collectionPath, itemId);
 
-        if (querySnapshot.empty) {
-            // CURTIR
-            await addDoc(userLikesRef, {
-                itemId: itemId,
-                type: type, // 'music' ou 'album'
-                timestamp: new Date()
+    try {
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            // --- ADICIONAR CURTIDA ---
+            // Pegamos os dados da tela para o álbum ter capa e título na biblioteca
+            const title = document.getElementById('album-title-detail')?.textContent || 'Álbum';
+            const cover = document.getElementById('album-cover-detail')?.src || '';
+
+            await setDoc(docRef, {
+                itemId: itemId, // Mantendo compatibilidade
+                id: itemId,     // Padrão que você usa
+                type: type,
+                title: title,
+                cover: cover,
+                timestamp: serverTimestamp()
             });
+
             updateLikeButtonState(buttonElement, true);
-            console.log(`Curtida ADICIONADA: ${type} - ${itemId}. Enviado para Firestore.`);
             
-            // ⭐ CHAMADA DO TOAST AO CURTIR ⭐
             if (type === 'music') {
                 showToast('Adicionado a Músicas Curtidas.', 'like');
-            } else if (type === 'album') {
+            } else {
                 showToast('Álbum adicionado à sua biblioteca.', 'like');
             }
             
         } else {
-            // DESCURTIR
-            const docToDelete = querySnapshot.docs[0];
-            await deleteDoc(doc(db, `usuarios/${currentUserUid}/curtidas`, docToDelete.id));
+            // --- REMOVER CURTIDA ---
+            await deleteDoc(docRef);
             updateLikeButtonState(buttonElement, false);
-            console.log(`Curtida REMOVIDA: ${type} - ${itemId}. Deletado do Firestore.`);
-            
-            // ⭐ CHAMADA DO TOAST AO DESCURTIR ⭐
             showToast('', 'unlike'); 
         }
     } catch (error) {
-        console.error("ERRO GRAVE ao processar curtida no Firestore:", error);
-        alert("Ocorreu um erro ao salvar sua curtida. Verifique o console.");
-        // ⭐ CHAMADA DO TOAST DE ERRO ⭐
-        showToast('Ocorreu um erro ao salvar sua curtida.', 'error');
+        console.error("Erro ao processar curtida:", error);
+        showToast('Erro ao salvar sua curtida.', 'error');
     }
 }
 
 
 
-async function checkAndSetLikeState(type, itemId, buttonElement) {
-    if (!currentUserUid || !itemId || !buttonElement) {
-        // Define o estado visual como "não curtido" se não houver UID
-        updateLikeButtonState(buttonElement, false); 
-        return;
-    }
-    
-    try {
-        const userLikesRef = collection(db, `usuarios/${currentUserUid}/curtidas`);
-        const q = query(userLikesRef, where("itemId", "==", itemId), where("type", "==", type));
-        const querySnapshot = await getDocs(q);
 
-        const isLiked = !querySnapshot.empty;
-        updateLikeButtonState(buttonElement, isLiked);
-    } catch (error) {
-        console.error("Erro ao checar estado de curtida:", error);
-        updateLikeButtonState(buttonElement, false);
-    }
-}
 
 function updateLikeButtonState(button, isLiked) {
-    if (!button) return;
+    if (!button) return; // Segurança caso o botão não exista
+
     const img = button.querySelector('img');
-    const iconBase = "./assets/like.svg";
-    const iconLiked = "./assets/favorite_50dp_9DC384_FILL1_wght400_GRAD0_opsz48.svg";
+    if (!img) {
+        console.warn("Aviso: Imagem não encontrada dentro do botão de curtida.", button);
+        return; // Impede o erro de 'src' of null
+    }
+
+    // Usando os seus SVGs de estrela para fidelidade extrema
+    const iconBase = "./assets/star_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+    const iconLiked = "./assets/star_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg";
 
     if (isLiked) {
         img.src = iconLiked;
         button.classList.add('is-liked');
-        // Garante que o ícone fique visível (reverte a opacidade do hover)
-        button.classList.remove('opacity-0', 'group-hover:opacity-100'); 
+        // No PC, mantém a estrela preenchida sempre visível
+        button.classList.remove('opacity-40');
+        button.style.opacity = "1";
     } else {
         img.src = iconBase;
-        img.style.filter = "none";
         button.classList.remove('is-liked');
-        // Restaura a opacidade para aparecer apenas no hover
-        if (button.closest('.group')) {
-            button.classList.add('opacity-0', 'group-hover:opacity-100');
-        }
+        // No PC, volta a opacidade baixa para o estado "vazio"
+        button.style.opacity = "0.4";
     }
 }
 
@@ -899,9 +1120,9 @@ function showToast(message, type = 'default') {
         toast.classList.remove('translate-y-0');
     }, 5000);
 }
-
 async function renderTracksSpotifyStyle(tracks, playlist, isChart = false) { 
     const tracksContainer = document.getElementById("tracks-container");
+    if (!tracksContainer) return;
     tracksContainer.innerHTML = "";
 
     if (!tracks || !tracks.length) {
@@ -919,14 +1140,11 @@ async function renderTracksSpotifyStyle(tracks, playlist, isChart = false) {
             const trackId = track.id; 
             if (!trackId) continue;
 
-            // 1. Lógica de Agendamento/Bloqueio
             const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" 
                                   ? new Date(track.scheduledTime) : null;
             const isLocked = scheduledDate && scheduledDate > now;
 
             const coverUrl = track.cover || playlist.cover || './assets/default-cover.png';
-            
-            // 2. Lógica da Seta (Só aparece se for um Chart e não estiver bloqueado)
             const trendIcon = (isChart && !isLocked) ? getTrendIndicator(track.lastMonthlyStreamDate) : "";
 
             const trackRow = document.createElement("div");
@@ -954,32 +1172,50 @@ async function renderTracksSpotifyStyle(tracks, playlist, isChart = false) {
                     </div>
                 </div>
 
-                <div class="text-gray-400 text-xs text-right font-mono ml-4">
-                    ${isLocked ? '--:--' : (track.duration || '--:--')}
+                <div class="flex items-center gap-3 ml-auto">
+                    <button class="track-like-button p-2 transition-all active:scale-75 ${isLocked ? 'hidden' : 'opacity-0 group-hover:opacity-100'}">
+                        <img src="/assets/star_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="w-[20px] transition-opacity" style="opacity: 0.2;">
+                    </button>
+                    
+                    <div class="text-gray-400 text-xs text-right font-mono min-w-[45px]">
+                        ${isLocked ? '--:--' : (track.duration || '--:--')}
+                    </div>
                 </div>
             `;
 
-            // Carregamento assíncrono do nome do artista
+            // 1. Sincronizar o Nome do Artista
             getArtistName(track.artist).then(name => {
                 const nameField = trackRow.querySelector('.artist-name-field');
                 if (nameField) nameField.textContent = name;
             });
 
-// No seu main.js (dentro da renderização)
-if (!isLocked) {
-    trackRow.addEventListener("click", (e) => {
-        if (e.target.closest('.track-like-button')) return;
+            // 2. Sincronizar o Estado da Estrela (Like)
+            const likeBtn = trackRow.querySelector('.track-like-button');
+            if (!isLocked && currentUserUid && likeBtn) {
+                // Usamos a mesma função de checagem universal
+                checkAndSetLikeState('music', trackId, likeBtn);
+                
+                // Evento de clique na estrela
+                likeBtn.addEventListener("click", (e) => {
+                    e.stopPropagation(); // Não toca a música
+                    toggleLikeMusic(track, likeBtn);
+                });
+            }
 
-        // IMPORTANTE: Passe o objeto 'track' inteiro!
-        if (typeof window.checkAndResetMonthlyStreams === 'function') {
-            window.checkAndResetMonthlyStreams(track); 
-        }
-        
-        if (window.playTrackGlobal) {
-            window.playTrackGlobal(track);
-        }
-    });
-}
+            // 3. Evento de Clique na Linha (Play)
+            if (!isLocked) {
+                trackRow.addEventListener("click", (e) => {
+                    if (e.target.closest('.track-like-button')) return;
+
+                    if (typeof window.checkAndResetMonthlyStreams === 'function') {
+                        window.checkAndResetMonthlyStreams(track); 
+                    }
+                    
+                    if (window.playTrackGlobal) {
+                        window.playTrackGlobal(track);
+                    }
+                });
+            }
 
             listWrapper.appendChild(trackRow);
 
@@ -1227,35 +1463,141 @@ function rgbToHsl(r, g, b) {
     return { h, s, l };
 }
 
+
+async function checkAndSetLikeState(type, itemId, buttonElement) {
+    if (!currentUserUid || !itemId || !buttonElement) return;
+
+    // Define a coleção exata: likedmusics... ou likedalbuns...
+    const collectionPrefix = (type === 'music' || type === 'track') ? 'likedmusics' : 'likedalbuns';
+    const collectionPath = `${collectionPrefix}${currentUserUid}`;
+    
+    const docRef = doc(db, collectionPath, itemId);
+
+    try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            console.log(`[TUNE] ${type} curtido encontrado em: ${collectionPath}`);
+            updateLikeIcon(buttonElement, true);
+        } else {
+            updateLikeIcon(buttonElement, false);
+        }
+    } catch (error) {
+        console.error(`Erro ao checar curtida do ${type}:`, error);
+    }
+}
+
+async function toggleLikeMusic(track, buttonElement) {
+    // Pega o usuário logado na hora do clique
+    const user = auth.currentUser;
+    
+    if (!user) {
+        showToast('Você precisa estar logado para curtir.', 'error');
+        return;
+    }
+
+    const uid = user.uid;
+    const trackId = track.id;
+
+    if (!trackId) {
+        console.error("Erro: ID da música não encontrado no objeto track.");
+        return;
+    }
+
+    // Caminho exato: likedmusicsVRxrKRgfz1b2dlNdEQCDlv1C2XV2
+    const collectionPath = `likedmusics${uid}`;
+    const docRef = doc(db, collectionPath, trackId);
+
+    try {
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            // --- ENVIANDO PARA A PASTA ---
+            await setDoc(docRef, {
+                id: trackId,
+                title: track.title || 'Sem título',
+                artist: track.artistName || track.artist || 'Artista',
+                cover: track.cover || '',
+                timestamp: serverTimestamp()
+            });
+            
+            updateLikeIcon(buttonElement, true);
+            showToast('Adicionado às curtidas', 'like');
+            console.log(`✅ Música ${trackId} enviada para ${collectionPath}`);
+        } else {
+            // --- REMOVENDO DA PASTA ---
+            await deleteDoc(docRef);
+            updateLikeIcon(buttonElement, false);
+            showToast('Removido das curtidas', 'unlike');
+        }
+    } catch (error) {
+        console.error("Erro fatal ao salvar no Firestore:", error);
+        // Se der erro de permissão, o problema está nas suas Regras do Firebase
+    }
+}
+
 /**
- * Função principal para carregar e configurar a página do álbum.
- * @param {string} albumId - O ID único do álbum.
+ * Atualiza visualmente o ícone da estrela
  */
+function updateLikeIcon(button, isLiked) {
+    if (!button) return;
+    const img = button.querySelector('img');
+    if (!img) return;
+
+    const starEmpty = "/assets/star_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+    const starFilled = "/assets/star_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg";
+
+    img.src = isLiked ? starFilled : starEmpty;
+    
+    if (isLiked) {
+        button.classList.add('is-liked');
+        img.style.opacity = "1";
+    } else {
+        button.classList.remove('is-liked');
+        img.style.opacity = "0.2"; // Sutil no PC até o hover
+    }
+}
 
 
+/**
+ * Configura a página do álbum com fidelidade visual extrema (Apple Music Style)
+ * @param {string} albumId - ID do álbum no Firebase
+ */
 async function setupAlbumPage(albumId) {
     // 1. Seletores com Verificação de Segurança
     const elements = {
-        header: document.querySelector('#album-header'),
+        mainWrapper: document.getElementById('main-wrapper'),
+        bgImageLayer: document.getElementById('bg-image-layer'),
+        bgOverlay: document.getElementById('bg-color-overlay'),
         cover: document.getElementById('album-cover-detail'),
         animated: document.getElementById('album-animated-detail'),
         title: document.getElementById('album-title-detail'),
         artistName: document.getElementById('artist-name-detail'),
         artistImg: document.getElementById('artist-image-detail'),
         year: document.getElementById('album-year-detail'),
-        countdown: document.getElementById('countdown-container'),
-        playBtn: document.querySelector('.album-actions .play')
+        playBtn: document.getElementById('main-play-btn'),
+        genre: document.getElementById('album-genre')
     };
+    const albumLikeBtn = document.querySelector('.action-circle img[src*="star"]')?.parentElement;
 
-    // Sai da função se os elementos essenciais não existirem (evita erro de 'null')
-    if (!elements.cover || !elements.title) {
-        console.warn("⚠️ Abortando setupAlbumPage: Elementos do DOM não encontrados.");
+    if (albumLikeBtn && albumId) {
+        // Sincroniza estado do álbum (likedalbunsUID)
+        checkAndSetLikeState('album', albumId, albumLikeBtn);
+
+        albumLikeBtn.onclick = (e) => {
+            e.preventDefault();
+            // Note: Você deve ter uma função toggleLike similar a toggleLikeMusic para álbuns
+            if (typeof toggleLike === 'function') toggleLike('album', albumId, albumLikeBtn);
+        };
+    }
+
+    // Sai da função se os elementos essenciais não existirem
+    if (!elements.cover || !elements.title || !albumId) {
+        console.warn("⚠️ Abortando setupAlbumPage: Elementos essenciais não encontrados.");
         return;
     }
 
-    if (!albumId) return;
-
     try {
+        // 2. Busca de dados no Firestore
         const albumRef = doc(db, 'albuns', albumId);
         const albumSnap = await getDoc(albumRef);
 
@@ -1264,83 +1606,65 @@ async function setupAlbumPage(albumId) {
         const albumData = albumSnap.data();
         const album = { id: albumSnap.id, ...albumData };
 
-        // --- 1. LÓGICA DE CAPA (ESTÁTICA VS ANIMADA) ---
-        // Sempre define a estática primeiro
+        // 3. Lógica de Agendamento e Bloqueio (isLocked)
+        const scheduledDate = albumData.date ? new Date(albumData.date + "T00:00:00") : null;
+        const now = new Date();
+        const isLocked = scheduledDate && scheduledDate > now; // Definição da variável de bloqueio
+
+        // 4. Configuração de Imagens e Fundo
         elements.cover.src = album.cover || './assets/default-cover.png';
         elements.cover.crossOrigin = "Anonymous";
 
-        // Verifica a chave animatedCover
-        const animUrl = album.animatedCover;
-        if (elements.animated) {
-            if (animUrl && animUrl.trim() !== "" && animUrl !== "N/A") {
-                elements.animated.src = animUrl;
-                elements.animated.onload = () => {
-                    elements.animated.classList.remove('hidden');
-                    setTimeout(() => {
-                        // Troca suave de opacidade
-                        elements.animated.classList.replace('opacity-0', 'opacity-100');
-                    }, 50);
-                };
-            } else {
-                elements.animated.classList.add('hidden');
-                elements.animated.classList.replace('opacity-100', 'opacity-0');
-                elements.animated.src = ""; // Limpa para economizar banda
-            }
+        if (elements.bgImageLayer) {
+            elements.bgImageLayer.style.backgroundImage = `url(${album.cover})`;
         }
 
-        // --- 2. CORES DINÂMICAS (COLOR THIEF) ---
+        // Lógica de Capa Animada
+        const animUrl = album.animatedCover;
+        if (elements.animated && animUrl && animUrl !== "N/A") {
+            elements.animated.src = animUrl;
+            elements.animated.onload = () => {
+                elements.animated.classList.remove('hidden');
+                setTimeout(() => elements.animated.classList.replace('opacity-0', 'opacity-100'), 50);
+            };
+        }
+
+        // 5. Cores Dinâmicas (Color Thief)
         elements.cover.onload = () => {
             try {
                 const colorThief = new ColorThief();
                 const color = colorThief.getColor(elements.cover);
-                let { h, s, l } = rgbToHsl(color[0], color[1], color[2]);
                 
-                s = Math.max(s, 0.7); // Vibrante
-                l = 0.4; // Estético
-                
-                const baseColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
-                
-                if (elements.header) {
-                    elements.header.style.backgroundColor = baseColor;
-                    elements.header.style.backgroundImage = `linear-gradient(to bottom, ${baseColor} 0%, #030303 100%)`;
+                // Cor pura para o blur e cor escura (20%) para o overlay e furo do play
+                const r = Math.floor(color[0] * 0.2);
+                const g = Math.floor(color[1] * 0.2);
+                const b = Math.floor(color[2] * 0.2);
+                const darkColor = `rgb(${r}, ${g}, ${b})`;
+
+                if (elements.bgOverlay) {
+                    elements.bgOverlay.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.85)`;
                 }
-            } catch (e) { console.warn("Erro ao extrair cores:", e); }
+
+                // Sincroniza a variável CSS do triângulo vazado (Play Hole)
+                document.documentElement.style.setProperty('--dynamic-bg', darkColor);
+                
+                if (elements.mainWrapper) {
+                    elements.mainWrapper.style.backgroundColor = 'transparent';
+                }
+            } catch (e) {
+                console.warn("Erro ao extrair cores:", e);
+            }
         };
 
-        // --- 3. DADOS DO ARTISTA ---
-        const artistId = albumData.artistId || albumData.uidars;
-        if (artistId && elements.artistImg) {
-            const artistSnap = await getDoc(doc(db, 'usuarios', artistId));
-            if (artistSnap.exists()) {
-                const artistData = artistSnap.data();
-                elements.artistImg.src = artistData.fotoPerfil || artistData.foto || 'https://placehold.co/32x32';
-            }
-        }
-
-        // --- 4. TEXTOS E STATUS ---
+        // 6. Preenchimento de Textos
         elements.title.textContent = album.album || "Sem título";
         if (elements.artistName) elements.artistName.textContent = album.artist || "Artista";
-        
-        const scheduledDate = albumData.date ? new Date(albumData.date + "T00:00:00") : null;
+        if (elements.genre) elements.genre.textContent = album.genre || "Pop";
         if (elements.year) {
-            elements.year.textContent = album.releaseYear || (scheduledDate ? scheduledDate.getFullYear() : '—');
+            elements.year.textContent = album.releaseYear || (scheduledDate ? scheduledDate.getFullYear() : '2026');
         }
 
-        // Lógica de Bloqueio
-        const now = new Date();
-        const isLocked = scheduledDate && scheduledDate > now;
-
-        if (isLocked) {
-            elements.cover.style.filter = "grayscale(1) brightness(0.6)";
-            if (elements.animated) elements.animated.style.filter = "grayscale(1) brightness(0.6)";
-            if (elements.playBtn) {
-                elements.playBtn.style.opacity = "0.5";
-                elements.playBtn.style.cursor = "not-allowed";
-                elements.playBtn.onclick = null;
-            }
-        }
-
-        // --- 5. BUSCA E RENDERIZAÇÃO DAS MÚSICAS ---
+        // 7. Busca e Renderização das Músicas
         const musicQuery = query(
             collection(db, 'musicas'),
             where('album', '==', albumId),
@@ -1351,353 +1675,94 @@ async function setupAlbumPage(albumId) {
         const tracks = [];
         musicSnap.forEach(docSnap => tracks.push({ id: docSnap.id, ...docSnap.data() }));
 
-        // Chama a renderização das tracks (Certifique-se que esta função existe no escopo)
-        if (typeof renderAlbumTracks === 'function') {
-            renderAlbumTracks(tracks, isLocked);
-        }
+        // Renderiza passando isLocked para evitar o erro de referência
+        renderAlbumTracksAppleStyle(tracks, isLocked);
 
-        if (!isLocked && elements.playBtn && tracks.length) {
-            elements.playBtn.style.opacity = "1";
-            elements.playBtn.onclick = () => addToQueue(tracks);
-        }
+        // 8. Configuração do Botão Play
+if (!isLocked && elements.playBtn && tracks.length) {
+    elements.playBtn.style.opacity = "1";
+    elements.playBtn.style.cursor = "pointer"; // Garante o cursor de clique
+    
+    elements.playBtn.onclick = () => {
+         carregarFila(tracks, 0);
+        console.log("🚀 TUNE: Iniciando via import direto");
+       window.carregarFila(tracks, 0);
+    };
+} else if (isLocked && elements.playBtn) {
+    elements.playBtn.style.opacity = "0.4";
+    elements.playBtn.style.cursor = "not-allowed";
+}
 
     } catch (err) {
         console.error("Erro crítico no setupAlbumPage:", err);
     }
 }
-function renderAlbumTracks(tracks, isLocked) {
-    const tracksContainer = document.getElementById('tracks-container');
-    if (!tracksContainer) return;
 
-    tracksContainer.innerHTML = tracks.map((track, index) => {
-        const lockClass = isLocked ? "opacity-30 cursor-default" : "hover:bg-white/10 cursor-pointer group";
+/**
+ * Renderiza as faixas com fidelidade Apple Music (PC e Mobile)
+ * @param {Array} tracks - Lista de objetos de música
+ * @param {Boolean} isLocked - Estado de bloqueio do álbum
+ */
+async function renderAlbumTracksAppleStyle(tracks, isLocked) {
+    const container = document.getElementById('tracks-container');
+    if (!container) return;
 
+    // Gerar o HTML
+    container.innerHTML = tracks.map((track, index) => {
+        const stateClass = isLocked ? "opacity-30 cursor-default" : "active:bg-white/10 cursor-pointer group";
+        
         return `
-            <div class="track-item flex items-center p-0 rounded-md transition-colors ${lockClass}">
-                <div class="w-8 text-gray-500 text-sm">${index + 1}</div>
-                <img src="${track.cover || './assets/default-cover.png'}" class="w-10 h-10 rounded-md mr-4 ${isLocked ? 'grayscale' : ''}">
+            <div class="track-row ${stateClass}" data-index="${index}" data-id="${track.id}">
+                <span class="track-number">${index + 1}</span>
                 <div class="flex-1 min-w-0">
-                    <div class="text-white text-sm font-medium truncate">${track.title}</div>
-                    <div class="text-gray-400 text-xs truncate">${track.artistName || 'Artista'}</div>
+                    <div class="track-title truncate">${track.title}</div>
+                    <div class="track-artist truncate">${track.artistName || 'Artista'}</div>
                 </div>
-                <div class="text-gray-500 text-xs ml-4">
-                    ${isLocked ? '<i class="bx bxs-lock-alt"></i>' : (track.duration || '--:--')}
+                
+                <div class="flex items-center gap-3 ml-auto pr-2">
+                    <button class="track-like-btn p-2 outline-none">
+                        <img src="/assets/star_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" 
+                             class="star-icon w-[20px] transition-all duration-200" 
+                             style="opacity: 0.2;">
+                    </button>
+                    
                 </div>
             </div>
         `;
     }).join('');
 
-    if (!isLocked) {
-        tracksContainer.querySelectorAll('.track-item').forEach((item, index) => {
-            item.onclick = () => window.playTrackGlobal(tracks[index]);
-        });
-    }
-}
+    // Configurar Eventos e Sincronização
+    const rows = container.querySelectorAll('.track-row');
+    rows.forEach(row => {
+        const index = row.dataset.index;
+        const track = tracks[index];
+        const likeBtn = row.querySelector('.track-like-btn');
 
-
-
-// ... (Restante do seu código) ...
-
-   // Botão de voltar (CORRIGIDO)
-const backButton = document.getElementById('back-button');
-if (backButton) {
-    backButton.addEventListener('click', () => {
-        if (window.history.length <= 1) {
-            // Se não houver histórico anterior no seu site, manda para a home
-            loadContent('home', null, true);
-        } else {
-            window.history.back();
-        }
-    });
-}
-
-    // --- Função de Formatação de Números (Streams) ---
-function formatNumber(num) {
-    if (num === undefined || num === null) return '0';
-    // Formata o número com separadores de milhar (ex: 1.234.567)
-    return num.toLocaleString('pt-BR');
-}
-function renderTop5Tracks(tracks, containerId) {
-    const tracksContainer = document.getElementById(containerId);
-    if (!tracksContainer) return;
-
-    tracksContainer.innerHTML = `
-        <h2 class="text-2xl font-bold mb-4 text-white px-2" style="font-family: 'Nationale Bold';">Populares</h2>
-        <div id="top-tracks-list" class="flex flex-col w-full"></div>
-    `;
-
-    const listContainer = document.getElementById("top-tracks-list");
-    
-    tracks.forEach((track, index) => {
-        const trackRow = document.createElement("div");
-        trackRow.className = "track-item group hover:bg-white/10 transition duration-200 cursor-pointer rounded-md px-2";
-
-        const streamsFormatted = formatNumber(track.streams || 0);
-
-        trackRow.innerHTML = `
-            <div class="text-gray-500 text-sm text-center w-8 group-hover:text-white">
-                ${index + 1}
-            </div>
-
-            <img src="${track.cover}" class="w-10 h-10 rounded shadow-lg object-cover">
-
-            <div class="flex flex-col justify-center min-w-0">
-                <span class="text-white text-sm font-bold truncate">
-                    ${track.title}
-                </span>
-                <span class="text-gray-400 text-[11px]">
-                    ${streamsFormatted} streams
-                </span>
-            </div>
-
-            <div class="flex justify-end items-center">
-                <button class="text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 p-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01"></path>
-                    </svg>
-                </button>
-            </div>
-        `;
-
-        // --- LÓGICA DE CLIQUE (LOGS + PLAYER + STREAMS) ---
-        trackRow.addEventListener("click", () => {
-            
-            // 1. REGISTRA O LOG NO FIRESTORE
-            // Enviamos o título e o nome do artista para o log ficar completo
-            if (typeof registrarLog === 'function') {
-                const identificadorMusica = track.artistName ? `${track.title} - ${track.artistName}` : track.title;
-                registrarLog(identificadorMusica, "Música (Populares)");
-            }
-
-            // 2. TOCA A MÚSICA NO PLAYER GLOBAL
-            if (window.playTrackGlobal) {
-                window.playTrackGlobal(track);
-            }
-            
-            // 3. INCREMENTA STREAMS (BOOST)
-            if (typeof checkAndResetMonthlyStreams === 'function') {
-                checkAndResetMonthlyStreams(track.id);
-            }
-        });
-        
-        listContainer.appendChild(trackRow);
-    });
-}
-
-let isContextLoading = false;
-
-async function getAverageColor(imageUrl) {
-    return new Promise((resolve) => {
-        if (!imageUrl) return resolve('#000000');
-        
-        const img = new Image();
-        img.crossOrigin = "Anonymous"; // Crucial para imagens do Firebase/Cloudinary
-        img.src = imageUrl;
-
-       img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Definimos o canvas para capturar apenas a área inferior
-            canvas.width = 100; // Amostra de largura maior para média melhor
-            canvas.height = 10;  // Captura apenas os 10 pixels de baixo
-            
-            // ctx.drawImage(imagem, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
-            // Aqui pegamos a fatia final da imagem (img.height - 10)
-            ctx.drawImage(img, 0, img.height - 10, img.width, 10, 0, 0, 100, 10);
-            
-            const imageData = ctx.getImageData(0, 0, 100, 10).data;
-            
-            let r = 0, g = 0, b = 0;
-            const totalPixels = imageData.length / 4;
-
-            for (let i = 0; i < imageData.length; i += 4) {
-                r += imageData[i];
-                g += imageData[i+1];
-                b += imageData[i+2];
-            }
-
-            r = Math.floor(r / totalPixels);
-            g = Math.floor(g / totalPixels);
-            b = Math.floor(b / totalPixels);
-            
-            // Escurecer levemente para o modo Dark (opcional)
-            const darken = 0.8;
-            resolve(`rgb(${Math.floor(r * darken)}, ${Math.floor(g * darken)}, ${Math.floor(b * darken)})`);
-        };
-    });
-}
-async function setupArtistPage(artistId) {
-    if (isContextLoading) return;
-    isContextLoading = true;
-
-    // 1. Referências dos Elementos
-    const artistCoverBg = document.getElementById('artist-cover-bg');
-    const artistNameElement = document.getElementById('artist-name');
-    const artistListeners = document.getElementById('artist-listeners');
-    const banIndicator = document.getElementById('ban-indicator');
-    
-    // Containers
-    const singlesSection = document.getElementById('singles-section');
-    const singlesContainer = document.getElementById('singles-container');
-    const topTracksContainer = document.getElementById('top-tracks-container');
-    const albumsContainer = document.getElementById('albums-container');
-    const stationsContainer = document.getElementById('stations-container');
-
-    const bannedImageURL = 'https://i.ibb.co/fzqH088Z/Captura-de-tela-2025-10-06-230858.png';
-
-    if (!artistId) {
-        isContextLoading = false;
-        return;
-    }
-
-    // LIMPEZA INICIAL
-    if (singlesContainer) singlesContainer.innerHTML = "";
-    if (topTracksContainer) topTracksContainer.innerHTML = "";
-    if (albumsContainer) albumsContainer.innerHTML = "";
-    if (stationsContainer) stationsContainer.innerHTML = "";
-
-    try {
-        const artistRef = doc(db, "usuarios", artistId);
-        const docSnap = await getDoc(artistRef);
-
-        if (!docSnap.exists() || docSnap.data().artista !== "true") {
-            isContextLoading = false;
-            return;
-        }
-        
-        const artistData = docSnap.data();
-        const artistName = artistData.nomeArtistico || "Nome Desconhecido";
-        const now = new Date(); 
-        
-        // Lógica de Banimento
-        if (artistData.banido === "true") {
-            if (banIndicator) banIndicator.style.display = 'flex'; 
-            if (artistNameElement) artistNameElement.textContent = `${artistName} (Banido)`;
-            if (artistCoverBg) artistCoverBg.style.backgroundImage = `url('${bannedImageURL}')`;
-            isContextLoading = false;
-            return; 
+        // 1. Verifica se já está curtido no carregamento
+        if (currentUserUid && track.id) {
+            checkAndSetLikeState('music', track.id, likeBtn);
         }
 
-        // --- CAPA E COR DOMINANTE ---
-        if (artistData.foto && artistCoverBg) {
-            artistCoverBg.style.backgroundImage = `url('${artistData.foto}')`;
-            const color = await getAverageColor(artistData.foto);
-            document.documentElement.style.setProperty('--artist-dominant-color', color);
-        }
-
-        const verificadoStatus = String(artistData.verificado || "").toLowerCase().trim();
-        const isVerified = verificadoStatus === "true";
-
-        // --- RENDERIZAÇÃO DO NOME ---
-        if (artistNameElement) {
-            artistNameElement.innerHTML = `<span>${artistName}</span>` + 
-                (isVerified ? `<img src="/assets/verificado.png" style="width: 35px; margin-left: 5px; display: inline-block; vertical-align: middle;">` : '') +
-                (artistData.gravadora?.toLowerCase() === 'shark' ? `<img src="assets/sharklabel.png" style="width: 35px; margin-left: 12px; display: inline-block; vertical-align: middle;">` : '');
-        }
-
-        // --- OUVINTES ---
-        const totalStreams = await calculateTotalStreams(artistId); 
-        if (artistListeners) artistListeners.textContent = `${formatNumber(totalStreams)} streams`; 
-
-        // --- BUSCA DE SINGLES ---
-        const musicasRef = collection(db, "musicas");
-        const qSingles = query(musicasRef, where("artist", "==", artistId), where("single", "==", "true"));
-        const singlesSnap = await getDocs(qSingles);
-
-        if (!singlesSnap.empty && singlesContainer) {
-            if (singlesSection) singlesSection.classList.remove('hidden');
-            
-            let singlesList = [];
-            singlesSnap.forEach(d => {
-                singlesList.push({ id: d.id, ...d.data() });
-            });
-
-            singlesList.sort((a, b) => {
-                const dateA = a.date ? new Date(a.date) : new Date(0);
-                const dateB = b.date ? new Date(b.date) : new Date(0);
-                return dateB - dateA;
-            });
-
-            singlesList.forEach(track => {
-                const scheduledDate = track.scheduledTime && track.scheduledTime !== "Imediato" ? new Date(track.scheduledTime) : null;
-                const isLocked = scheduledDate && scheduledDate > now;
-                const displayYear = track.date ? track.date.split('-')[0] : 'Single';
-
-                const card = document.createElement('div');
-                card.className = `scroll-item flex flex-col transition-all duration-300 ${isLocked ? 'opacity-40 pointer-events-none' : 'cursor-pointer group'}`;
-
-                card.innerHTML = `
-                    <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg">
-                        <img src="${track.cover || './assets/default-cover.png'}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
-                        ${isLocked ? `
-                            <div class="absolute inset-0 flex items-center justify-center bg-black/40"><i class='bx bxs-lock-alt text-white text-3xl opacity-70'></i></div>
-                        ` : `
-                            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <div class="w-12 h-12 bg-[#ace000] rounded-full flex items-center justify-center shadow-2xl translate-y-2 group-hover:translate-y-0 transition-all">
-                                    <i class='bx bx-play text-black text-3xl ml-1'></i>
-                                </div>
-                            </div>
-                        `}
-                    </div>
-                    <div class="mt-3">
-                        <h3 class="text-white font-bold text-sm truncate uppercase">${track.title || "Sem título"}</h3>
-                        <p class="text-gray-400 text-xs mt-1">${isLocked ? scheduledDate.toLocaleDateString() : displayYear}</p>
-                    </div>
-                `;
-
-if (!isLocked) {
-            card.onclick = (e) => {
-                if (e.target.closest('.action-btn')) return;
-
-                // 1. Proteção
-                if (typeof window.checkAndResetMonthlyStreams === 'function') {
-                    window.checkAndResetMonthlyStreams(track); 
-                }
-
-                // 2. Tocar (Isso vai abrir o vídeo se o loadTrack estiver atualizado)
-                if (typeof loadTrack === 'function') {
-                    loadTrack(track); 
-                }
-
-                
-
-                // 3. Navegar
-                if (typeof navigateTo === 'function') {
-                    navigateTo('music', track.id);
-                }
+        if (!isLocked) {
+            // 2. Clique no Like (Estrela)
+            likeBtn.onclick = (e) => {
+                e.stopPropagation(); // Impede de dar Play
+                toggleLikeMusic(track, likeBtn);
             };
+
+            // 3. Clique na Linha (Play)
+           // 3. Clique na Linha (Play)
+row.onclick = (e) => {
+    if (e.target.closest('.track-like-btn')) return;
+
+    console.log("🎵 Reproduzindo faixa selecionada");
+    loadTrack(track); // Chama a função importada diretamente
+};
         }
-
-        singlesContainer.appendChild(card);
-    }); // <--- FIM DO singlesList.forEach
-} // <--- FIM DO if (!singlesSnap.empty)
-
-        // --- RENDERIZAR POPULARES ---
-        const qPopulares = query(musicasRef, where("artist", "==", artistId), orderBy("streams", "desc"), limit(10));
-        const popularesSnap = await getDocs(qPopulares);
-        const validTopTracks = [];
-
-        popularesSnap.forEach(d => {
-            const trackData = d.data();
-            const scheduledDate = trackData.scheduledTime && trackData.scheduledTime !== "Imediato" ? new Date(trackData.scheduledTime) : null;
-            if (!scheduledDate || scheduledDate <= now) {
-                if (validTopTracks.length < 5) validTopTracks.push({ id: d.id, ...trackData, artistName });
-            }
-        });
-        
-        if (topTracksContainer) renderTop5Tracks(validTopTracks, "top-tracks-container"); 
-
-        // 9. Outros carregamentos
-        if (typeof loadArtistAlbums === 'function') await loadArtistAlbums(artistId);
-        if (typeof loadArtistStations === 'function') await loadArtistStations(artistId);
-
-    } catch (error) {
-        console.error("Erro na setupArtistPage:", error);
-    } finally {
-        isContextLoading = false;
-    }
+    });
 }
+
+
 function navigateTo(pageName, id = null, updateHistory = true) {
     // 1. Renderiza o conteúdo
     loadContent(pageName, id);
@@ -2341,148 +2406,6 @@ async function setupLatinSection() {
         btnRight.addEventListener('click', () => listContainer.scrollBy({ left: 300, behavior: 'smooth' }));
     }
 }
-
-// ... (seu código existente, incluindo setupLatinSection) ...
-
-// ⭐ FUNÇÃO AJUSTADA: para buscar e renderizar a seção de um artista específico ⭐
-async function setupArtistSection(artistUid) { // Removido artistName do parâmetro, buscaremos os dados do artista
-    const listContainer = document.getElementById('taylor-swift-list');
-    const loadingMessage = document.getElementById('taylor-swift-loading-message');
-    const artistHeader = document.getElementById('taylor-swift-header');
-    const artistHeaderImg = document.getElementById('taylor-swift-header-img');
-    const artistHeaderName = document.getElementById('taylor-swift-header-name');
-
-    if (!listContainer || !artistHeader || !artistHeaderImg || !artistHeaderName) {
-        console.error("Elementos HTML da seção de artista não encontrados.");
-        return;
-    }
-
-    if (loadingMessage) loadingMessage.style.display = 'block';
-    
-    let artistContent = [];
-    let artistData = null; // Para guardar os dados do artista principal
-
-    // Passo 1: Buscar os dados do perfil do artista para o cabeçalho
-    try {
-        const artistDocRef = doc(db, "usuarios", artistUid);
-        const artistDocSnap = await getDoc(artistDocRef);
-        if (artistDocSnap.exists()) {
-            artistData = { id: artistDocSnap.id, ...artistDocSnap.data() };
-            // ATUALIZA O CABEÇALHO DA SEÇÃO
-            artistHeaderImg.src = artistData.foto || "/assets/default-artist.png";
-            artistHeaderName.textContent = artistData.nomeArtistico || artistData.apelido || "Artista";
-            
-            // Adiciona evento de clique no cabeçalho
-            artistHeader.addEventListener('click', () => {
-                loadContent('artist', artistUid); // Supondo que 'artist' é a página do artista
-            });
-
-        } else {
-            console.warn(`Artista com UID ${artistUid} não encontrado.`);
-            artistHeaderName.textContent = "Artista Desconhecido";
-            if (loadingMessage) loadingMessage.style.display = 'none';
-            if (listContainer) listContainer.innerHTML = `<p class="flex-shrink-0 text-gray-400">Nenhum conteúdo encontrado para este artista.</p>`;
-            return; // Sai da função se o artista não for encontrado
-        }
-    } catch (error) {
-        console.error("Erro ao buscar dados do artista:", error);
-        artistHeaderName.textContent = "Erro ao carregar artista";
-        if (loadingMessage) loadingMessage.style.display = 'none';
-        if (listContainer) listContainer.innerHTML = `<p class="flex-shrink-0 text-gray-400">Erro ao carregar conteúdo do artista.</p>`;
-        return;
-    }
-    
-    // Passo 2: Buscar Playlists (Stations) da artista
-    try {
-        const playlistsQuery = query(collection(db, "playlists"), where('uidars', '==', artistUid));
-        const playlistsSnapshot = await getDocs(playlistsQuery);
-        playlistsSnapshot.forEach(doc => {
-            const playlistData = doc.data();
-            artistContent.push({ id: doc.id, type: 'playlist', name: playlistData.name, ...playlistData });
-        });
-    } catch (error) {
-        console.error("Erro ao buscar stations da artista:", error);
-    }
-
-    // Passo 3: Buscar Álbuns da artista
-    try {
-        const albumsQuery = query(collection(db, "albuns"), where('uidars', '==', artistUid));
-        const albumsSnapshot = await getDocs(albumsQuery);
-        albumsSnapshot.forEach(doc => {
-            const albumData = doc.data();
-            artistContent.push({ id: doc.id, type: 'album', name: albumData.album, ...albumData });
-        });
-    } catch (error) {
-        console.error("Erro ao buscar álbuns da artista:", error);
-    }
-
-// Ordenar por DATA COMPLETA (mais recente primeiro)
-artistContent.sort((a, b) => {
-    const parseDate = (dateStr) => {
-        // Se a data vier do Firebase como Timestamp, converte para objeto Date
-        if (dateStr && typeof dateStr.toDate === 'function') {
-            return dateStr.toDate();
-        }
-        // Se vier como String "DD/MM/AAAA"
-        if (typeof dateStr === 'string' && dateStr.includes('/')) {
-            const [day, month, year] = dateStr.split('/').map(Number);
-            return new Date(year, month - 1, day);
-        }
-        return new Date(0); // Fundo da lista se não houver data
-    };
-
-    // Altere 'data' para o nome exato do campo que você usa no Firestore
-    const dA = parseDate(a.data || a.ano || a.dataLancamento);
-    const dB = parseDate(b.data || b.ano || b.dataLancamento);
-
-    return dB - dA; // Mais recente primeiro
-});
-    // Oculta a mensagem de carregamento
-    if (loadingMessage) loadingMessage.style.display = 'none';
-
-    // Limpa a lista existente antes de renderizar
-    if (listContainer) listContainer.innerHTML = '';
-    
-    if (artistContent.length === 0) {
-        if (listContainer) listContainer.innerHTML = `<p class="flex-shrink-0 text-gray-400">Nenhum álbum ou playlist encontrado para ${artistData.nomeArtistico || artistData.apelido}.</p>`;
-    } else {
-        artistContent.forEach(item => {
-            let card;
-            if (item.type === 'album') {
-                card = createAlbumCard(item, item.id);
-            } else { // playlist ou station
-                card = createPlaylistCard(item, item.id);
-            }
-            if (listContainer) listContainer.appendChild(card);
-        });
-    }
-
-    // Adicione a lógica de scroll, drag e visibilidade das setas (a mesma que já temos)
-    const listWrapper = listContainer?.parentElement;
-    const btnLeft = document.getElementById('taylor-swift-scroll-left');
-    const btnRight = document.getElementById('taylor-swift-scroll-right');
-    
-    if (listWrapper && listContainer && btnLeft && btnRight) {
-        const updateArrowVisibility = () => {
-            const scrollLeft = listContainer.scrollLeft;
-            const maxScrollLeft = listContainer.scrollWidth - listContainer.clientWidth;
-            btnLeft.classList.toggle('hidden', scrollLeft <= 0);
-            btnRight.classList.toggle('hidden', scrollLeft >= maxScrollLeft - 1);
-        };
-
-        listWrapper.addEventListener('mouseenter', updateArrowVisibility);
-        listWrapper.addEventListener('mouseleave', () => {
-            btnLeft.classList.add('hidden');
-            btnRight.classList.add('hidden');
-        });
-        listContainer.addEventListener('scroll', updateArrowVisibility);
-        window.addEventListener('resize', updateArrowVisibility);
-
-        btnLeft.addEventListener('click', () => listContainer.scrollBy({ left: -300, behavior: 'smooth' }));
-        btnRight.addEventListener('click', () => listContainer.scrollBy({ left: 300, behavior: 'smooth' }));
-    }
-}
-
 
 
 async function setupMusicPage(musicId) {
@@ -3338,81 +3261,66 @@ function createDefaultCard(item) {
     return div;
 }
 
-
-// Substitua pelo ID da MÚSICA que você quer destacar
-const MUSICA_DESTAQUE_ID = "SjNsuJyzW8XTNmuAXxzH"; 
-
-async function loadBannerTrack() {
-    const banner = document.getElementById('new-release-banner');
-    const coverImg = document.getElementById('banner-cover');
+async function loadHomeFavorites() {
+    const grid = document.getElementById('favorites-grid');
+    const container = document.getElementById('favorites-grid-container');
     
-    if (!banner || !coverImg) return;
+    if (!currentUserUid || !grid) return;
 
     try {
-        // 1. Busca na coleção de MUSICAS usando o ID de destaque
-        const trackRef = doc(db, "musicas", MUSICA_DESTAQUE_ID);
-        const trackSnap = await getDoc(trackRef);
+        const musicRef = collection(db, `likedmusics${currentUserUid}`);
+        const albumRef = collection(db, `likedalbuns${currentUserUid}`);
+        
+        const musicQuery = query(musicRef, orderBy("timestamp", "desc"), limit(3));
+        const albumQuery = query(albumRef, orderBy("timestamp", "desc"), limit(3));
 
-        if (trackSnap.exists()) {
-            const trackData = trackSnap.data();
-            
-            // 2. Preenche os textos usando os campos de música (title e artistName/artist)
-            // Ajuste 'trackData.title' ou 'trackData.nome' conforme seu banco
-            document.getElementById('banner-title').textContent = trackData.title || trackData.nome;
-            document.getElementById('banner-artist-name').textContent = trackData.artistName || "Artista";
+        const [musicSnap, albumSnap] = await Promise.all([
+            getDocs(musicQuery),
+            getDocs(albumQuery)
+        ]);
 
-            // 3. Configura a imagem e extração de cor
-            coverImg.crossOrigin = "Anonymous";
-            
-            const extrairCor = () => {
-                try {
-                    const colorThief = new ColorThief();
-                    const color = colorThief.getColor(coverImg);
-                    const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                    // Gradiente dinâmico baseado na capa
-                    banner.style.background = `linear-gradient(135deg, ${rgb} 0%, #121212 100%)`;
-                } catch (e) {
-                    banner.style.background = `linear-gradient(135deg, #282828 0%, #121212 100%)`;
-                }
-            };
+        let favorites = [];
+        musicSnap.forEach(doc => favorites.push({ ...doc.data(), type: 'music', id: doc.id }));
+        albumSnap.forEach(doc => favorites.push({ ...doc.data(), type: 'album', id: doc.id }));
 
-            // Define a capa da música
-            coverImg.src = trackData.cover || "./assets/default-cover.png";
+        if (favorites.length === 0) return;
 
-            if (coverImg.complete) {
-                extrairCor();
-            } else {
-                coverImg.onload = extrairCor;
-            }
+        container.style.display = 'block';
+        grid.innerHTML = '';
 
-            // 4. Busca foto do artista (usando o campo 'artist' ou 'uidars' da música)
-            const artistId = trackData.artist; // ID do documento do artista
-            if (artistId) {
-                const artistRef = doc(db, "usuarios", artistId);
-                const artistSnap = await getDoc(artistRef);
-                if (artistSnap.exists()) {
-                    const artistImg = document.getElementById('banner-artist-img');
-                    if (artistImg) artistImg.src = artistSnap.data().foto || "/assets/default-artist.png";
-                }
-            }
+        favorites.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'fav-item group';
+            const itemId = item.id || item.itemId;
 
-            // 5. Ação de Clique: Navegar para a página da MÚSICA
-            banner.onclick = (e) => {
-                if (e.target.closest('.action-btn')) return;
+            div.innerHTML = `
+                <img src="${item.cover || './assets/default-cover.png'}" class="fav-img">
+                <div class="fav-text-container">
+                    <span class="fav-text">${item.title || item.album}</span>
+                </div>
+            `;
+
+            // --- LÓGICA DE NAVEGAÇÃO IGUAL AO BANNER ---
+            div.onclick = () => {
+                const pageType = item.type === 'music' ? 'music' : 'album';
                 
-                // Usa sua função de navegação SPA para a página 'music'
+                console.log(`Navegando para ${pageType}: ${itemId}`);
+
+                // Tenta usar suas funções de navegação SPA
                 if (typeof navigateTo === 'function') {
-                    navigateTo('music', MUSICA_DESTAQUE_ID);
+                    navigateTo(pageType, itemId);
                 } else if (typeof loadContent === 'function') {
-                    loadContent('music', MUSICA_DESTAQUE_ID);
+                    loadContent(pageType, itemId);
+                } else {
+                    // Fallback caso não seja SPA
+                    window.location.href = `${pageType}.html?id=${itemId}`;
                 }
             };
 
-            banner.classList.add('loaded');
-            banner.style.display = 'block';
-        }
-    } catch (error) {
-        console.error("Erro ao carregar banner de música:", error);
+            grid.appendChild(div);
+        });
+    } catch (e) {
+        console.error("Erro ao carregar favoritos:", e);
     }
 }
 
@@ -3634,8 +3542,7 @@ async function setupHomePage() {
 
     try {
         setGreeting();
-        await loadBannerTrack();
-
+       
         // 4. BLOCO 1: Aqui a ordem está correta
         await Promise.all([
             fetchAndRenderNewSingles(), 
@@ -3648,6 +3555,7 @@ async function setupHomePage() {
             setupForroGenreSection(),   
             setupPopSection(),
             setupFanArtistSection(),
+            loadHomeFavorites(),
             loadTopArtists()
         ]);
 
@@ -3820,189 +3728,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function getArtistIdFromURL() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('id');
-}
-
-async function loadArtistData(artistId) {
-  if (!artistId) {
-    document.getElementById('artist-name').textContent = "ID do Artista Ausente";
-    return;
-  }
-
-  try {
-    const artistRef = doc(db, "usuarios", artistId);
-    const artistSnap = await getDoc(artistRef);
-
-    if (!artistSnap.exists() || artistSnap.data().artista !== "true") {
-      document.getElementById('artist-name').textContent = "Artista Não Encontrado";
-      return;
-    }
-
-    const artistData = artistSnap.data();
-
-    document.getElementById('artist-name').textContent = artistData.apelido || "Nome Desconhecido";
-    document.getElementById('artist-listeners').textContent = `${new Intl.NumberFormat('pt-BR').format(artistData.ouvintesMensais || 0)} ouvintes mensais`;
-
-    // Define imagem de fundo
-    const artistCoverBg = document.getElementById('artist-cover-bg');
-    if (artistData.foto) {
-      artistCoverBg.style.backgroundImage = `url('${artistData.foto}')`;
-      artistCoverBg.style.backgroundSize = 'cover';
-      artistCoverBg.style.backgroundPosition = 'center';
-      artistCoverBg.style.backgroundRepeat = 'no-repeat';
-    }
-
-    // Carrega os álbuns do artista
-    await loadArtistAlbums(artistId);
-
-  } catch (error) {
-    console.error("Erro ao carregar dados do artista:", error);
-    document.getElementById('artist-name').textContent = "Erro ao carregar artista";
-  }
-}
-
-async function loadArtistAlbums(artistId) {
-    const albumsContainer = document.getElementById('albums-container');
-    const albumsSection = document.getElementById('albums-section');
-    
-    if (!albumsContainer) return;
-    
-    albumsContainer.innerHTML = "";
-
-    try {
-        const q = query(collection(db, "albuns"), where('uidars', '==', artistId));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            if (albumsSection) albumsSection.classList.add('hidden');
-            return;
-        }
-
-        if (albumsSection) albumsSection.classList.remove('hidden');
-
-        // 1. Transformar em Array
-        const albumsList = [];
-        querySnapshot.forEach(doc => {
-            albumsList.push({ id: doc.id, ...doc.data() });
-        });
-
-        // 2. ORDENAÇÃO PELO FORMATO "YYYY-MM-DD" (MAIS RECENTE PRIMEIRO)
-        albumsList.sort((a, b) => {
-            // Criar objetos Date diretamente (o JS entende o formato 2020-12-11 nativamente)
-            const dateA = a.date ? new Date(a.date) : new Date(0);
-            const dateB = b.date ? new Date(b.date) : new Date(0);
-            
-            return dateB - dateA; // Data maior (mais nova) vem primeiro
-        });
-
-        // 3. Renderizar
-        albumsList.forEach(album => {
-            const card = document.createElement('div');
-            card.className = "scroll-item flex-shrink-0 w-40 cursor-pointer group";
-            
-            // Formatando a data para exibição (opcional: mostrar apenas o ano no card)
-            const anoExibicao = album.date ? album.date.split('-')[0] : '2024';
-
-            card.innerHTML = `
-                <div class="relative aspect-square rounded-md overflow-hidden bg-[#282828] shadow-lg mb-3">
-                    <img src="${album.cover}" class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
-                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div class="w-10 h-10 bg-[#1ed760] rounded-full flex items-center justify-center shadow-xl translate-y-2 group-hover:translate-y-0 transition-all">
-                            <i class='bx bx-play text-black text-2xl ml-0.5'></i>
-                        </div>
-                    </div>
-                </div>
-                <h3 class="text-white font-bold text-sm truncate">${album.album}</h3>
-                <p class="text-gray-400 text-xs mt-1">${anoExibicao}</p>
-            `;
-            
-            card.onclick = () => loadContent('album', album.id);
-            albumsContainer.appendChild(card);
-        });
-
-        setupScrollArrows('albums-container');
-
-    } catch (error) {
-        console.error("Erro ao carregar álbuns:", error);
-    }
-}
-
-async function loadArtistStations(artistId) {
-  if (!artistId) {
-    console.warn("artistId vazio");
-    return;
-  }
-
-  const stationsContainer = document.getElementById('stations-container');
-  if (!stationsContainer) {
-    console.error("Elemento #stations-container não encontrado");
-    return;
-  }
-
-  stationsContainer.innerHTML = '';
-
-  const title = document.createElement('h2');
-  title.textContent = 'Estações';
-  title.className = 'text-2xl font-bold mb-4 mt-8';
-  stationsContainer.appendChild(title);
-
-  try {
-    console.log("Buscando estações com uidars =", artistId);
-
-    const q = query(
-      collection(db, 'playlists'),
-      where('category', '==', 'Stations'),
-      where('uidars', '==', artistId)
-    );
-
-    const querySnapshot = await getDocs(q);
-    console.log("Estações encontradas:", querySnapshot.size);
-
-    if (querySnapshot.empty) {
-      const emptyMsg = document.createElement('p');
-      emptyMsg.className = 'text-gray-400';
-      emptyMsg.textContent = 'Nenhuma estação encontrada para este artista.';
-      stationsContainer.appendChild(emptyMsg);
-      return;
-    }
-
-    const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4';
-    stationsContainer.appendChild(grid);
-
-   querySnapshot.forEach(docSnap => {
-    const station = docSnap.data();
-    const stationId = docSnap.id;
-    const card = document.createElement('div');
-    card.className = 'cursor-pointer flex flex-col items-start group';
-
-    card.innerHTML = `
-        <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg">
-            <img src="${station.cover}" class="absolute top-0 left-0 w-full h-full object-cover transition-transform group-hover:scale-105" />
-        </div>
-        <div class="mt-2">
-            <h3 class="text-sm font-semibold text-white truncate">${station.name}</h3>
-            <p class="text-gray-400 text-xs">Estação</p>
-        </div>
-    `;
-
-    // ⭐ MUDANÇA AQUI: Redireciona para a página de playlist com o ID da estação
-    card.addEventListener('click', () => {
-        navigateTo('playlist', stationId);
-    });
-
-    grid.appendChild(card);
-});
-  } catch (error) {
-    console.error("Erro ao carregar estações:", error);
-    const errorMsg = document.createElement('p');
-    errorMsg.className = 'text-red-500';
-    errorMsg.textContent = 'Erro ao carregar estações.';
-    stationsContainer.appendChild(errorMsg);
-  }
-}
 
 // album.js
 function playTrack(track) {

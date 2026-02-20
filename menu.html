@@ -203,6 +203,10 @@
     justify-content: center;
 }
 
+#music-player {
+    transition: background 0.6s ease;
+}
+
 #latNav.collapsed .nav-link svg, 
 #latNav.collapsed .nav-link img {
     margin-right: 0 !important;
@@ -247,48 +251,47 @@
 
 #feed {
     flex-grow: 1;
-    background: #000000; /* Remova o #933939 */
+    background: #000000;
     overflow-y: auto;
     position: relative;
     z-index: 10;
     display: flex;
     flex-direction: column;
-    padding-bottom: 0 !important;
-    margin-bottom: 0 !important;
+    
+    /* Isso garante que o conteúdo (como o Greeting) 
+       comece DEPOIS da barra de navegação */
+    padding-top: 85px; 
+    padding-bottom: 100px; /* Espaço para o player fixo no rodapé */
 }
 
 #content-area {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
+    display: block; /* Mude de flex para block para testar */
     width: 100%;
+    position: relative;
 }
 
-/* Isso força a DIV principal de qualquer página carregada a preencher a tela */
+/* Garante que o primeiro elemento injetado (o header do artista) 
+   tenha um ponto de partida fixo */
 #content-area > div:first-child {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    background-color: inherit; /* Faz ela herdar a cor se necessário */
+    margin-top: 0; 
+    display: block;
 }
 
 
 
-
-        #nav-top {
-    position: sticky;
+#nav-top {
+    position: absolute; 
     top: 0;
+    left: 0;
+    width: 100%;
     z-index: 1000;
     padding: 1rem 1.1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-
-    /* Substitua o background-color sólido por este: */
-    background-color: rgba(0, 0, 0, 0); /* O '0.4' define a transparência do fundo */
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, transparent 100%);
+    box-sizing: border-box; 
 }
-
         .custom-scrollbar::-webkit-scrollbar {
             height: 8px;
             width: 8px;
@@ -374,6 +377,13 @@
 /* --- LÓGICA PARA QUANDO A SIDEBAR FECHAR --- */
 #latNav.collapsed .sidebar-promo-card {
     display: none; /* Esconde o card totalmente quando a barra estiver pequena */
+}
+
+#share-preview-modal {
+    /* Valor maior que o do full-screen-player (9999999) */
+    z-index: 10000000 !important; 
+    background-color: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(10px);
 }
         
     </style>
@@ -650,61 +660,73 @@ function toggleSidebar() {
 
     </script>
 
-  <div id="full-screen-player" class="hidden">
+<div id="full-screen-player" class="hidden">
+    <div id="fs-aurora-bg"></div>
     <div id="fs-player-overlay"></div>
 
-<div class="fs-player-cover-container">
-    <img id="fs-player-cover" src="" alt="Capa">
-
-    <div id="youtube-embed-container" class="hidden" style="width: 100%; max-width: 340px; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden;">
-        <iframe id="youtube-iframe" width="100%" height="100%" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    <div class="fs-top-bar">
+        <div class="fs-grabber"></div>
     </div>
-</div>
 
-    <button id="fs-player-close-btn">
-        <img src="./assets/x.svg" class="fs-player-close-btn svg">
+    <button id="fs-player-close-btn" class="desktop-only">
+        <img src="./assets/x.svg" alt="Fechar">
     </button>
 
-    <div class="fs-player-content">
-        <div id="youtube-player-container" style="display: none;"></div>
+    <div class="fs-player-cover-container">
+        <img id="fs-player-cover" src="" alt="Capa">
+        
+        <div id="youtube-embed-container" class="hidden">
+            <div id="youtube-player"></div>
+            <iframe id="youtube-iframe" width="100%" height="100%" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        </div>
+    </div>
 
-
-        <div class="fs-player-details-column">
-            <div class="fs-player-info">
-              <h1 id="fs-player-title">Título da Música</h1>
-                
+    <div class="fs-main-content">
+        <div class="fs-info-row">
+            <div class="fs-text-group">
+                <h1 id="fs-player-title">Título da Música</h1>
                 <p id="fs-player-artist">Nome do Artista</p>
             </div>
-
-            <div class="fs-player-progress">
-                <div id="fs-player-bar-container">
-                    <div id="fs-player-bar-fill"></div>
-                </div>
-                <div class="fs-player-time">
-                    <span id="fs-current-time"></span>
-                    <span id="fs-total-time"></span>
-                </div>
+            <div class="fs-action-buttons">
+                <button class="fs-icon-btn"><img src="./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg"></button>
+                <button class="fs-icon-btn"><img src="./assets/share-2.svg"></button>
             </div>
+        </div>
 
-            <div class="fs-player-controls">
-    <button id="fs-prev-btn">
-        <img src="./assets/skip_previous_50dp_FFFFFF_FILL1_wght400_GRAD0_opsz48.svg" alt="Anterior">
-    </button>
-    
-    <button id="fs-playpause-btn" class="fs-play-btn">
-        <img src="./assets/YouTube_light_icon_(2017).svg" alt="Play/YouTube" style="width: 40px;">
-    </button>
-    
-    <button id="fs-next-btn">
-        <img src="./assets/skip_next_50dp_FFFFFF_FILL1_wght400_GRAD0_opsz48.svg" alt="Próxima">
-    </button>
-</div>
+        <div class="fs-progress-section">
+            <div id="fs-player-bar-container">
+                <div id="fs-player-bar-fill"></div>
+            </div>
+            <div class="fs-time-info">
+                <span id="fs-current-time">0:00</span>
+                <span id="fs-total-time">-0:00</span>
+            </div>
+        </div>
 
+        <div class="fs-controls-row">
+            <button id="fs-prev-btn" class="fs-skip">
+                <img src="./assets/backward.fill.png">
+            </button>
             
+            <button id="fs-playpause-btn" class="fs-play-circle">
+                <img id="fs-play-icon" src="./assets/Group.png">
+                <img id="fs-pause-icon" src="./assets/pause.fill.png" class="hidden">
+            </button>
+            
+            <button id="fs-next-btn" class="fs-skip">
+                <img src="./assets/forward.fill.png">
+            </button>
+        </div>
+
+
+
+        <div class="fs-footer-actions">
+            <button class="fs-footer-btn"><img src="./assets/mic-vocal (2).svg"></button>
+
+            <button class="fs-footer-btn"><img src="./assets/queue.svg"></button>
         </div>
     </div>
 </div>
-
  <div id="music-player">
 
 
@@ -730,12 +752,27 @@ function toggleSidebar() {
     <audio id="player-audio" preload="auto"></audio>
 </div>
 
+<div id="story-share-card" style="position: absolute; left: -9999px; width: 1080px; height: 1920px; background: #030303; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; overflow: hidden;">
+    <div id="story-bg-blur" style="position: absolute; inset: 0; opacity: 0.4; filter: blur(100px); background-size: cover; background-position: center; transform: scale(1.1);"></div>
+    <div style="position: relative; z-index: 10; text-align: center; width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <img id="story-cover" src="" style="width: 700px; height: 700px; border-radius: 12px; box-shadow: 0 40px 100px rgba(0,0,0,0.7); object-fit: cover;">
+        <div style="margin-top: 50px; width: 700px; text-align: left;">
+            <h1 id="story-title" style="font-size: 75px; color: white; margin: 0; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h1>
+            <p id="story-artist" style="font-size: 40px; color: rgba(255,255,255,0.6); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></p>
+        </div>
+        <div style="margin-top: 120px;">
+            <img src="/assets/tunelogoh2.png" style="width: 280px; height: auto; opacity: 0.8;">
+        </div>
+    </div>
+</div>
 
 
-<script type="module" src="/js/main.js"></script>
+
+<script type="module" src="./js/player.js"></script>
+<script type="module" src="./js/main.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
     <script type="module" src="./js/iflog.js"></script>
-    <script type="module" src="./js/player.js"></script>
+    
 
     <div id="full-screen-player" class="hidden">
         </div>
