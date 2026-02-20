@@ -1,14 +1,30 @@
-import { loadTrack } from './player.js'; // Verifique se o caminho está correto
-// Importa as funções necessárias do Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, serverTimestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+// ========================================
+// 📦 IMPORTS
+// ========================================
 
-// Configuração do Firebase para a sua aplicação web (APENAS ESTA SEÇÃO)
+import { loadTrack } from './player.js';
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { 
+    getFirestore 
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+import { 
+    getAuth, 
+    onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
+import { 
+    getDatabase 
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+
+// ========================================
+// 🔥 FIREBASE
+// ========================================
+
 const firebaseConfig = {
-    apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
+    apiKey: "SUA_KEY",
     authDomain: "tune-8cafb.firebaseapp.com",
     projectId: "tune-8cafb",
     storageBucket: "tune-8cafb.appspot.com",
@@ -16,50 +32,92 @@ const firebaseConfig = {
     appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
 };
 
-
-// -------------------------------
-// 🔥 Inicialização do Firebase
-// -------------------------------
 const app = initializeApp(firebaseConfig);
+
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-const rtdb = getDatabase(app); // Inicializa o Realtime Database
+const rtdb = getDatabase(app);
 
 
-// --- TORNAR AS FUNÇÕES GLOBAIS IMEDIATAMENTE ---
-window.loadContent = loadContent;
-window.navigateTo = navigateTo;
+// ========================================
+// 🌍 GLOBALS
+// ========================================
 
-// --- ROTEAMENTO CORRIGIDO ---
+window.currentUserUid = null;
+window.loadTrack = loadTrack;
+
+
+// ========================================
+// 🧭 ROTEAMENTO
+// ========================================
+
 function initializeRouting() {
+
     const pathname = window.location.pathname;
-    const urlParams = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
 
     let page = 'home';
     let id = null;
 
-    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
+    const cleanPath = pathname
+        .replace("menu.html", "")
+        .replace("index.html", "")
+        .replace(/^\//, "");
 
-    if (pathParts.length > 0) {
-        page = pathParts[0]; 
-        id = pathParts[1] || null;
-    } else if (urlParams.has('page')) {
-        page = urlParams.get('page');
-        id = urlParams.get('id');
+    if (cleanPath) {
+        const parts = cleanPath.split('/');
+        page = parts[0];
+        id = parts[1] || null;
     }
 
-    if (page.includes('.html')) page = page.replace('.html', '');
-    if (!page || page === 'undefined' || page === 'null') page = 'home';
+    if (params.get("page")) {
+        page = params.get("page");
+        id = params.get("id");
+    }
 
-    console.log(`🚀 Roteamento inicial: [${page}] com ID [${id}]`);
-    
-    // Pequeno delay para garantir que o Firebase e o DOM estejam prontos
-    setTimeout(() => {
-        if (typeof window.loadContent === 'function') {
-            window.loadContent(page, id, false);
-        }
-    }, 100);
+    if (!page || page === "undefined" || page === "null") {
+        page = "home";
+    }
+
+    console.log("🚀 Roteamento inicial:", page, id);
+
+    if (typeof loadContent === "function") {
+        loadContent(page, id, false);
+    }
 }
+
+
+// ========================================
+// 🔐 AUTH (SEM LOOP)
+// ========================================
+
+onAuthStateChanged(auth, (user) => {
+
+    const isIndexPage =
+        window.location.pathname.includes("index.html") ||
+        window.location.pathname === "/" ||
+        window.location.pathname.endsWith("/");
+
+    // 👉 Se for index (pública), não faz nada
+    if (isIndexPage) {
+        return;
+    }
+
+    // 👉 Se for página privada e não estiver logado
+    if (!user) {
+        console.warn("Usuário não logado. Redirecionando...");
+        window.location.href = "index.html";
+        return;
+    }
+
+    // ✅ Logado
+    console.log("Usuário autenticado:", user.uid);
+
+    window.currentUserUid = user.uid;
+
+    initializeRouting();
+});
+
 
 // -------------------------------
 // ☁️ Cloudinary (UPLOAD FRONT)
@@ -142,18 +200,7 @@ function setupAddAlbumPage() {
     console.log("Iniciando setup de novo álbum...");
 }
 
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = "index.html";
-        return;
-    }
 
-    currentUser = user;
-
-    if (typeof initializePageNavigation === "function") {
-        initializePageNavigation();
-    }
-});
 function handleInitialRoute() {
     const params = new URLSearchParams(window.location.search);
 
