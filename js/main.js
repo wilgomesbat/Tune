@@ -1,30 +1,14 @@
-// ========================================
-// 📦 IMPORTS
-// ========================================
-
-import { loadTrack } from './player.js';
-
+import { loadTrack } from './player.js'; // Verifique se o caminho está correto
+// Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { 
-    getFirestore 
-} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, serverTimestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
-import { 
-    getAuth, 
-    onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-
-import { 
-    getDatabase 
-} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
-
-
-// ========================================
-// 🔥 FIREBASE
-// ========================================
-
+// Configuração do Firebase para a sua aplicação web (APENAS ESTA SEÇÃO)
 const firebaseConfig = {
-    apiKey: "SUA_KEY",
+    apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
     authDomain: "tune-8cafb.firebaseapp.com",
     projectId: "tune-8cafb",
     storageBucket: "tune-8cafb.appspot.com",
@@ -32,111 +16,50 @@ const firebaseConfig = {
     appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
 };
 
-const app = initializeApp(firebaseConfig);
 
+// -------------------------------
+// 🔥 Inicialização do Firebase
+// -------------------------------
+const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-const rtdb = getDatabase(app);
+const rtdb = getDatabase(app); // Inicializa o Realtime Database
 
 
-// ========================================
-// 🌍 GLOBALS
-// ========================================
+// --- TORNAR AS FUNÇÕES GLOBAIS IMEDIATAMENTE ---
+window.loadContent = loadContent;
+window.navigateTo = navigateTo;
 
-window.currentUserUid = null;
-window.loadTrack = loadTrack;
-
-
-// ========================================
-// 🧭 ROTEAMENTO
-// ========================================
-
+// --- ROTEAMENTO CORRIGIDO ---
 function initializeRouting() {
-
     const pathname = window.location.pathname;
-    const params = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
 
     let page = 'home';
     let id = null;
 
-    const cleanPath = pathname
-        .replace("menu.html", "")
-        .replace("index.html", "")
-        .replace(/^\//, "");
+    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
 
-    if (cleanPath) {
-        const parts = cleanPath.split('/');
-        page = parts[0];
-        id = parts[1] || null;
+    if (pathParts.length > 0) {
+        page = pathParts[0]; 
+        id = pathParts[1] || null;
+    } else if (urlParams.has('page')) {
+        page = urlParams.get('page');
+        id = urlParams.get('id');
     }
 
-    if (params.get("page")) {
-        page = params.get("page");
-        id = params.get("id");
-    }
+    if (page.includes('.html')) page = page.replace('.html', '');
+    if (!page || page === 'undefined' || page === 'null') page = 'home';
 
-    if (!page || page === "undefined" || page === "null") {
-        page = "home";
-    }
-
-    console.log("🚀 Roteamento inicial:", page, id);
-
-    if (typeof loadContent === "function") {
-        loadContent(page, id, false);
-    }
-}
-
-
-// ========================================
-// 🔐 AUTH CONTROL
-// ========================================
-
-import { onAuthStateChanged } from 
-"https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-
-onAuthStateChanged(auth, (user) => {
-
-    const pathname = window.location.pathname;
-    const isIndexPage =
-        pathname.includes("index.html") ||
-        pathname === "/" ||
-        pathname.endsWith("/");
-
-    console.log("Auth state mudou:", user);
-
-    // ===============================
-    // 🔓 SE ESTIVER NA INDEX (PÚBLICA)
-    // ===============================
-    if (isIndexPage) {
-
-        // Se estiver logado e abrir index → manda pro menu
-        if (user) {
-            window.location.href = "menu.html";
+    console.log(`🚀 Roteamento inicial: [${page}] com ID [${id}]`);
+    
+    // Pequeno delay para garantir que o Firebase e o DOM estejam prontos
+    setTimeout(() => {
+        if (typeof window.loadContent === 'function') {
+            window.loadContent(page, id, false);
         }
-
-        return;
-    }
-
-    // ===============================
-    // 🔒 SE ESTIVER EM PÁGINA PRIVADA
-    // ===============================
-    if (!user) {
-        console.warn("Usuário não logado. Redirecionando...");
-        window.location.replace("index.html");
-        return;
-    }
-
-    // ===============================
-    // ✅ USUÁRIO LOGADO
-    // ===============================
-    window.currentUserUid = user.uid;
-
-    console.log("Usuário autenticado:", user.uid);
-
-    // Só inicia o app depois da auth confirmar
-    initializeRouting();
-});
-
+    }, 100);
+}
 
 // -------------------------------
 // ☁️ Cloudinary (UPLOAD FRONT)
@@ -219,7 +142,28 @@ function setupAddAlbumPage() {
     console.log("Iniciando setup de novo álbum...");
 }
 
+onAuthStateChanged(auth, (user) => {
 
+    const path = window.location.pathname;
+
+    const isPublicPage =
+        path === "/" ||
+        path.endsWith("index.html");
+
+    // Se estiver na página pública, não proteger
+    if (isPublicPage) return;
+
+    if (!user) {
+        console.warn("Usuário não logado → redirecionando");
+        window.location.replace("/index.html");
+        return;
+    }
+
+    console.log("Usuário autenticado:", user.uid);
+    window.currentUserUid = user.uid;
+
+    initializeRouting();
+});
 function handleInitialRoute() {
     const params = new URLSearchParams(window.location.search);
 
