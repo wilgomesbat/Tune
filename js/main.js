@@ -1,4 +1,5 @@
-import { loadTrack } from './player.js'; // Verifique se o caminho está correto
+import { loadTrack } from '/js/player.js';
+
 // Importa as funções necessárias do Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { getFirestore, serverTimestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
@@ -144,8 +145,38 @@ function setupAddAlbumPage() {
 
 document.addEventListener('DOMContentLoaded', initializeRouting);
 
+// Remova o initializeRouting do DOMContentLoaded (deixe apenas o Firebase controlar)
+// document.addEventListener('DOMContentLoaded', initializeRouting);
+
 onAuthStateChanged(auth, (user) => {
-   console.log("Auth executando");
+    // Detecta se estamos na raiz ou na página de login
+    const path = window.location.pathname;
+    const isLoginPage = path === "/" || path.includes("index.html") || path === "/index";
+
+    if (!user) {
+        console.warn("⚠️ Usuário não logado.");
+        
+        // SÓ redireciona se o usuário tentar acessar uma página interna sem login
+        if (!isLoginPage) {
+            console.log("Redirecionando para login...");
+            window.location.href = "/"; 
+        }
+        return; 
+    }
+
+    // --- USUÁRIO LOGADO ---
+    console.log("✅ Usuário autenticado:", user.uid);
+    window.currentUserUid = user.uid;
+
+    // Se ele já está logado e tentou entrar no index/login, manda para a home
+    if (isLoginPage) {
+        // Opcional: window.location.href = "/home"; 
+        // Ou apenas carregue o conteúdo da home:
+        window.loadContent('home', null, false);
+    } else {
+        // Se ele acessou um link direto (ex: /perfil/123), inicializa a rota
+        initializeRouting();
+    }
 });
 function handleInitialRoute() {
     const params = new URLSearchParams(window.location.search);
