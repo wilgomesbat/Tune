@@ -146,25 +146,25 @@ document.addEventListener('DOMContentLoaded', initializeRouting);
 
 onAuthStateChanged(auth, (user) => {
 
-    const path = window.location.pathname;
-
-    const isPublicPage =
-        path === "/" ||
-        path.endsWith("index.html");
-
-    // Se estiver na página pública, não proteger
-    if (isPublicPage) return;
+    const isIndexPage = window.location.pathname.includes("index.html");
 
     if (!user) {
-        console.warn("Usuário não logado → redirecionando");
-        window.location.replace("/index.html");
+        console.warn("Usuário não logado.");
+
+        // Só redireciona se NÃO estiver no index
+        if (!isIndexPage) {
+            window.location.href = "index.html";
+        }
+
         return;
     }
 
-    console.log("Usuário autenticado:", user.uid);
+    console.log("✅ Usuário autenticado:", user.uid);
     window.currentUserUid = user.uid;
 
-    initializeRouting();
+    if (typeof initializeRouting === "function") {
+        initializeRouting();
+    }
 });
 function handleInitialRoute() {
     const params = new URLSearchParams(window.location.search);
