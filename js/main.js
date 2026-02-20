@@ -1,30 +1,23 @@
-import { loadTrack } from './player.js'; // Verifique se o caminho está correto
-// Importa as funções necessárias do Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, serverTimestamp, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+// 1. Import do player (mantenha como está)
+import { loadTrack } from './player.js'; 
+
+// 2. Importe apenas as FUNÇÕES que você vai usar do Firebase (sem inicializar nada aqui)
+import { 
+    getFirestore, serverTimestamp, deleteDoc, collection, addDoc, query, 
+    onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where, getDocs 
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
 import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
-// Configuração do Firebase para a sua aplicação web (APENAS ESTA SEÇÃO)
-const firebaseConfig = {
-    apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
-    authDomain: "tune-8cafb.firebaseapp.com",
-    projectId: "tune-8cafb",
-    storageBucket: "tune-8cafb.appspot.com",
-    messagingSenderId: "599729070480",
-    appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
-};
+// 3. IMPORTANTE: Importe as INSTÂNCIAS do seu novo arquivo de configuração
+// Isso garante que todo o site use a mesma conexão
+import { db, auth } from './firebase-config.js';
 
+// Se você usa o Realtime Database, pode exportá-lo lá no config também e importar aqui:
+// import { rtdb } from './firebase-config.js';
 
-// -------------------------------
-// 🔥 Inicialização do Firebase
-// -------------------------------
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-const rtdb = getDatabase(app); // Inicializa o Realtime Database
-
+// --- REMOVA DAQUI: O firebaseConfig, o initializeApp e as const db/auth antigas ---
 
 // --- TORNAR AS FUNÇÕES GLOBAIS IMEDIATAMENTE ---
 window.loadContent = loadContent;
