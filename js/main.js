@@ -1856,12 +1856,15 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
 
 // No catch do seu loadContent no main.js:
 } catch (error) {
-    console.error("❌ Falha crítica:", error);
-    const isDev = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-    if (!isDev) {
-        // No domínio real, se der erro, força o recarregamento total da raiz
-        window.location.href = "https://tunedks.com"; 
+    console.error("❌ Erro ao carregar conteúdo:", error);
+    
+    // Em vez de reiniciar o site, apenas mostre um erro na tela ou carregue a home
+    const contentArea = document.getElementById('content-area');
+    if (contentArea) {
+        contentArea.innerHTML = `<h2>Página não encontrada</h2><p>${error.message}</p>`;
     }
+
+    // REMOVA ISSO: window.location.href = "https://tunedks.com"; 
 }
 }
 
@@ -3634,71 +3637,7 @@ const navLinks = document.querySelectorAll('#latNav .nav-link, #mobile-nav-bar .
     
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-    const registerForm = document.getElementById('registerForm');
-    const fotoUrlInput = document.getElementById('fotoUrl');
-    const previewFoto = document.getElementById('previewFoto');
 
-    fotoUrlInput.addEventListener('input', (event) => {
-        const url = event.target.value;
-        if (url && url.startsWith('http')) {
-            previewFoto.src = url;
-        } else {
-            previewFoto.src = 'assets/artistpfp.png';
-        }
-
-    });
-
-    registerForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-
-        const senha = document.getElementById('senha').value;
-        const confirmarSenha = document.getElementById('confirmar-senha').value;
-        if (senha !== confirmarSenha) {
-            alert('As senhas não coincidem. Por favor, verifique.');
-            return;
-        }
-
-        const nome = document.getElementById('nome').value;
-        const user = document.getElementById('user').value;
-        const email = document.getElementById('email').value;
-        const gravadora = document.getElementById('gravadora').value;
-        const bio = document.getElementById('bio').value;
-        const foto_url = fotoUrlInput.value || 'assets/artistpfp.png';
-        const tipo = 'artista';
-
-        const novoArtista = {
-            nome_artistico: nome,
-            nome_usuario: user,
-            email: email,
-            gravadora: gravadora,
-            senha: senha,
-            bio: bio,
-            foto_url: foto_url,
-            tipo: tipo,
-            data_cadastro: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        try {
-            const userDocRef = db.collection('artistas').doc(user);
-            const userDoc = await userDocRef.get();
-
-            if (userDoc.exists) {
-                alert('Este nome de usuário já está em uso. Por favor, escolha outro.');
-                return;
-            }
-
-            await userDocRef.set(novoArtista);
-
-            alert('Conta de artista criada com sucesso!');
-            window.location.href = 'index.html';
-
-        } catch (error) {
-            console.error('Erro ao criar a conta:', error);
-            alert(`Ocorreu um erro: ${error.message}`);
-        }
-    });
-});
 
 
 // album.js
