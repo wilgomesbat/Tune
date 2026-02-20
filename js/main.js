@@ -142,24 +142,28 @@ function setupAddAlbumPage() {
     console.log("Iniciando setup de novo álbum...");
 }
 
-onAuthStateChanged(auth, (user) => {
+// 🚨 NÃO executar proteção na index (página pública)
+if (window.location.pathname.includes("index.html")) {
+    console.log("Página pública detectada. Auth não será executado.");
+} else {
 
-    if (!user) {
-        console.warn("Usuário não logado, redirecionando...");
-        window.location.href = "index.html";
-        return;
-    }
+    onAuthStateChanged(auth, (user) => {
 
-    console.log("✅ Usuário autenticado:", user.uid);
+        if (!user) {
+            console.warn("Usuário não logado, redirecionando...");
+            window.location.href = "index.html";
+            return;
+        }
 
-    // Guarda UID se quiser usar depois
-    window.currentUserUid = user.uid;
+        console.log("✅ Usuário autenticado:", user.uid);
+        window.currentUserUid = user.uid;
 
-    // Só inicia o roteamento depois da autenticação confirmar
-    if (typeof initializeRouting === "function") {
-        initializeRouting();
-    }
-});
+        if (typeof initializeRouting === "function") {
+            initializeRouting();
+        }
+    });
+
+}
 function handleInitialRoute() {
     const params = new URLSearchParams(window.location.search);
 
