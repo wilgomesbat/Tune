@@ -145,26 +145,7 @@ function setupAddAlbumPage() {
 document.addEventListener('DOMContentLoaded', initializeRouting);
 
 onAuthStateChanged(auth, (user) => {
-
-    const isIndexPage = window.location.pathname.includes("index.html");
-
-    if (!user) {
-        console.warn("Usuário não logado.");
-
-        // Só redireciona se NÃO estiver no index
-        if (!isIndexPage) {
-            window.location.href = "index.html";
-        }
-
-        return;
-    }
-
-    console.log("✅ Usuário autenticado:", user.uid);
-    window.currentUserUid = user.uid;
-
-    if (typeof initializeRouting === "function") {
-        initializeRouting();
-    }
+   console.log("Auth executando");
 });
 function handleInitialRoute() {
     const params = new URLSearchParams(window.location.search);
