@@ -143,38 +143,36 @@ function setupAddAlbumPage() {
     console.log("Iniciando setup de novo álbum...");
 }
 
-document.addEventListener('DOMContentLoaded', initializeRouting);
 
 // Remova o initializeRouting do DOMContentLoaded (deixe apenas o Firebase controlar)
 // document.addEventListener('DOMContentLoaded', initializeRouting);
 
 onAuthStateChanged(auth, (user) => {
-    // Detecta se estamos na raiz ou na página de login
-    const path = window.location.pathname;
-    const isLoginPage = path === "/" || path.includes("index.html") || path === "/index";
+    // 1. Pega o path atual e limpa barras extras
+    const path = window.location.pathname.replace(/^\/|\/$/g, '');
+    
+    // 2. Define o que é "página de entrada" (ajustado para Firebase Hosting)
+    const isAtLogin = path === "" || path === "index.html" || path === "index";
 
     if (!user) {
-        console.warn("⚠️ Usuário não logado.");
-        
-        // SÓ redireciona se o usuário tentar acessar uma página interna sem login
-        if (!isLoginPage) {
-            console.log("Redirecionando para login...");
+        console.warn("Status: Não autenticado");
+        // SÓ redireciona se tentar acessar algo interno E não estiver na raiz
+        if (!isAtLogin) {
+            console.log("Proteção de rota: Enviando para a raiz");
             window.location.href = "/"; 
         }
-        return; 
+        return;
     }
 
-    // --- USUÁRIO LOGADO ---
-    console.log("✅ Usuário autenticado:", user.uid);
+    // 3. Usuário logado
+    console.log("✅ Autenticado como:", user.uid);
     window.currentUserUid = user.uid;
 
-    // Se ele já está logado e tentou entrar no index/login, manda para a home
-    if (isLoginPage) {
-        // Opcional: window.location.href = "/home"; 
-        // Ou apenas carregue o conteúdo da home:
+    // Se ele está logado e caiu na index, leva para a home sem dar refresh (SPA style)
+    if (isAtLogin) {
         window.loadContent('home', null, false);
     } else {
-        // Se ele acessou um link direto (ex: /perfil/123), inicializa a rota
+        // Se ele já estava em uma rota (ex: /perfil), apenas inicializa
         initializeRouting();
     }
 });
