@@ -142,6 +142,8 @@ function setupAddAlbumPage() {
     console.log("Iniciando setup de novo álbum...");
 }
 
+document.addEventListener('DOMContentLoaded', initializeRouting);
+
 onAuthStateChanged(auth, (user) => {
 
     const path = window.location.pathname;
@@ -1760,8 +1762,7 @@ window.addEventListener('popstate', (event) => {
         
         // Chamamos loadContent diretamente para renderizar o estado salvo.
         // Não chamamos navigateTo para evitar que ele tente manipular o histórico.
-        loadContent(page, id);
-        loadContent(event.state.page, event.state.id, false); 
+       loadContent(page, id, false);
     } else {
         // Fallback: Se não houver estado (ex: primeira página do site), lê da URL e renderiza 'home'.
         const urlParams = new URLSearchParams(window.location.search);
@@ -1786,8 +1787,6 @@ document.querySelectorAll('[data-page]').forEach(link => {
     });
 });
 
-// Chame a função quando o DOM estiver pronto
-document.addEventListener('DOMContentLoaded', initializeRouting);
 
 async function loadContent(pageName, id = null, shouldPushState = true) {
     const contentArea = document.getElementById('content-area');
@@ -1877,8 +1876,6 @@ function updateBrowserHistory(pageName, id) {
     window.history.pushState({ page: pageName, id: id }, '', newUrl);
 }
 
-// Inicializa tudo quando o DOM carregar
-document.addEventListener('DOMContentLoaded', initializeRouting);
 
 async function setupLibraryPage() {
     console.log("🔧 Carregando página Library...");
@@ -3794,6 +3791,3 @@ document.body.addEventListener('click', (e) => {
     }
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-    initializeRouting();
-});
