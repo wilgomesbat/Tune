@@ -142,59 +142,24 @@ function setupAddAlbumPage() {
     console.log("Iniciando setup de novo álbum...");
 }
 
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        currentUserUid = user.uid;
+onAuthStateChanged(auth, (user) => {
 
-        try {
-            // 1. Busca os dados no Firestore primeiro
-            const userDocRef = doc(db, "usuarios", user.uid);
-            const userSnap = await getDoc(userDocRef);
-            
-            if (userSnap.exists()) {
-                const userData = userSnap.data();
+    if (!user) {
+        console.warn("Usuário não logado, redirecionando...");
+        window.location.href = "index.html";
+        return;
+    }
 
-                // 2. VERIFICAÇÃO DE BANIMENTO (Agora userData já existe aqui)
-                if (userData.banido === "true" || userData.banido === true) {
-                    console.error("Usuário banido detectado.");
-                    await signOut(auth); 
-                    window.location.href = "ban.html"; 
-                    return; // Para a execução aqui
-                }
+    console.log("✅ Usuário autenticado:", user.uid);
 
-                // 3. LÓGICA DO CARD DE ARTISTA
-                console.log("Status artista no banco:", userData.artista);
+    // Guarda UID se quiser usar depois
+    window.currentUserUid = user.uid;
 
-                // Aceita tanto string "true" quanto boolean true
-                if (userData.artista === "true" || userData.artista === true) {
-                    const checkExist = setInterval(() => {
-                        const artistCard = document.querySelector('.artist-promo-container');
-                        if (artistCard) {
-                            artistCard.style.setProperty('display', 'block', 'important');
-                            console.log("✅ Card de artista exibido com sucesso.");
-                            clearInterval(checkExist);
-                        }
-                    }, 500);
-
-                    setTimeout(() => clearInterval(checkExist), 5000);
-                }
-            }
-        } catch (error) {
-            console.error("Erro ao verificar dados do usuário:", error);
-        }
-
-        // 4. Carrega o perfil e mostra o conteúdo
-        if (typeof populateUserProfile === "function") {
-            populateUserProfile(user);
-        }
-        hideLoadingAndShowContent();
-
-    } else {
-        // Se não houver usuário, volta para a index
-        window.location.href = "/index";
+    // Só inicia o roteamento depois da autenticação confirmar
+    if (typeof initializeRouting === "function") {
+        initializeRouting();
     }
 });
-
 function handleInitialRoute() {
     const params = new URLSearchParams(window.location.search);
 

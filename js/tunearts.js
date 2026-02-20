@@ -82,44 +82,58 @@ let currentUser = null;
 window.currentArtistUid = null;
 
 onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        currentUserUid = user.uid;
 
-    if (!user) {
-        console.log("Usuário ainda não autenticado...");
-        return; // 🔥 NÃO redireciona aqui imediatamente
-    }
+        try {
+            // 1. Busca os dados no Firestore primeiro
+            const userDocRef = doc(db, "usuarios", user.uid);
+            const userSnap = await getDoc(userDocRef);
+            
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
 
-    try {
-        const userDocRef = doc(db, "usuarios", user.uid);
-        const userDocSnap = await getDoc(userDocRef);
+                // 2. VERIFICAÇÃO DE BANIMENTO (Agora userData já existe aqui)
+                if (userData.banido === "true" || userData.banido === true) {
+                    console.error("Usuário banido detectado.");
+                    await signOut(auth); 
+                    window.location.href = "ban.html"; 
+                    return; // Para a execução aqui
+                }
 
-        if (!userDocSnap.exists()) {
-            window.location.href = "index.html";
-            return;
+                // 3. LÓGICA DO CARD DE ARTISTA
+                console.log("Status artista no banco:", userData.artista);
+
+                // Aceita tanto string "true" quanto boolean true
+                if (userData.artista === "true" || userData.artista === true) {
+                    const checkExist = setInterval(() => {
+                        const artistCard = document.querySelector('.artist-promo-container');
+                        if (artistCard) {
+                            artistCard.style.setProperty('display', 'block', 'important');
+                            console.log("✅ Card de artista exibido com sucesso.");
+                            clearInterval(checkExist);
+                        }
+                    }, 500);
+
+                    setTimeout(() => clearInterval(checkExist), 5000);
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao verificar dados do usuário:", error);
         }
 
-        const userData = userDocSnap.data();
-
-        const isArtist =
-            typeof userData.artista === "string" &&
-            userData.artista.trim().toLowerCase() === "true";
-
-        if (!isArtist) {
-            window.location.href = "index.html";
-            return;
+        // 4. Carrega o perfil e mostra o conteúdo
+        if (typeof populateUserProfile === "function") {
+            populateUserProfile(user);
         }
+        hideLoadingAndShowContent();
 
-        currentUser = user;
-        window.currentArtistUid = user.uid;
-
-        if (typeof initializePageNavigation === "function") {
-            initializePageNavigation();
-        }
-
-    } catch (error) {
-        console.error(error);
-        window.location.href = "index.html";
+    } else {
+        // Se não houver usuário, volta para a index
+        window.location.href = "/index";
     }
 });
+
 
 window.showDeleteConfirm = function(id, titulo, colecao) {
     const modal = document.getElementById('delete-confirm-modal');
