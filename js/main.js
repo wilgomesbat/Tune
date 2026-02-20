@@ -88,33 +88,52 @@ function initializeRouting() {
 
 
 // ========================================
-// 🔐 AUTH (SEM LOOP)
+// 🔐 AUTH CONTROL
 // ========================================
+
+import { onAuthStateChanged } from 
+"https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
 onAuthStateChanged(auth, (user) => {
 
+    const pathname = window.location.pathname;
     const isIndexPage =
-        window.location.pathname.includes("index.html") ||
-        window.location.pathname === "/" ||
-        window.location.pathname.endsWith("/");
+        pathname.includes("index.html") ||
+        pathname === "/" ||
+        pathname.endsWith("/");
 
-    // 👉 Se for index (pública), não faz nada
+    console.log("Auth state mudou:", user);
+
+    // ===============================
+    // 🔓 SE ESTIVER NA INDEX (PÚBLICA)
+    // ===============================
     if (isIndexPage) {
+
+        // Se estiver logado e abrir index → manda pro menu
+        if (user) {
+            window.location.href = "menu.html";
+        }
+
         return;
     }
 
-    // 👉 Se for página privada e não estiver logado
+    // ===============================
+    // 🔒 SE ESTIVER EM PÁGINA PRIVADA
+    // ===============================
     if (!user) {
         console.warn("Usuário não logado. Redirecionando...");
-        window.location.href = "index.html";
+        window.location.replace("index.html");
         return;
     }
 
-    // ✅ Logado
-    console.log("Usuário autenticado:", user.uid);
-
+    // ===============================
+    // ✅ USUÁRIO LOGADO
+    // ===============================
     window.currentUserUid = user.uid;
 
+    console.log("Usuário autenticado:", user.uid);
+
+    // Só inicia o app depois da auth confirmar
     initializeRouting();
 });
 
