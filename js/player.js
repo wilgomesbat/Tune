@@ -1,26 +1,9 @@
+import { getFirestore, doc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
-// ... restante do seu código (imports, loadTrack, etc)
-// Importa as funções necessárias do Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, deleteDoc, collection, addDoc, query, onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getDocs } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js"; // Adicionei signOut para o logout
-
-const firebaseConfig = {
-    apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
-    authDomain: "tune-8cafb.firebaseapp.com",
-    projectId: "tune-8cafb",
-    storageBucket: "tune-8cafb.appspot.com",
-    messagingSenderId: "599729070480",
-    appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
-};
-
-
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-const LOGIN_URL = "index.html";
+// 2. IMPORTA AS INSTÂNCIAS JÁ EXISTENTES DO SEU MAIN.JS
+// Certifique-se de que o caminho '../js/main.js' ou './main.js' esteja correto
+import { db, auth } from './main.js';
 
 // FUNÇÃO GLOBAL PADRÃO DO TUNE
 window.playTrackGlobal = function(track) {
