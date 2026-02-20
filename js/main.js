@@ -3824,3 +3824,7 @@ document.body.addEventListener('click', (e) => {
         }
     }
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+    initializeRouting();
+});

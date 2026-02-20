@@ -343,22 +343,31 @@ function stopYoutubeTracking() {
 }
 
 function startYoutubeTracking() {
-    // 1. Limpa qualquer rastreio anterior para não sobrepor
-    stopYoutubeTracking(); 
+    stopYoutubeTracking();
 
-    console.log("⏱️ Iniciando rastreio de progresso...");
-    
+    console.log("⏱️ Iniciando rastreio real...");
+
     ytProgressInterval = setInterval(() => {
-        // Verifica se o player do YT está pronto e se a função existe
-        if (window.ytPlayer && typeof window.ytPlayer.getCurrentTime === 'function') {
-            const currentTime = window.ytPlayer.getCurrentTime();
-            const duration = window.ytPlayer.getDuration();
-            
-            if (duration > 0) {
-                // Atualiza a barra de progresso e os textos de tempo
-                updateInterfaceLabels(currentTime, duration);
-            }
+
+        if (
+            !window.ytPlayer ||
+            typeof window.ytPlayer.getPlayerState !== "function" ||
+            typeof window.ytPlayer.getCurrentTime !== "function"
+        ) {
+            return;
         }
+
+        const state = window.ytPlayer.getPlayerState();
+
+        if (state !== 1) return; // 1 = PLAYING
+
+        const currentTime = window.ytPlayer.getCurrentTime();
+        const duration = window.ytPlayer.getDuration();
+
+        if (duration > 0) {
+            updateInterfaceLabels(currentTime, duration);
+        }
+
     }, 1000);
 }
 async function loadTrack(track) {
@@ -669,8 +678,13 @@ window.loadYoutubeVideo = function(videoId) {
 };
 
 function onPlayerStateChange(event) {
-    if (event.data === YT.PlayerState.ENDED) pularParaProxima();
-    if (event.data === YT.PlayerState.PLAYING) startYoutubeTracking();
+    console.log("🎬 Estado mudou:", event.data);
+
+    if (event.data === 1) {
+        startYoutubeTracking();
+    } else {
+        stopYoutubeTracking();
+    }
 }
 
 function pularParaProxima() {
