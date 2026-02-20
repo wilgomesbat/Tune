@@ -20,6 +20,92 @@ import { db, auth } from './firebase-config.js';
 // --- REMOVA DAQUI: O firebaseConfig, o initializeApp e as const db/auth antigas ---
 
 // --- TORNAR AS FUNÇÕES GLOBAIS IMEDIATAMENTE ---
+
+// Chame a função quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', initializeRouting);
+
+async function loadContent(pageName, id = null, shouldPushState = true) {
+    const contentArea = document.getElementById('content-area');
+    if (!contentArea || !pageName) return;
+
+    // --- A) TRAVA DE CACHE (ECONOMIA DE CLOUD) ---
+    if (pageName === 'home' && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
+        console.log("🏠 Restaurando Home do cache global (0 leituras Cloud)");
+        contentArea.innerHTML = window.__HOME_CACHE__.html;
+        
+        rebindHomeUI(); // Reativa os cliques nos botões
+        
+        if (shouldPushState) updateBrowserHistory(pageName, id);
+        return; 
+    }
+
+    try {
+        // --- B) BUSCA DO ARQUIVO HTML ---
+        const response = await fetch(`/pages/${pageName}.html`); 
+        
+        if (!response.ok) {
+            throw new Error(`Página ${pageName} não encontrada no servidor.`);
+        }
+
+        const html = await response.text();
+        contentArea.innerHTML = html;
+
+        // --- C) GESTÃO DE HISTÓRICO ---
+        if (shouldPushState) {
+            updateBrowserHistory(pageName, id);
+        }
+
+        // --- D) SETUP DAS PÁGINAS ---
+        setTimeout(() => {
+            console.log(`🛠️ Executando setup para: ${pageName}`);
+            
+            const safeSetup = (fn, param = null) => {
+                try { if (typeof fn === 'function') fn(param); } 
+                catch (e) { console.error(`Erro no setup de ${pageName}:`, e); }
+            };
+
+            switch (pageName) {
+                case 'home':         safeSetup(setupHomePage); break;
+                case 'music':        safeSetup(setupMusicPage, id); break;
+                case 'album':        safeSetup(setupAlbumPage, id); break;
+                case 'artist':       safeSetup(setupArtistPage, id); break;
+                case 'playlist':     safeSetup(setupPlaylistPage, id); break;
+                case 'liked':        safeSetup(setupLikedPage); break;
+                case 'library':  
+                    safeSetup(setupLibraryPage, id); 
+                    if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
+                    break;
+                case 'loginartists': safeSetup(setupLoginartistsPage, id); break;
+                case 'banida':       console.warn("Usuário acessando tela de banimento."); break;
+                case 'search': 
+                    import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
+                    break;
+                default:
+                    console.warn(`Nenhum setup específico encontrado para: ${pageName}`);
+            }
+
+            if (window.currentUserUid) {
+    verificarStatusArtista(window.currentUserUid);
+}
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
+
+// No catch do seu loadContent no main.js:
+} catch (error) {
+    console.error("❌ Erro ao carregar conteúdo:", error);
+    
+    // Em vez de reiniciar o site, apenas mostre um erro na tela ou carregue a home
+    const contentArea = document.getElementById('content-area');
+    if (contentArea) {
+        contentArea.innerHTML = `<h2>Página não encontrada</h2><p>${error.message}</p>`;
+    }
+
+    // REMOVA ISSO: window.location.href = "https://tunedks.com"; 
+}
+}
+
+
 window.loadContent = loadContent;
 window.navigateTo = navigateTo;
 
@@ -1832,89 +1918,7 @@ document.querySelectorAll('[data-page]').forEach(link => {
     });
 });
 
-// Chame a função quando o DOM estiver pronto
-document.addEventListener('DOMContentLoaded', initializeRouting);
 
-async function loadContent(pageName, id = null, shouldPushState = true) {
-    const contentArea = document.getElementById('content-area');
-    if (!contentArea || !pageName) return;
-
-    // --- A) TRAVA DE CACHE (ECONOMIA DE CLOUD) ---
-    if (pageName === 'home' && window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
-        console.log("🏠 Restaurando Home do cache global (0 leituras Cloud)");
-        contentArea.innerHTML = window.__HOME_CACHE__.html;
-        
-        rebindHomeUI(); // Reativa os cliques nos botões
-        
-        if (shouldPushState) updateBrowserHistory(pageName, id);
-        return; 
-    }
-
-    try {
-        // --- B) BUSCA DO ARQUIVO HTML ---
-        const response = await fetch(`/pages/${pageName}.html`); 
-        
-        if (!response.ok) {
-            throw new Error(`Página ${pageName} não encontrada no servidor.`);
-        }
-
-        const html = await response.text();
-        contentArea.innerHTML = html;
-
-        // --- C) GESTÃO DE HISTÓRICO ---
-        if (shouldPushState) {
-            updateBrowserHistory(pageName, id);
-        }
-
-        // --- D) SETUP DAS PÁGINAS ---
-        setTimeout(() => {
-            console.log(`🛠️ Executando setup para: ${pageName}`);
-            
-            const safeSetup = (fn, param = null) => {
-                try { if (typeof fn === 'function') fn(param); } 
-                catch (e) { console.error(`Erro no setup de ${pageName}:`, e); }
-            };
-
-            switch (pageName) {
-                case 'home':         safeSetup(setupHomePage); break;
-                case 'music':        safeSetup(setupMusicPage, id); break;
-                case 'album':        safeSetup(setupAlbumPage, id); break;
-                case 'artist':       safeSetup(setupArtistPage, id); break;
-                case 'playlist':     safeSetup(setupPlaylistPage, id); break;
-                case 'liked':        safeSetup(setupLikedPage); break;
-                case 'library':  
-                    safeSetup(setupLibraryPage, id); 
-                    if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
-                    break;
-                case 'loginartists': safeSetup(setupLoginartistsPage, id); break;
-                case 'banida':       console.warn("Usuário acessando tela de banimento."); break;
-                case 'search': 
-                    import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
-                    break;
-                default:
-                    console.warn(`Nenhum setup específico encontrado para: ${pageName}`);
-            }
-
-            if (window.currentUserUid) {
-    verificarStatusArtista(window.currentUserUid);
-}
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 100);
-
-// No catch do seu loadContent no main.js:
-} catch (error) {
-    console.error("❌ Erro ao carregar conteúdo:", error);
-    
-    // Em vez de reiniciar o site, apenas mostre um erro na tela ou carregue a home
-    const contentArea = document.getElementById('content-area');
-    if (contentArea) {
-        contentArea.innerHTML = `<h2>Página não encontrada</h2><p>${error.message}</p>`;
-    }
-
-    // REMOVA ISSO: window.location.href = "https://tunedks.com"; 
-}
-}
 
 /**
  * Atualiza a URL do navegador de forma amigável.
