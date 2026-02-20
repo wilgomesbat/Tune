@@ -1132,15 +1132,17 @@ body {
 }
 
 
-#youtube-player-container {
+#youtube-player {
     position: absolute;
-    width: 1px;
-    z-index: 5000;
-    height: 1px;
-    top: -9999px;
+    top: -9999px; /* Joga o vídeo para longe */
     left: -9999px;
-    opacity: 0;
-    pointer-events: none;
+    width: 1px;
+    
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    height: 1px;
+    pointer-events: none; /* Garante que ninguém clique nele sem querer */
 }
 
 /* Degradê de fundo dinâmico */

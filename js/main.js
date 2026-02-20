@@ -25,17 +25,18 @@ window.navigateTo = navigateTo;
 
 // --- ROTEAMENTO CORRIGIDO ---
 function initializeRouting() {
+    
     const pathname = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
 
     let page = 'home';
     let id = null;
 
-    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
+   const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
 
     if (pathParts.length > 0) {
-        page = pathParts[0]; 
-        id = pathParts[1] || null;
+        page = pathParts[0]; // 'album', 'playlist', etc.
+        id = pathParts[1] || null; // o ID longo
     } else if (urlParams.has('page')) {
         page = urlParams.get('page');
         id = urlParams.get('id');
@@ -164,6 +165,8 @@ onAuthStateChanged(auth, (user) => {
         // Se estiver em uma URL profunda (ex: /perfil), roda o roteador
         initializeRouting();
     }
+
+    verificarStatusArtista(user.uid);
 });
 
 
@@ -174,6 +177,46 @@ function handleInitialRoute() {
     const id = params.get('id');
 
     loadContent(page, id);
+}
+
+async function verificarStatusArtista(uid) {
+    // Tenta encontrar o container. Se for SPA, ele pode demorar a aparecer no DOM
+    let promoContainer = document.querySelector('.artist-promo-container');
+    
+    // Se não achar de primeira, espera 100ms e tenta de novo (máximo 5 vezes)
+    if (!promoContainer) {
+        let tentativas = 0;
+        const interval = setInterval(async () => {
+            promoContainer = document.querySelector('.artist-promo-container');
+            tentativas++;
+            
+            if (promoContainer || tentativas > 5) {
+                clearInterval(interval);
+                if (promoContainer) processarExibicao(promoContainer, uid);
+            }
+        }, 100);
+        return;
+    }
+
+    processarExibicao(promoContainer, uid);
+}
+
+// Função auxiliar para processar a lógica
+async function processarExibicao(container, uid) {
+    try {
+        const userDocRef = doc(db, "usuarios", uid);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            if (userData.artista === true || userData.artista === "true") {
+                console.log("🎨 Exibindo banner promo para artista.");
+                container.style.setProperty('display', 'block', 'important');
+            } else {
+                container.style.display = 'none';
+            }
+        }
+    } catch (e) { console.error(e); }
 }
 
 // -------------------------------
@@ -1851,6 +1894,11 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
                 default:
                     console.warn(`Nenhum setup específico encontrado para: ${pageName}`);
             }
+
+            if (window.currentUserUid) {
+    verificarStatusArtista(window.currentUserUid);
+}
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }, 100);
 
@@ -1903,10 +1951,7 @@ function createArtistCard(docData, docId) {
     card.setAttribute('data-navigate', 'artist');
     card.setAttribute('data-id', docId);
 
-    // --- 1. Lógica de Verificação e Gravadora ---
-    const verificadoStatus = String(docData.verificado || "").toLowerCase().trim();
-    const isVerified = verificadoStatus === "true";
-    const isSharkLabel = docData.gravadora?.toLowerCase() === 'shark';
+        const isSharkLabel = docData.gravadora?.toLowerCase() === 'shark';
 
     // --- 2. Lógica de Imagem ---
     let imgSrc = "/assets/artistpfp.png"; // Fallback padrão
@@ -1914,12 +1959,6 @@ function createArtistCard(docData, docId) {
         imgSrc = docData.foto;
     }
 
-    // --- 3. Construção dos Badges HTML ---
-    const badgeVerificado = isVerified ? 
-        `<img src="/assets/verificado.png" style="width: 14px; margin-left: 4px; display: inline-block; vertical-align: middle;" alt="Verificado">` : '';
-    
-    const badgeShark = isSharkLabel ? 
-        `<img src="assets/sharklabel.png" style="width: 14px; margin-left: 4px; display: inline-block; vertical-align: middle;" alt="Shark Label">` : '';
 
     card.innerHTML = `
         <div class="relative mx-auto w-24 h-24">
@@ -1927,7 +1966,7 @@ function createArtistCard(docData, docId) {
                  class="w-24 h-24 rounded-full object-cover shadow-md">
         </div>
         <p class="text-white text-[11px] font-bold truncate mt-3 px-1">
-            <span>${docData.nomeArtistico || "Artista"}</span>${badgeVerificado}${badgeShark}
+            <span>${docData.nomeArtistico || "Artista"}</span>
         </p>
     `;
 

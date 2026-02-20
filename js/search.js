@@ -2,7 +2,7 @@
 
 import { collection, getDocs, query, where, limit } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 // Se estão na mesma pasta (js/), use ./
-import { db } from './main.js';
+import { db } from './firebase-config.js';
 
 
 /**

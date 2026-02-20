@@ -1,6 +1,12 @@
 // Importa as funções da biblioteca do Firebase
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, 
+    doc, 
+    getDoc, 
+    setDoc, 
+    deleteDoc, 
+    updateDoc, 
+    increment } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
 // Importa as instâncias já configuradas do seu main.js
 // Use './main.js' se estiverem na mesma pasta ou '../main.js' se o player estiver em /js/
@@ -412,9 +418,7 @@ async function loadTrack(track) {
         if (elements.ytContainer)
             elements.ytContainer.classList.remove("hidden");
 
-        if (elements.fsPlayerCover)
-            elements.fsPlayerCover.classList.add("hidden");
-
+        
         if (window.loadYoutubeVideo)
             window.loadYoutubeVideo(videoId);
 
@@ -664,23 +668,43 @@ window.loadYoutubeVideo = function(videoId) {
 };
 
 function onPlayerStateChange(event) {
-    console.log("🎬 Estado mudou:", event.data);
+    console.log("🎬 Estado YouTube:", event.data);
+    const elements = getPlayerElements();
+    
+    // Caminhos exatos dos seus ícones
+    const iconPlay = "./assets/Group.png";
+    const iconPause = "./assets/pause.fill.png";
 
-    if (event.data === 1) {
-        startYoutubeTracking();
-    } else {
+    // YT.PlayerState.PLAYING = 1
+    if (event.data === 1) { 
+        startYoutubeTracking(); // Inicia barra de progresso
+        
+        // Troca para ícone de PAUSE em todos os botões
+        if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPause;
+        if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPause;
+
+        // Regra dos 20 segundos:
+        clearTimeout(streamTimer);
+        streamTimer = setTimeout(() => {
+            // Verifica se ainda está tocando após os 20s
+            if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1) {
+                validarStreamOficial(currentTrack);
+            }
+        }, 20000); 
+    } 
+    // YT.PlayerState.PAUSED (2) ou OUTROS
+    else {
         stopYoutubeTracking();
+        clearTimeout(streamTimer); // Cancela a stream se pausar antes dos 20s
+
+        // Troca para ícone de PLAY em todos os botões
+        if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPlay;
+        if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPlay;
+
+        // Se a música acabou (0), pula para a próxima
+        if (event.data === 0) pularParaProxima();
     }
 }
-
-function pularParaProxima() {
-    if (playlistAtual.length > 0) {
-        // Incrementa o índice e volta ao zero se for o fim da lista
-        indiceAtual = (indiceAtual + 1) % playlistAtual.length;
-        loadTrack(playlistAtual[indiceAtual]); 
-    }
-}
-
 
 
 function updateInterfaceLabels(current, total) {
@@ -711,6 +735,35 @@ function updateInterfaceLabels(current, total) {
     if (miniTotal) miniTotal.textContent = totalTimeFormatted;
 }
 
+async function validarStreamOficial(track) {
+    if (!track || !track.id) return;
+
+    try {
+        const musicRef = doc(db, "musicas", track.id);
+        const snap = await getDoc(musicRef);
+
+        if (snap.exists()) {
+            const data = snap.data();
+            
+            // Se o campo streams não existir ou for 0
+            if (!data.streams || data.streams === 0) {
+                // Gera valor aleatório entre 50.000 e 200.000
+                const initialStreams = Math.floor(Math.random() * (200000 - 50000 + 1)) + 50000;
+                
+                await updateDoc(musicRef, { streams: initialStreams });
+                console.log(`🚀 Sucesso! Primeiro stream gerado: ${initialStreams}`);
+            } else {
+                // Se já tem valor, apenas incrementa +1
+                await updateDoc(musicRef, { 
+                    streams: increment(1) 
+                });
+                console.log("📈 +1 Stream adicionado.");
+            }
+        }
+    } catch (error) {
+        console.error("❌ Erro ao processar stream:", error);
+    }
+}
 
 function setupYoutubeAction() {
     const { fsPlayPauseBtn } = getPlayerElements();
@@ -750,30 +803,19 @@ function setupPlayerListeners() {
         musicPlayer, fsCloseButton, ytContainer, fsPlayerCover 
     } = elements;
 
-    // --- 1. BOTÃO PLAY/PAUSE (TELA CHEIA) ---
     if (fsPlayPauseBtn) {
-        fsPlayPauseBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+    fsPlayPauseBtn.onclick = (e) => {
+        e.preventDefault();
+        if (!window.ytPlayer || typeof window.ytPlayer.getPlayerState !== 'function') return;
 
-            if (!currentTrack) return;
-
-            // Se o Player do YouTube existir, alterna entre Play e Pause
-            if (window.ytPlayer && typeof window.ytPlayer.getPlayerState === 'function') {
-                const state = window.ytPlayer.getPlayerState();
-                if (state === 1) { // 1 = YT.PlayerState.PLAYING
-                    window.ytPlayer.pauseVideo();
-                    console.log("⏸️ YouTube Pausado");
-                } else {
-                    window.ytPlayer.playVideo();
-                    console.log("▶️ YouTube Reproduzindo");
-                }
-            } else {
-                // Caso o player ainda não tenha sido criado, tenta carregar
-                loadTrack(currentTrack);
-            }
-        };
-    }
+        const state = window.ytPlayer.getPlayerState();
+        if (state === YT.PlayerState.PLAYING) {
+            window.ytPlayer.pauseVideo();
+        } else {
+            window.ytPlayer.playVideo();
+        }
+    };
+}
 
     // --- 2. BOTÃO PLAY/PAUSE (MINI PLAYER) ---
     if (playBtn) {
