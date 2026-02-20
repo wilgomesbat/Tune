@@ -671,9 +671,9 @@ function onPlayerStateChange(event) {
     console.log("🎬 Estado YouTube:", event.data);
     const elements = getPlayerElements();
     
-    // Caminhos exatos dos seus ícones
-    const iconPlay = "./assets/Group.png";
-    const iconPause = "./assets/pause.fill.png";
+// Caminhos corrigidos para funcionar em qualquer página (iPhone e PC)
+const iconPlay = "/assets/Group.png";
+const iconPause = "/assets/pause.fill.png";
 
     // YT.PlayerState.PLAYING = 1
     if (event.data === 1) { 
