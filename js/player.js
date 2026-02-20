@@ -803,16 +803,26 @@ function setupPlayerListeners() {
         musicPlayer, fsCloseButton, ytContainer, fsPlayerCover 
     } = elements;
 
-    if (fsPlayPauseBtn) {
+// No player.js -> dentro de setupPlayerListeners
+if (fsPlayPauseBtn) {
     fsPlayPauseBtn.onclick = (e) => {
         e.preventDefault();
-        if (!window.ytPlayer || typeof window.ytPlayer.getPlayerState !== 'function') return;
+        
+        if (!currentTrack) return;
 
-        const state = window.ytPlayer.getPlayerState();
-        if (state === YT.PlayerState.PLAYING) {
-            window.ytPlayer.pauseVideo();
+        // Se o player existe, alterna o estado
+        if (window.ytPlayer && typeof window.ytPlayer.getPlayerState === 'function') {
+            const state = window.ytPlayer.getPlayerState();
+            if (state === 1) { // 1 = Tocando
+                window.ytPlayer.pauseVideo();
+            } else {
+                window.ytPlayer.playVideo();
+            }
         } else {
-            window.ytPlayer.playVideo();
+            // SE O VÍDEO NÃO CARREGOU: Forçamos o carregamento aqui
+            // O clique do usuário agora dá "permissão" para o som tocar
+            console.log("🚀 Primeiro clique detectado, carregando vídeo...");
+            loadTrack(currentTrack); 
         }
     };
 }

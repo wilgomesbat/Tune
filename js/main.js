@@ -14,15 +14,6 @@ import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.
 // Isso garante que todo o site use a mesma conexão
 import { db, auth } from './firebase-config.js';
 
-// Se você usa o Realtime Database, pode exportá-lo lá no config também e importar aqui:
-// import { rtdb } from './firebase-config.js';
-
-// --- REMOVA DAQUI: O firebaseConfig, o initializeApp e as const db/auth antigas ---
-
-// --- TORNAR AS FUNÇÕES GLOBAIS IMEDIATAMENTE ---
-
-// Chame a função quando o DOM estiver pronto
-document.addEventListener('DOMContentLoaded', initializeRouting);
 
 async function loadContent(pageName, id = null, shouldPushState = true) {
     const contentArea = document.getElementById('content-area');
@@ -105,9 +96,7 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
 }
 }
 
-
 window.loadContent = loadContent;
-window.navigateTo = navigateTo;
 
 // --- ROTEAMENTO CORRIGIDO ---
 function initializeRouting() {
@@ -140,6 +129,39 @@ function initializeRouting() {
         }
     }, 100);
 }
+
+onAuthStateChanged(auth, (user) => {
+    // 1. Detecta o caminho real. No Firebase, a home é "/"
+    const path = window.location.pathname;
+    
+    // Verifica se é a página de login/raiz de forma segura
+    const isAtLogin = path === "/" || path.includes("index.html") || path === "/index";
+
+    if (!user) {
+        console.warn("Usuário não logado.");
+
+        // SÓ redireciona se o usuário tentar acessar uma página interna (não raiz)
+        if (!isAtLogin) {
+            console.log("Proteção: Redirecionando para raiz");
+            window.location.href = "/"; 
+        }
+        return;
+    }
+
+    // --- USUÁRIO LOGADO ---
+    console.log("✅ Usuário autenticado:", user.uid);
+    window.currentUserUid = user.uid;
+
+    // Se estiver logado e na raiz, apenas carrega a home sem refresh
+    if (isAtLogin) {
+        window.loadContent('home', null, false);
+    } else {
+        // Se estiver em uma URL profunda (ex: /perfil), roda o roteador
+        initializeRouting();
+    }
+
+    verificarStatusArtista(user.uid);
+});
 
 // -------------------------------
 // ☁️ Cloudinary (UPLOAD FRONT)
@@ -222,38 +244,7 @@ function setupAddAlbumPage() {
     console.log("Iniciando setup de novo álbum...");
 }
 
-onAuthStateChanged(auth, (user) => {
-    // 1. Detecta o caminho real. No Firebase, a home é "/"
-    const path = window.location.pathname;
-    
-    // Verifica se é a página de login/raiz de forma segura
-    const isAtLogin = path === "/" || path.includes("index.html") || path === "/index";
 
-    if (!user) {
-        console.warn("Usuário não logado.");
-
-        // SÓ redireciona se o usuário tentar acessar uma página interna (não raiz)
-        if (!isAtLogin) {
-            console.log("Proteção: Redirecionando para raiz");
-            window.location.href = "/"; 
-        }
-        return;
-    }
-
-    // --- USUÁRIO LOGADO ---
-    console.log("✅ Usuário autenticado:", user.uid);
-    window.currentUserUid = user.uid;
-
-    // Se estiver logado e na raiz, apenas carrega a home sem refresh
-    if (isAtLogin) {
-        window.loadContent('home', null, false);
-    } else {
-        // Se estiver em uma URL profunda (ex: /perfil), roda o roteador
-        initializeRouting();
-    }
-
-    verificarStatusArtista(user.uid);
-});
 
 
 function handleInitialRoute() {
