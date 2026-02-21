@@ -544,12 +544,12 @@ li.innerHTML = `
         
 
 <button onclick="window.abrirModalEdicao('${id}', '${colecao}', '${titulo.replace(/'/g, "\\'")}')" 
-        class="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors" 
-        title="Editar">
-    <img src="../../assets/edit_document_24dp_000000_FILL0_wght400_GRAD0_opsz24.svg" 
-         style="width: 22px; height: 22px; display: block;" 
-         alt="Editar">
-</button>
+                class="p-2 hover:bg-blue-50 rounded-full transition-colors" 
+                title="Editar">
+            <span class="material-symbols-outlined">
+                edit_square
+            </span>
+        </button>
     </div>
 `;
         container.appendChild(li);
