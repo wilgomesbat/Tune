@@ -913,8 +913,8 @@ async function checkFollowStatus(artistUid) {
     const followIcon = document.querySelector('.btn-seguir img');
     if (followIcon) {
         followIcon.src = docSnap.exists() ? 
-            "assets/cancel_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg" : 
-            "assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+            "/assets/cancel_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg" : 
+            "/assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
     }
 }
 
