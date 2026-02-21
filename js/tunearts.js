@@ -547,7 +547,7 @@ li.innerHTML = `
         <button onclick="window.abrirModalEdicao('${id}', '${colecao}', '${titulo.replace(/'/g, "\\'")}')" 
                 class="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors" 
                 title="Editar">
-            <img src="../assets/edit_document_24dp_000000_FILL0_wght400_GRAD0_opsz24.svg">
+            <img src="/assets/edit_document_24dp_000000_FILL0_wght400_GRAD0_opsz24.svg">
         </button>
     </div>
 `;
