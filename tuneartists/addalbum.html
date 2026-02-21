@@ -210,12 +210,25 @@
                     </select>
                 </div>
 
-                <div class="notice-box">
-                    <p style="font-size: 10px; font-weight: 800; color: #000; margin-bottom: 5px;">PROCESSO DE ANÁLISE</p>
-                    <p style="font-size: 9px; color: #444; line-height: 1.4;">
-                        Diferente de singles, álbuns precisam ser validados. Após o envio, nossa equipe ira adicionar as faixas.
-                    </p>
-                </div>
+<div class="glass-panel" style="margin-top: 20px;">
+    <span class="label-noir">Importar Músicas</span>
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <input type="text" id="ytPlaylistUrl" placeholder="Link da Playlist do YouTube" class="input-noir">
+    </div>
+        <button type="button" id="btnPreviewTracks" class="btn-submit" style="width: auto; background: #000000; padding: 20 20px;">
+            Confirmar
+        </button>
+    </div>
+    
+    <div id="trackStatus" style="font-size: 10px; margin-bottom: 10px;"></div>
+
+    <div id="previewContainer" style="display: none;">
+        <div id="trackCardsGrid" style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+            </div>
+    </div>
+</div>
+
+                
 
                 <div style="margin-top: auto; padding-top: 20px;">
                     <button type="submit" id="btnSubmitAlbum" class="btn-submit">
