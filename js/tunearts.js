@@ -535,20 +535,21 @@ li.innerHTML = `
         <div>
             <h3 class="font-bold text-black">${titulo}</h3>
             <p class="text-xs text-gray-500 uppercase">${colecao === 'musicas' ? 'Single' : 'Álbum'}</p>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded ${isArquivado ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}">
-                ${status}
-            </span>
+
         </div>
     </div>
 
     <div class="flex space-x-2">
         ${isArquivado ? `<button onclick="window.publicarItem('${id}', '${colecao}')" class="p-2 text-green-600 hover:bg-green-50 rounded-full"><i class="fas fa-check"></i></button>` : ''}
         
-        <button onclick="window.abrirModalEdicao('${id}', '${colecao}', '${titulo.replace(/'/g, "\\'")}')" 
-                class="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors" 
-                title="Editar">
-            <img src="/assets/edit_document_24dp_000000_FILL0_wght400_GRAD0_opsz24.svg">
-        </button>
+
+<button onclick="window.abrirModalEdicao('${id}', '${colecao}', '${titulo.replace(/'/g, "\\'")}')" 
+        class="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors" 
+        title="Editar">
+    <img src="../../assets/edit_document_24dp_000000_FILL0_wght400_GRAD0_opsz24.svg" 
+         style="width: 22px; height: 22px; display: block;" 
+         alt="Editar">
+</button>
     </div>
 `;
         container.appendChild(li);
