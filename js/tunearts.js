@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { 
     getFirestore, collection, doc, getDoc, updateDoc, setDoc, 
-    query, where, onSnapshot, orderBy, getDocs, limit, 
+    query, where, writeBatch, onSnapshot, orderBy, getDocs, limit, 
     addDoc, deleteDoc, serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js"; 
@@ -396,6 +396,88 @@ export async function listarGerenciamentoLancamentos() {
     }
 }
 
+window.abrirModalEdicao = async function(id, colecao, tituloAtual) {
+    const modal = document.getElementById('modal-editar-lancamento');
+    const inputTitle = document.getElementById('edit-item-title-input');
+    const inputDate = document.getElementById('edit-item-date-input');
+    const inputGenre = document.getElementById('edit-item-genre-input');
+    const btnSalvar = document.getElementById('btn-salvar-edicao');
+    const btnExcluir = document.getElementById('btn-excluir-edicao');
+
+    // Abre o modal e limpa estados anteriores
+    modal.style.display = 'flex';
+    inputTitle.value = "Carregando...";
+
+    try {
+        // 1. Busca as informações atuais diretamente do Firebase
+        const docRef = doc(db, colecao, id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+
+            // 2. Preenche os campos com o que já existe no banco (Valores de Backup)
+            const valorOriginalTitulo = colecao === 'musicas' ? data.title : data.album;
+            const valorOriginalData = data.date || data.releaseDate || "";
+            const valorOriginalGenero = data.genre || "Sertanejo";
+
+            inputTitle.value = valorOriginalTitulo;
+            inputDate.value = valorOriginalData;
+            inputGenre.value = valorOriginalGenero;
+
+            // 3. Configura a ação de salvar
+            btnSalvar.onclick = async () => {
+                btnSalvar.disabled = true;
+                btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> SALVANDO...';
+
+                try {
+                    // Prepara o objeto de atualização com os valores dos inputs (mesmo se não mudarem)
+                    const novosDados = {
+                        genre: inputGenre.value,
+                        [colecao === 'musicas' ? 'title' : 'album']: inputTitle.value.trim()
+                    };
+
+                    // Mantém a consistência da data para a coleção correta
+                    if (colecao === 'musicas') {
+                        novosDados.releaseDate = inputDate.value;
+                    } else {
+                        novosDados.date = inputDate.value;
+                    }
+
+                    // Envia para o Firestore
+                    await updateDoc(docRef, novosDados);
+                    
+                    window.showToast("Lançamento atualizado com sucesso!");
+                    modal.style.display = 'none';
+                    
+                    // Atualiza a lista na tela para refletir os novos dados
+                    if (typeof listarGerenciamentoLancamentos === 'function') {
+                        listarGerenciamentoLancamentos();
+                    }
+
+                } catch (err) {
+                    console.error("Erro ao salvar edição:", err);
+                    window.showToast("Erro ao salvar.", "error");
+                } finally {
+                    btnSalvar.disabled = false;
+                    btnSalvar.innerHTML = "SALVAR ALTERAÇÕES";
+                }
+            };
+        }
+
+        // Configuração do botão de excluir dentro deste contexto
+        btnExcluir.onclick = () => {
+            modal.style.display = 'none';
+            window.showDeleteConfirm(id, inputTitle.value, colecao);
+        };
+
+    } catch (error) {
+        console.error("Erro ao carregar dados para edição:", error);
+        window.showToast("Erro ao carregar informações.", "error");
+        modal.style.display = 'none';
+    }
+};
+
 window.handleImagePreview = function(input) {
     const preview = document.getElementById('preview-img');
     if (input.files && input.files[0]) {
@@ -446,34 +528,29 @@ function renderizarCards(snapshot, colecao, container, loader) {
         const li = document.createElement('li');
         li.id = `item-${id}`;
         li.className = "bg-white border border-gray-200 p-4 rounded-xl flex items-center justify-between mb-3 shadow-sm";
-        li.innerHTML = `
-            <div class="flex items-center space-x-4">
-                <img src="${data.cover}" class="w-12 h-12 rounded-lg object-cover">
-                <div>
-                    <h3 class="font-bold text-black">${titulo}</h3>
-                    <p class="text-xs text-gray-500 uppercase">${colecao === 'musicas' ? 'Single' : 'Álbum'}</p>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded ${isArquivado ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}">
-                        ${status}
-                    </span>
-                </div>
-            </div>
+        // Dentro da função renderizarCards no seu tunearts.js
+li.innerHTML = `
+    <div class="flex items-center space-x-4">
+        <img src="${data.cover}" class="w-12 h-12 rounded-lg object-cover">
+        <div>
+            <h3 class="font-bold text-black">${titulo}</h3>
+            <p class="text-xs text-gray-500 uppercase">${colecao === 'musicas' ? 'Single' : 'Álbum'}</p>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded ${isArquivado ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}">
+                ${status}
+            </span>
+        </div>
+    </div>
 
-<div class="flex space-x-2">
-    ${isArquivado ? `<button onclick="window.publicarItem('${id}', '${colecao}')" class="p-2 text-green-600 hover:bg-green-50 rounded-full"><i class="fas fa-check"></i></button>` : ''}
-    
-    <button onclick="window.showDeleteConfirm('${id}', '${titulo.replace(/'/g, "\\'")}', '${colecao}')" 
-            class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors" 
-            title="Excluir">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 6h18"></path>
-            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-            <line x1="10" y1="11" x2="10" y2="17"></line>
-            <line x1="14" y1="11" x2="14" y2="17"></line>
-        </svg>
-    </button>
-</div>
-        `;
+    <div class="flex space-x-2">
+        ${isArquivado ? `<button onclick="window.publicarItem('${id}', '${colecao}')" class="p-2 text-green-600 hover:bg-green-50 rounded-full"><i class="fas fa-check"></i></button>` : ''}
+        
+        <button onclick="window.abrirModalEdicao('${id}', '${colecao}', '${titulo.replace(/'/g, "\\'")}')" 
+                class="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors" 
+                title="Editar">
+            <img src="../assets/edit_document_24dp_000000_FILL0_wght400_GRAD0_opsz24.svg">
+        </button>
+    </div>
+`;
         container.appendChild(li);
     });
 }
@@ -666,6 +743,89 @@ async function compressImage(file, maxWidth = 500, maxHeight = 500) {
     });
 }
 
+// Delegação de Eventos: Ouve cliques em todo o documento
+document.addEventListener('click', async (e) => {
+    // Verifica se o elemento clicado é o botão de confirmar playlist
+    if (e.target && e.target.id === 'btnPreviewTracks') {
+        const urlInput = document.getElementById("ytPlaylistUrl");
+        const grid = document.getElementById("trackCardsGrid");
+        const status = document.getElementById("trackStatus");
+        const container = document.getElementById("previewContainer");
+        const YT_API_KEY = 'AIzaSyCTy9IM54bO4CQudHJgnO_YNUSBtPrMzlU';
+
+        const url = urlInput.value.trim();
+        const playlistId = url.match(/[&?]list=([^&]+)/i)?.[1];
+
+        if (!playlistId) {
+            alert("Por favor, cole um link de playlist válido.");
+            return;
+        }
+
+        try {
+            status.innerHTML = "⏳ Buscando músicas...";
+            
+            // Certifique-se que YT_API_KEY esteja disponível globalmente
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}`);
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error.message);
+
+            grid.innerHTML = "";
+            container.style.display = "block";
+
+            data.items.forEach((item, index) => {
+                const videoTitle = item.snippet.title;
+                const videoId = item.snippet.resourceId.videoId;
+
+                const card = document.createElement("div");
+                card.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #f4f4f4; border: 1px solid #ddd; border-radius: 10px; padding: 10px 15px; margin-bottom: 8px;";
+
+                card.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                        <span style="font-weight: bold; color: #888; font-size: 12px;">${index + 1}</span>
+                        <input type="text" class="track-title-input" 
+                               data-videoid="${videoId}" 
+                               value="${videoTitle}" 
+                               readonly
+                               style="background: transparent; border: none; color: #000; width: 100%; outline: none; font-size: 13px; font-family: inherit;">
+                    </div>
+                    <button type="button" class="btn-edit-track" style="background: none; border: none; cursor: pointer; color: #000; padding: 5px;">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+
+            status.innerHTML = `<span style="color: green; font-weight: bold;">✅ ${data.items.length} músicas prontas!</span>`;
+
+        } catch (err) {
+            console.error("Erro na importação:", err);
+            status.innerHTML = `<span style="color: red;">❌ Erro: ${err.message}</span>`;
+        }
+    }
+
+    // Lógica para o botão de Editar (Lápis) usando a mesma técnica
+    if (e.target && (e.target.classList.contains('btn-edit-track') || e.target.closest('.btn-edit-track'))) {
+        const btn = e.target.classList.contains('btn-edit-track') ? e.target : e.target.closest('.btn-edit-track');
+        const input = btn.parentElement.querySelector('.track-title-input');
+        const icon = btn.querySelector('i');
+        
+        if (input.readOnly) {
+            input.readOnly = false;
+            input.focus();
+            input.style.background = "#fff";
+            input.style.border = "1px solid #ccc";
+            icon.classList.replace('fa-pencil-alt', 'fa-check');
+            icon.style.color = "green";
+        } else {
+            input.readOnly = true;
+            input.style.background = "transparent";
+            input.style.border = "none";
+            icon.classList.replace('fa-check', 'fa-pencil-alt');
+            icon.style.color = "#000";
+        }
+    }
+});
 // ============================================
 // 2. FUNÇÃO DE SUBMISSÃO PRINCIPAL
 // ============================================
@@ -802,85 +962,83 @@ window.showToast("Lançamento configurado!", "success");
 
 window.handleAlbumSubmission = async (e) => {
     e.preventDefault();
-    
     const btn = document.getElementById('btnSubmitAlbum');
-    if (!currentUser) {
-        window.showToast("Erro: Usuário não autenticado.", "error");
-        return;
-    }
+    
+    if (!currentUser) return window.showToast("Usuário não logado", "error");
 
-    const albumTitle = document.getElementById('albumName').value.trim();
-    const albumOriginal = document.getElementById('albumOriginal').value.trim();
-    const durationValue = document.getElementById('duration').value.trim();
-    const releaseDate = document.getElementById('releaseDate').value;
-    const coverFileInput = document.getElementById('relCoverAlbum');
-
-    if (!albumTitle || !releaseDate || !coverFileInput.files[0]) {
-        window.showToast("Preencha os campos obrigatórios e a capa!", "error");
-        return;
-    }
+    const trackInputs = document.querySelectorAll('.track-title-input');
+    if (trackInputs.length === 0) return window.showToast("Importe as músicas!", "error");
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO...';
+    btn.innerHTML = 'ENVIANDO...';
 
     try {
-        let nomeDoArtista = "N/A";
-        const userDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
-        if (userDoc.exists()) {
-            nomeDoArtista = userDoc.data().nomeArtistico || userDoc.data().nome || "N/A";
-        }
+        // --- AQUI ESTÁ A CORREÇÃO ---
+        // Se writeBatch(db) falhar, o erro aparecerá aqui
+        const batch = writeBatch(db); 
 
-        // --- MELHORIA AQUI: Compressão antes do envio ---
+        // 1. Upload da Capa
+        const coverFileInput = document.getElementById('relCoverAlbum');
         const originalFile = coverFileInput.files[0];
-        const compressedBlob = await compressImage(originalFile, 600, 600); // Garante 600x600 via Canvas
-
-        const formData = new FormData();
-        formData.append("file", compressedBlob); // Enviando o blob processado
-        formData.append("upload_preset", UPLOAD_PRESET);
-        formData.append("folder", `tune/albums/${currentUser.uid}`);
+        const compressedBlob = await compressImage(originalFile, 600, 600); 
         
-        // Removido width/height/crop daqui para evitar erro 400 no Cloudinary
+        const formData = new FormData();
+        formData.append("file", compressedBlob);
+        formData.append("upload_preset", UPLOAD_PRESET);
         
         const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-            method: "POST",
-            body: formData
+            method: "POST", body: formData
         });
-
         const uploadData = await uploadRes.json();
+        const coverUrl = uploadData.secure_url;
 
-        // Verificação detalhada do erro
-        if (!uploadData.secure_url) {
-            console.error("Detalhes do erro Cloudinary:", uploadData);
-            throw new Error(uploadData.error?.message || "Erro no upload da imagem");
-        }
+        // 2. Criar Álbum
+        const albumRef = doc(collection(db, "albuns"));
+        const artistDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
+        const artistName = artistDoc.exists() ? (artistDoc.data().nomeArtistico || artistDoc.data().nome) : "N/A";
 
-        await addDoc(collection(db, "albuns"), {
-            album: albumTitle,
-            artist: nomeDoArtista,
-            country: "N/A",
-            cover: uploadData.secure_url,
-            date: releaseDate,
-            duration: durationValue,
-            label: "N/A",
+        batch.set(albumRef, {
+            album: document.getElementById('albumName').value.trim(),
+            artist: artistName,
+            cover: coverUrl,
+            date: document.getElementById('releaseDate').value,
+            duration: document.getElementById('duration').value,
+            genre: document.getElementById("genre").value,
             uidars: currentUser.uid,
             status: "Em Revisão",
-            album_original_ref: albumOriginal
+            timestamp: new Date().toISOString()
         });
 
+        // 3. Criar Músicas
+        trackInputs.forEach((input, index) => {
+            const musicRef = doc(collection(db, "musicas"));
+            batch.set(musicRef, {
+                album: albumRef.id,
+                artist: currentUser.uid,
+                artistName: artistName,
+                audioURL: input.dataset.videoid,
+                cover: coverUrl,
+                genre: document.getElementById("genre").value,
+                title: input.value.trim(),
+                trackNumber: index + 1,
+                status: "Em Revisão",
+                streams: 0
+            });
+        });
+
+        // Finalizar
+        await batch.commit();
         window.showToast("Álbum enviado com sucesso!", "success");
-        
-        setTimeout(() => { 
-            if (typeof loadContent === 'function') loadContent('releases'); 
-        }, 1500);
+        setTimeout(() => location.reload(), 2000);
 
     } catch (err) {
-        console.error("Erro completo:", err);
-        window.showToast("Erro: " + err.message, "error");
+        console.error("Erro detalhado:", err);
+        // Se o erro for "writeBatch is not defined", precisamos importar ele no topo do arquivo
+        window.showToast("Erro técnico: " + err.message, "error");
         btn.disabled = false;
         btn.innerHTML = 'Enviar';
     }
 };
-
 // ============================================
 // ⭐ DASHBOARD E AUXILIARES ⭐
 // ============================================
