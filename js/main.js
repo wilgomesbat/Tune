@@ -1721,6 +1721,11 @@ async function setupAlbumPage(albumId) {
             };
         }
 
+        const backBtn = document.getElementById('btn-back-album');
+    if (backBtn) {
+        backBtn.onclick = () => window.history.back();
+    }
+
         // 5. Cores Dinâmicas (Color Thief)
         elements.cover.onload = () => {
             try {
@@ -1771,18 +1776,19 @@ async function setupAlbumPage(albumId) {
         renderAlbumTracksAppleStyle(tracks, isLocked);
 
         // 8. Configuração do Botão Play
+// 8. Configuração do Botão Play
 if (!isLocked && elements.playBtn && tracks.length) {
-    elements.playBtn.style.opacity = "1";
-    elements.playBtn.style.cursor = "pointer"; // Garante o cursor de clique
-    
     elements.playBtn.onclick = () => {
-         carregarFila(tracks, 0);
-        console.log("🚀 TUNE: Iniciando via import direto");
-       window.carregarFila(tracks, 0);
+        console.log("🚀 TUNE: Iniciando Álbum via rota confirmada");
+        
+        // Se a playlist funciona com playTrackGlobal, vamos usar ela aqui também
+        // Ou carregarFila se você quiser que o player saiba as próximas músicas
+        if (window.carregarFila) {
+            window.carregarFila(tracks, 0);
+        } else if (window.playTrackGlobal) {
+            window.playTrackGlobal(tracks[0]);
+        }
     };
-} else if (isLocked && elements.playBtn) {
-    elements.playBtn.style.opacity = "0.4";
-    elements.playBtn.style.cursor = "not-allowed";
 }
 
     } catch (err) {
@@ -1798,59 +1804,58 @@ if (!isLocked && elements.playBtn && tracks.length) {
 async function renderAlbumTracksAppleStyle(tracks, isLocked) {
     const container = document.getElementById('tracks-container');
     if (!container) return;
+    container.innerHTML = ""; // Limpa antes de renderizar
 
-    // Gerar o HTML
-    container.innerHTML = tracks.map((track, index) => {
-        const stateClass = isLocked ? "opacity-30 cursor-default" : "active:bg-white/10 cursor-pointer group";
+    tracks.forEach((track, index) => {
+        const trackRow = document.createElement("div");
+        const stateClass = isLocked ? "opacity-30 cursor-default" : "hover:bg-white/10 cursor-pointer group";
         
-        return `
-            <div class="track-row ${stateClass}" data-index="${index}" data-id="${track.id}">
-                <span class="track-number">${index + 1}</span>
-                <div class="flex-1 min-w-0">
-                    <div class="track-title truncate">${track.title}</div>
-                    <div class="track-artist truncate">${track.artistName || 'Artista'}</div>
-                </div>
-                
-                <div class="flex items-center gap-3 ml-auto pr-2">
-                    <button class="track-like-btn p-2 outline-none">
-                        <img src="/assets/star_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" 
-                             class="star-icon w-[20px] transition-all duration-200" 
-                             style="opacity: 0.2;">
-                    </button>
-                    
-                </div>
+        trackRow.className = `track-row flex items-center p-3 rounded-lg transition ${stateClass}`;
+        
+        trackRow.innerHTML = `
+            <span class="track-number w-10 text-gray-500">${index + 1}</span>
+            <div class="flex-1 min-w-0">
+                <div class="track-title truncate font-bold text-white">${track.title}</div>
+                <div class="track-artist truncate text-gray-400 text-sm">${track.artistName || 'Artista'}</div>
+            </div>
+            <div class="flex items-center gap-3 ml-auto">
+                <button class="track-like-btn p-2 opacity-0 group-hover:opacity-100 transition">
+                    <img src="/assets/star_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="w-5" style="opacity: 0.2;">
+                </button>
             </div>
         `;
-    }).join('');
 
-    // Configurar Eventos e Sincronização
-    const rows = container.querySelectorAll('.track-row');
-    rows.forEach(row => {
-        const index = row.dataset.index;
-        const track = tracks[index];
-        const likeBtn = row.querySelector('.track-like-btn');
-
-        // 1. Verifica se já está curtido no carregamento
-        if (currentUserUid && track.id) {
-            checkAndSetLikeState('music', track.id, likeBtn);
-        }
-
+        // Lógica de clique para tocar (Igual à Playlist)
         if (!isLocked) {
-            // 2. Clique no Like (Estrela)
-            likeBtn.onclick = (e) => {
-                e.stopPropagation(); // Impede de dar Play
-                toggleLikeMusic(track, likeBtn);
-            };
-
-            // 3. Clique na Linha (Play)
-           // 3. Clique na Linha (Play)
-row.onclick = (e) => {
+            // Dentro do renderAlbumTracksAppleStyle...
+// Dentro do renderAlbumTracksAppleStyle no main.js
+trackRow.onclick = (e) => {
+    // 1. Ignora se clicar no botão de like
     if (e.target.closest('.track-like-btn')) return;
+    
+    // 2. PARA o evento aqui para não subir para o pai (importantíssimo!)
+    e.preventDefault();
+    e.stopPropagation();
 
-    console.log("🎵 Reproduzindo faixa selecionada");
-    loadTrack(track); // Chama a função importada diretamente
+    console.log("🎵 Preparando reprodução estável:", track.title);
+    
+    if (window.playTrackGlobal) {
+        window.playTrackGlobal(track);
+    }
 };
+
+            // Evento do Like
+            const likeBtn = trackRow.querySelector('.track-like-btn');
+            if (likeBtn && window.currentUserUid) {
+                checkAndSetLikeState('music', track.id, likeBtn);
+                likeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleLikeMusic(track, likeBtn);
+                };
+            }
         }
+
+        container.appendChild(trackRow);
     });
 }
 
@@ -3671,37 +3676,6 @@ const navLinks = document.querySelectorAll('#latNav .nav-link, #mobile-nav-bar .
     
 });
 
-
-
-
-// album.js
-function playTrack(track) {
-    // Salva a música no localStorage
-    localStorage.setItem("currentTrack", JSON.stringify(track));
-    // Redireciona para a página do player
-    window.location.href = "menu.html";
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-    const savedTrack = JSON.parse(localStorage.getItem('currentTrack'));
-    if(savedTrack) {
-        playTrackGlobal(savedTrack);
-    }
-});
-
-
-function playTrackGlobal(track) {
-    const playerAudio = document.getElementById("player-audio");
-    const playerCover = document.getElementById("player-cover");
-    const playerTitle = document.getElementById("player-title");
-    const playerArtist = document.getElementById("player-artist");
-
-    playerAudio.src = track.audioUrl;
-    playerCover.src = track.cover;
-    playerTitle.textContent = track.title;
-    playerArtist.textContent = track.artist;
-    playerAudio.play();
-}
 
 // Add mouse movement interactivity to glass button
 document.addEventListener('DOMContentLoaded', function() {

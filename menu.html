@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TUNE</title>
+    <meta http-equiv="Permissions-Policy" content="compute-pressure=()">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css"
         crossorigin="anonymous">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -590,15 +591,15 @@ document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', handleNavigation);
 });
 
-// Inicializa o roteamento ao carregar a página
 function initializeRouting() {
     const pathname = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
 
-    let page = 'home';
+    let page = 'home'; // Padrão
     let id = null;
 
-    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "index.html");
+    // Remove a barra inicial e divide o caminho
+    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "index.html" && p !== "menu.html");
 
     if (pathParts.length > 0) {
         page = pathParts[0]; 
@@ -608,22 +609,38 @@ function initializeRouting() {
         id = urlParams.get('id');
     }
 
+    // Limpeza de extensões e valores nulos
     if (page.includes('.html')) page = page.replace('.html', '');
+    if (!page || page === 'null' || page === 'undefined') page = 'home';
+
+    console.log(`🚀 Roteamento inicial fixado: [${page}]`);
     
-    loadContent(page, id, false); // false para não duplicar o histórico inicial
+    // Use window.loadContent para garantir acesso ao escopo global
+    if (typeof window.loadContent === 'function') {
+        window.loadContent(page, id, false); 
+    }
     updateActiveNavLink(page);
 }
 
-// ESCUTA O BOTÃO VOLTAR/AVANÇAR
 window.addEventListener('popstate', (e) => {
+    // Se houver um estado salvo (navegação interna)
     if (e.state && e.state.page) {
         console.log("⬅️ Voltando para:", e.state.page);
-        loadContent(e.state.page, e.state.id, false);
+        window.loadContent(e.state.page, e.state.id, false);
         updateActiveNavLink(e.state.page);
-    } else {
+    } 
+    // Se não houver estado (voltou para a URL limpa /)
+    else {
+        console.log("🏠 Voltando para a raiz");
         initializeRouting();
     }
 });
+
+function updateBrowserHistory(page, id) {
+    const url = id ? `/${page}/${id}` : `/${page}`;
+    // Adiciona a barra inicial "/" para que o histórico seja absoluto
+    window.history.pushState({ page, id }, '', url);
+}
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -676,10 +693,7 @@ function toggleSidebar() {
     <div class="fs-player-cover-container">
         <img id="fs-player-cover" src="" alt="Capa">
         
-        <div id="youtube-embed-container" class="hidden">
-            <div id="youtube-player"></div>
-            <iframe id="youtube-iframe" width="100%" height="100%" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-        </div>
+
     </div>
 
     <div class="fs-main-content">
@@ -767,18 +781,14 @@ function toggleSidebar() {
     </div>
 </div>
 
+        <div id="youtube-embed-container" style="position: absolute; width: 1px; height: 1px; top: -1000px; opacity: 0;">
+    <div id="youtube-player"></div> 
+    </div>
 
 
+<script type="module" src="/js/main.js"></script>
+<script type="module" src="/js/player.js"></script>
+<script type="module" src="/js/iflog.js"></script>
 
-<script type="module" src="./js/main.js"></script>
-    
-    <script type="module" src="./js/iflog.js"></script>
-    
-
-    <div id="full-screen-player" class="hidden">
-        </div>
 </body>
-
-
-
 </html>

@@ -335,31 +335,24 @@ function stopYoutubeTracking() {
 }
 
 function startYoutubeTracking() {
-    stopYoutubeTracking();
+    if (window.trackingInterval) clearInterval(window.trackingInterval);
 
-    console.log("⏱️ Iniciando rastreio real...");
+    window.trackingInterval = setInterval(() => {
+        // Busca o ID toda vez para garantir que pegamos o elemento da página atual
+        const progressFill = document.getElementById("progress-fill"); 
+        
+        if (window.ytPlayer && typeof window.ytPlayer.getCurrentTime === 'function') {
+            const current = window.ytPlayer.getCurrentTime();
+            const total = window.ytPlayer.getDuration();
 
-    ytProgressInterval = setInterval(() => {
-
-        if (
-            !window.ytPlayer ||
-            typeof window.ytPlayer.getPlayerState !== "function" ||
-            typeof window.ytPlayer.getCurrentTime !== "function"
-        ) {
-            return;
+            if (total > 0 && progressFill) {
+                const percent = (current / total) * 100;
+                progressFill.style.width = `${percent}%`; // Move a barra
+                
+                // Atualiza os textos de tempo (0:00)
+                updateInterfaceLabels(current, total); 
+            }
         }
-
-        const state = window.ytPlayer.getPlayerState();
-
-        if (state !== 1) return; // 1 = PLAYING
-
-        const currentTime = window.ytPlayer.getCurrentTime();
-        const duration = window.ytPlayer.getDuration();
-
-        if (duration > 0) {
-            updateInterfaceLabels(currentTime, duration);
-        }
-
     }, 1000);
 }
 async function loadTrack(track) {
@@ -625,84 +618,104 @@ window.onYouTubeIframeAPIReady = function() {
     console.log("✅ API do YouTube pronta.");
 };
 
-window.loadYoutubeVideo = function(videoId) {
+// --- 1. DEFINIÇÃO NO TOPO (Escopo do Módulo) ---
+function obterApenasID(url) {
+    if (!url) return null;
+    if (url.length === 11 && !url.includes('/')) return url;
+
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[7].length === 11) ? match[7] : url;
+}
+
+window.loadYoutubeVideo = function(urlRecebida) {
+    const videoId = obterApenasID(urlRecebida);
     if (!videoId) return;
 
-    const container = document.getElementById("youtube-player");
-    if (!container) {
-        console.error("❌ #youtube-player não encontrado no HTML");
-        return;
-    }
-
-    // Se já existe player, só troca vídeo
     if (window.ytPlayer && typeof window.ytPlayer.loadVideoById === 'function') {
-        window.ytPlayer.loadVideoById(videoId);
+        // MUITO IMPORTANTE: Limpar o estado antes de carregar o novo
+        window.ytPlayer.stopVideo();
+        
+        // Em vez de load, usamos CUE para preparar o buffer sem pressa
+        window.ytPlayer.cueVideoById(videoId);
+        
+        // Damos 200ms para o navegador processar o fechamento do Full Screen
+        setTimeout(() => {
+            if (window.ytPlayer.getPlayerState() !== 1) {
+                window.ytPlayer.playVideo();
+            }
+        }, 200);
         return;
     }
 
-    // Se YT API ainda não carregou
-    if (typeof YT === "undefined" || typeof YT.Player === "undefined") {
-        console.warn("⏳ API do YouTube ainda não carregou");
-        return;
+   window.ytPlayer = new YT.Player("youtube-player", {
+    videoId: videoId,
+    host: 'https://www.youtube.com', // 👈 Adicione isso aqui!
+    playerVars: {
+        autoplay: 1,
+        controls: 0,
+        origin: window.location.origin,
+        enablejsapi: 1,
+        playsinline: 1,
+        rel: 0 // Evita vídeos relacionados no fim
+    },
+    events: {
+        onReady: (e) => e.target.playVideo(),
+        onStateChange: onPlayerStateChange
     }
-
-    window.ytPlayer = new YT.Player("youtube-player", {
-        videoId: videoId,
-        width: "100%",
-        height: "100%",
-        playerVars: {
-            autoplay: 1,
-            controls: 0,
-            modestbranding: 1,
-            rel: 0,
-            playsinline: 1
-        },
-        events: {
-            onReady: (event) => {
-                event.target.playVideo();
-                console.log("▶️ YouTube pronto");
-            },
-            onStateChange: onPlayerStateChange
-        }
-    });
+});
 };
+
 
 function onPlayerStateChange(event) {
     console.log("🎬 Estado YouTube:", event.data);
     const elements = getPlayerElements();
     
-// Caminhos corrigidos para funcionar em qualquer página (iPhone e PC)
-const iconPlay = "/assets/Group.png";
-const iconPause = "/assets/pause.fill.png";
+    const iconPlay = "/assets/Group.png";
+    const iconPause = "/assets/pause.fill.png";
+
+if (event.data === 5 || event.data === -1) {
+    console.log("🚀 Gatilho de segurança: Forçando Play Mudo...");
+    event.target.mute(); // Muta para garantir que o navegador aceite o Play automático
+    event.target.playVideo();
+    
+    // Tenta desmutar logo em seguida
+    setTimeout(() => {
+        if (event.target.getPlayerState() === 1) {
+            event.target.unMute();
+            console.log("🔊 Áudio liberado com sucesso!");
+        }
+    }, 1000);
+}
 
     // YT.PlayerState.PLAYING = 1
     if (event.data === 1) { 
-        startYoutubeTracking(); // Inicia barra de progresso
+        startYoutubeTracking(); 
         
-        // Troca para ícone de PAUSE em todos os botões
         if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPause;
         if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPause;
 
-        // Regra dos 20 segundos:
-        clearTimeout(streamTimer);
-        streamTimer = setTimeout(() => {
-            // Verifica se ainda está tocando após os 20s
+        clearTimeout(window.streamTimer);
+        window.streamTimer = setTimeout(() => {
+            // Usamos window.ytPlayer e window.currentTrack para garantir escopo global
             if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1) {
-                validarStreamOficial(currentTrack);
+                validarStreamOficial(window.currentTrack);
             }
         }, 20000); 
     } 
-    // YT.PlayerState.PAUSED (2) ou OUTROS
     else {
-        stopYoutubeTracking();
-        clearTimeout(streamTimer); // Cancela a stream se pausar antes dos 20s
+        // Para o rastreio se não estiver tocando
+        if (typeof stopYoutubeTracking === 'function') stopYoutubeTracking();
+        clearTimeout(window.streamTimer);
 
-        // Troca para ícone de PLAY em todos os botões
         if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPlay;
         if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPlay;
 
-        // Se a música acabou (0), pula para a próxima
-        if (event.data === 0) pularParaProxima();
+        // Se a música acabou (0)
+        if (event.data === 0) {
+            console.log("⏭️ Fim da música, pulando...");
+            if (typeof window.pularParaProxima === 'function') window.pularParaProxima();
+        }
     }
 }
 
@@ -715,6 +728,16 @@ function updateInterfaceLabels(current, total) {
     if (total > 0) {
         percent = (current / total) * 100;
     }
+
+    const miniBar = document.getElementById("progress-fill");
+    const fullBar = document.getElementById("fs-player-bar-fill");
+    const timeCurrent = document.getElementById("current-time");
+
+
+    if (miniBar) miniBar.style.width = `${percent}%`;
+    if (fullBar) fullBar.style.width = `${percent}%`;
+    if (timeCurrent) timeCurrent.textContent = formatTime(current);
+
     
     // Formata o tempo
     const currentTimeFormatted = formatTime(current);
@@ -1272,3 +1295,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // No final do seu player.js
 export { loadTrack };
 
+// Garante que o roteador e as páginas de álbum enxerguem as funções
+window.loadTrack = loadTrack;
+window.carregarFila = carregarFila;
+window.obterApenasID = obterApenasID; // Opcional, mas ajuda no debug

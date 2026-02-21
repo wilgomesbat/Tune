@@ -1,20 +1,8 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { collection, getDocs, query, where, limit } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+// Se estão na mesma pasta (js/), use ./
+import { db } from './firebase-config.js';
 
-const firebaseConfig = {
-    apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
-    authDomain: "tune-8cafb.firebaseapp.com",
-    projectId: "tune-8cafb",
 
-    messagingSenderId: "599729070480",
-    appId: "1:599729070480:web:4b2a7d806a8b7732c39315"
-};
-
-const app = initializeApp(firebaseConfig);
-const LOGIN_URL = "index.html";
-const db = getFirestore(app);
-const auth = getAuth(app);
 
 // --- Elementos do DOM ---
 
