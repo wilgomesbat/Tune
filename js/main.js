@@ -821,23 +821,23 @@ async function loadTopSongs(artistUid) {
     } catch (e) { console.error("Erro Populares:", e); }
 }
 
-/**
- * FUNÇÃO PARA ÁLBUNS: Aplica a criação de cards e scroll
- */
 async function loadArtistAlbums(artistUid) {
     const container = document.getElementById('artist-albums-list');
     if (!container) return;
 
     try {
-        // Busca na coleção 'albuns' onde 'uidars' é o ID do artista
-        const q = query(collection(db, "albuns"), where("uidars", "==", artistUid));
+        // Ordenação adicionada: date (desc) para os mais recentes primeiro
+        const q = query(
+            collection(db, "albuns"), 
+            where("uidars", "==", artistUid),
+            orderBy("date", "desc") 
+        );
         const snap = await getDocs(q);
         
         container.innerHTML = '';
         
         snap.forEach((doc) => {
             const data = doc.data();
-            // Aplica a mesma estrutura do createAlbumCard do main.js
             const albumCard = document.createElement('div');
             albumCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
             albumCard.setAttribute('data-navigate', 'album');
@@ -855,7 +855,6 @@ async function loadArtistAlbums(artistUid) {
             container.appendChild(albumCard);
         });
 
-        // Aplica a função de scroll nos botões da seção
         if (typeof setupScrollButtons === 'function') {
             setupScrollButtons('albums-scroll-left', 'albums-scroll-right', 'artist-albums-list');
         }
@@ -863,31 +862,26 @@ async function loadArtistAlbums(artistUid) {
     } catch (e) { console.error("Erro Álbuns:", e); }
 }
 
-/**
- * FUNÇÃO PARA SINGLES: Aplica a lógica de Single e scroll
- */
 async function loadArtistSingles(artistUid) {
     const container = document.getElementById('artist-singles-list');
     if (!container) return;
 
     try {
-        // Busca na coleção 'musicas' onde 'artist' é o artista e 'single' é "true"
+        // Ordenação adicionada: timestamp (desc) para os lançamentos mais recentes
         const q = query(
             collection(db, "musicas"), 
             where("artist", "==", artistUid),
-            where("single", "==", "true")
+            where("single", "==", "true"),
+            orderBy("timestamp", "desc")
         );
         const snap = await getDocs(q);
 
         container.innerHTML = '';
         snap.forEach((doc) => {
             const data = doc.data();
-            // REGRA: O campo album deve ser "Single" para carregar aqui
             if (data.album === "Single") {
                 const singleCard = document.createElement('div');
                 singleCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
-                
-                // Clique para tocar a música diretamente
                 singleCard.onclick = () => playMusic(doc.id);
 
                 singleCard.innerHTML = `
@@ -906,7 +900,6 @@ async function loadArtistSingles(artistUid) {
             }
         });
 
-        // Aplica a função de scroll nos botões da seção
         if (typeof setupScrollButtons === 'function') {
             setupScrollButtons('singles-scroll-left', 'singles-scroll-right', 'artist-singles-list');
         }
@@ -2737,6 +2730,116 @@ async function loadMyLikedItems(userUid) {
     }
 }
 
+async function loadTrapSection() {
+    const listContainer = document.getElementById('trap-list'); // ID conforme seu HTML
+    if (!listContainer) return;
+
+    let trapContent = [];
+    let seenArtists = new Set(); // Garante variedade de artistas
+
+    try {
+        // 1. BUSCAR PLAYLISTS DE TRAP
+        const playlistsQuery = query(
+            collection(db, "playlists"), 
+            where('genres', 'array-contains', 'Trap'),
+            limit(10)
+        );
+        const playlistsSnap = await getDocs(playlistsQuery);
+        playlistsSnap.forEach(doc => {
+            trapContent.push({ id: doc.id, type: 'playlist', ...doc.data() });
+        });
+
+        // 2. BUSCAR ÁLBUNS DE TRAP (Usando o campo 'category')
+        const albumsQuery = query(
+            collection(db, "albuns"), 
+            where('category', '==', 'Trap'),
+            limit(10)
+        );
+        const albumsSnap = await getDocs(albumsQuery);
+        albumsSnap.forEach(doc => {
+            trapContent.push({ id: doc.id, type: 'album', ...doc.data() });
+        });
+
+        // 3. BUSCAR MÚSICAS DE TRAP (Uma por artista para não repetir)
+        const songsQuery = query(
+            collection(db, "musicas"), 
+            where('category', '==', 'Trap'), 
+            orderBy('timestamp', 'desc'), 
+            limit(40) 
+        );
+        const songsSnap = await getDocs(songsQuery);
+        
+        let songsAdded = 0;
+        songsSnap.forEach(doc => {
+            const songData = doc.data();
+            const artistId = songData.artist || songData.uidars;
+
+            if (!seenArtists.has(artistId) && songsAdded < 20) {
+                seenArtists.add(artistId);
+                trapContent.push({ id: doc.id, type: 'music', ...songData });
+                songsAdded++;
+            }
+        });
+
+        listContainer.innerHTML = '';
+
+        if (trapContent.length === 0) {
+            const section = listContainer.closest('.section');
+            if (section) section.style.display = 'none';
+            return;
+        }
+
+        // 4. RENDERIZAR OS CARDS USANDO SUAS FUNÇÕES GLOBAIS
+        trapContent.forEach(item => {
+            let card;
+            if (item.type === 'album') {
+                // Passa o objeto e o ID para evitar o erro de undefined
+                card = typeof createAlbumCard === 'function' ? createAlbumCard(item, item.id) : null;
+            } else if (item.type === 'playlist') {
+                card = typeof createPlaylistCard === 'function' ? createPlaylistCard(item, item.id) : null;
+            } else {
+                // Para músicas individuais, usa o criador de card de álbum como base
+                card = typeof createAlbumCard === 'function' ? createAlbumCard(item, item.id) : null;
+            }
+            
+            if (card) listContainer.appendChild(card);
+        });
+
+        // 5. CONFIGURAR SCROLL (SETAS)
+        if (typeof setupScrollButtons === 'function') {
+            setupScrollButtons('trap-scroll-left', 'trap-scroll-right', 'trap-list');
+        }
+
+    } catch (error) {
+        console.error("Erro ao carregar seção Trap unificada:", error);
+    }
+}
+function setupTrapScrollLogic() {
+    const listContainer = document.getElementById('trap-list');
+    const btnLeft = document.getElementById('trap-scroll-left');
+    const btnRight = document.getElementById('trap-scroll-right');
+    const wrapper = listContainer?.closest('.section-scroll');
+
+    if (!listContainer || !btnLeft || !btnRight) return;
+
+    const updateArrows = () => {
+        const scrollLeft = listContainer.scrollLeft;
+        const maxScroll = listContainer.scrollWidth - listContainer.clientWidth;
+        btnLeft.classList.toggle('hidden', scrollLeft <= 5);
+        btnRight.classList.toggle('hidden', scrollLeft >= maxScroll - 5);
+    };
+
+    wrapper.addEventListener('mouseenter', updateArrows);
+    wrapper.addEventListener('mouseleave', () => {
+        btnLeft.classList.add('hidden');
+        btnRight.classList.add('hidden');
+    });
+
+    listContainer.addEventListener('scroll', updateArrows);
+    btnLeft.onclick = () => listContainer.scrollBy({ left: -300, behavior: 'smooth' });
+    btnRight.onclick = () => listContainer.scrollBy({ left: 300, behavior: 'smooth' });
+}
+
 /**
  * CRIA O CARD RETANGULAR DA BIBLIOTECA (Capa Esquerda, Título Direita)
  * ⭐️ CORRIGIDO: Remove 'window.' da chamada loadContent para resolver o erro de TypeError.
@@ -3638,6 +3741,7 @@ async function setupHomePage() {
             setupForroGenreSection(),   
             setupPopSection(),
             setupFanArtistSection(),
+            
             loadHomeFavorites(),
             loadTopArtists()
         ]);
@@ -3645,6 +3749,7 @@ async function setupHomePage() {
         // 5. BLOCO 2: REMOVIDA A DUPLICATA DE ARTISTAS DAQUI
         Promise.all([
             loadTopStreamedPlaylists(),
+            loadTrapSection(),
             loadSertanejoSection(),
             setupLatinSection(),
             setupContentCarousel(

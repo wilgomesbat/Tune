@@ -1,13 +1,17 @@
 // Importa as funções da biblioteca do Firebase
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { getFirestore, 
+import { 
+    getFirestore, 
     doc, 
     getDoc, 
     setDoc, 
+    serverTimestamp,
     deleteDoc, 
     updateDoc, 
-    increment } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-
+    increment,
+    collection, // 👈 ADICIONE ESTE
+    addDoc      // 👈 ADICIONE ESTE
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 // Importa as instâncias já configuradas do seu main.js
 // Use './main.js' se estiverem na mesma pasta ou '../main.js' se o player estiver em /js/
 import { auth, db } from './firebase-config.js';
@@ -354,45 +358,44 @@ function startYoutubeTracking() {
             }
         }
     }, 1000);
-}
-async function loadTrack(track) {
+}async function loadTrack(track) {
     if (!track) return;
 
     const elements = getPlayerElements();
+    
+    // 1. Limpa timers anteriores para não bugar a contagem
     clearTimeout(streamTimer);
     stopYoutubeTracking();
-    currentTrack = track;
+    
+    // 2. Define a música atual globalmente
+    window.currentTrack = track; 
 
-    // === DEFINE PRIMEIRO ===
+    // 3. REGISTRA O LOG DE CLIQUE (Aqui o registro é imediato!)
+    // Mudei para 'play_start' para você saber que foi o momento do clique
+    registrarLog(track.title, 'play_start', track.id);
+
+    // === CONFIGURAÇÃO DE IMAGENS ===
     const coverUrl = track.cover || "assets/10.png";
 
     function safeSetImage(imgElement, url) {
         if (!imgElement) return;
-
-        imgElement.onerror = () => {
-            imgElement.src = "assets/10.png";
-        };
-
+        imgElement.onerror = () => { imgElement.src = "assets/10.png"; };
         imgElement.src = url;
     }
 
-    // Reset audio nativo
+    // Reset áudio nativo (HTML5)
     if (window.audio) {
         window.audio.pause();
         window.audio.src = "";
     }
 
-    // Interface básica
+    // Atualiza Interface
     if (elements.musicPlayer) elements.musicPlayer.classList.remove("hidden");
-
     safeSetImage(elements.miniPlayerCover, coverUrl);
     safeSetImage(elements.fsPlayerCover, coverUrl);
 
-    if (elements.playerTitle)
-        elements.playerTitle.textContent = track.title || "Sem título";
-
-    if (elements.fsPlayerTitle)
-        elements.fsPlayerTitle.textContent = track.title || "Sem título";
+    if (elements.playerTitle) elements.playerTitle.textContent = track.title || "Sem título";
+    if (elements.fsPlayerTitle) elements.fsPlayerTitle.textContent = track.title || "Sem título";
 
     // === EXTRAÇÃO ID YOUTUBE ===
     let videoId = "";
@@ -406,29 +409,26 @@ async function loadTrack(track) {
         videoId = url;
     }
 
-    // === CARREGA YOUTUBE ===
+    // === CARREGA E VALIDA STREAM ===
     if (videoId) {
-        if (elements.ytContainer)
-            elements.ytContainer.classList.remove("hidden");
+        if (elements.ytContainer) elements.ytContainer.classList.remove("hidden");
 
-        
-        if (window.loadYoutubeVideo)
-            window.loadYoutubeVideo(videoId);
+        if (window.loadYoutubeVideo) window.loadYoutubeVideo(videoId);
 
         startYoutubeTracking();
 
+        // Timer para validar o Stream e registrar que ouviu os 20s
         streamTimer = setTimeout(() => {
             if (typeof validarStreamOficial === "function") {
                 validarStreamOficial(track);
+                // REGISTRA O LOG DE SUCESSO (Após 20 segundos)
+                registrarLog(track.title, 'play_20s_valid', track.id);
             }
-        }, TIME_TO_STREAM);
+        }, 20000); // 20 segundos (ou sua variável TIME_TO_STREAM)
     }
 
-    // === ABRE PLAYER FULLSCREEN ===
-    if (
-        elements.fullScreenPlayer &&
-        elements.fullScreenPlayer.classList.contains("hidden")
-    ) {
+    // === INTERFACE E BACKGROUND ===
+    if (elements.fullScreenPlayer && elements.fullScreenPlayer.classList.contains("hidden")) {
         elements.fullScreenPlayer.classList.remove("hidden");
         document.body.classList.add("fs-active");
     }
@@ -699,6 +699,7 @@ if (event.data === 5 || event.data === -1) {
             // Usamos window.ytPlayer e window.currentTrack para garantir escopo global
             if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1) {
                 validarStreamOficial(window.currentTrack);
+                
             }
         }, 20000); 
     } 
@@ -757,34 +758,41 @@ function updateInterfaceLabels(current, total) {
     if (miniTotal) miniTotal.textContent = totalTimeFormatted;
 }
 
+// --- FUNÇÕES DE APOIO ---
+
 async function validarStreamOficial(track) {
     if (!track || !track.id) return;
-
     try {
         const musicRef = doc(db, "musicas", track.id);
         const snap = await getDoc(musicRef);
 
         if (snap.exists()) {
             const data = snap.data();
-            
-            // Se o campo streams não existir ou for 0
+            let updateData = { lastMonthlyStreamDate: serverTimestamp() };
+
             if (!data.streams || data.streams === 0) {
-                // Gera valor aleatório entre 50.000 e 200.000
-                const initialStreams = Math.floor(Math.random() * (200000 - 50000 + 1)) + 50000;
-                
-                await updateDoc(musicRef, { streams: initialStreams });
-                console.log(`🚀 Sucesso! Primeiro stream gerado: ${initialStreams}`);
+                updateData.streams = Math.floor(Math.random() * 100001) + 100000;
             } else {
-                // Se já tem valor, apenas incrementa +1
-                await updateDoc(musicRef, { 
-                    streams: increment(1) 
-                });
-                console.log("📈 +1 Stream adicionado.");
+                updateData.streams = increment(1);
             }
+            await updateDoc(musicRef, updateData);
         }
-    } catch (error) {
-        console.error("❌ Erro ao processar stream:", error);
-    }
+    } catch (e) { console.error("Erro Stream:", e); }
+}
+
+async function registrarLog(itemTitle, type, itemId) {
+    try {
+        const user = auth.currentUser;
+        await addDoc(collection(db, "logs_atividades"), {
+            userName: user ? (user.displayName || "Usuário Tune") : "Anônimo",
+            userId: user ? user.uid : "deslogado",
+            itemId: itemId || "N/A",
+            itemTitle: itemTitle,
+            type: type,
+            timestamp: serverTimestamp(),
+            device: navigator.userAgent.includes("iPhone") ? "iPhone" : "Desktop"
+        });
+    } catch (e) { console.error("Erro Log:", e); }
 }
 
 function setupYoutubeAction() {

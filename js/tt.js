@@ -1652,18 +1652,16 @@ if (cancelModalBtn) {
     cancelModalBtn.onclick = () => modal.classList.add('hidden');
 }
 }
-
 async function setupLogsPage() {
     const logsContainer = document.getElementById('logs-container');
     if (!logsContainer) return;
 
-    console.log("Monitorando logs e buscando apelidos...");
-    logsContainer.innerHTML = '<p class="text-gray-500 p-4 text-center">Carregando atividades...</p>';
+    logsContainer.innerHTML = '<p class="text-gray-500 p-4 text-center">Monitorando Tune em tempo real...</p>';
 
-    const logsRef = collection(db, "logs");
+    // Buscamos na coleção onde você está salvando (ajuste para "logs" ou "logs_atividades")
+    const logsRef = collection(db, "logs_atividades"); 
     const q = query(logsRef, orderBy("timestamp", "desc"), limit(50));
 
-    // Escuta os logs
     onSnapshot(q, (snapshot) => {
         logsContainer.innerHTML = ''; 
         
@@ -1671,48 +1669,63 @@ async function setupLogsPage() {
             const log = docSnap.data();
             const logId = docSnap.id;
             
-            // Criamos o elemento do log imediatamente com um "Carregando..." no nome
             const logItem = document.createElement('div');
             logItem.id = `log-${logId}`;
-            logItem.className = "flex items-center justify-between p-3 mb-2 bg-[#121212] rounded border-l-4 " + 
-                                (log.type === 'Música' ? 'border-green-500' : 'border-blue-500');
+            
+            // --- LÓGICA DE CORES POR TIPO ---
+            let borderColor = 'border-gray-500'; // Default
+            let icon = '📄';
+            let label = 'Ação';
 
-            // Formatação da hora
+            if (log.type === 'play_start') {
+                borderColor = 'border-blue-400';
+                icon = '🔘';
+                label = 'Clicou no Play';
+            } else if (log.type === 'play_20s_valid') {
+                borderColor = 'border-green-500';
+                icon = '✅';
+                label = 'Stream Validada';
+            } else if (log.type === 'album_view') {
+                borderColor = 'border-purple-500';
+                icon = '💿';
+                label = 'Viu Álbum';
+            }
+
+            logItem.className = `flex items-center justify-between p-3 mb-2 bg-[#121212] rounded border-l-4 ${borderColor} transition-all`;
+
             const timestamp = log.timestamp?.seconds ? new Date(log.timestamp.seconds * 1000) : new Date();
-            const hora = timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const hora = timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-            // HTML Inicial
             logItem.innerHTML = `
                 <div class="flex items-center gap-3">
-                    <span class="text-xl">${log.type === 'Música' ? '🎵' : '💿'}</span>
+                    <span class="text-xl">${icon}</span>
                     <div>
-                        <p class="text-white text-sm font-bold user-name-field">Buscando apelido...</p>
-                        <p class="text-gray-400 text-xs">Clicou em: <b class="text-gray-200">${log.itemTitle}</b></p>
+                        <p class="text-white text-sm font-bold user-name-field">Carregando...</p>
+                        <p class="text-gray-400 text-[11px]">${label}: <b class="text-gray-200">${log.itemTitle}</b></p>
+                        ${log.device ? `<p class="text-[9px] text-gray-600 uppercase mt-1">${log.device}</p>` : ''}
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-[10px] text-gray-600 font-mono mb-1">${log.userId || 'sem-id'}</p>
+                    <p class="text-[10px] text-gray-600 font-mono mb-1">${log.userId?.substring(0,8) || '---'}</p>
                     <span class="text-xs text-gray-500 font-mono">${hora}</span>
                 </div>
             `;
             logsContainer.appendChild(logItem);
 
-            // --- BUSCA O APELIDO PELA CHAVE UID ---
+            // --- BUSCA APELIDO ---
             if (log.userId && log.userId !== "deslogado") {
                 try {
                     const userRef = doc(db, "usuarios", log.userId);
                     const userSnap = await getDoc(userRef);
-                    
                     const nameField = logItem.querySelector('.user-name-field');
-                    if (userSnap.exists() && userSnap.data().apelido) {
-                        nameField.textContent = userSnap.data().apelido;
+                    
+                    if (userSnap.exists()) {
+                        const userData = userSnap.data();
+                        nameField.textContent = userData.apelido || userData.nome || log.userName;
                     } else {
-                        // Se não achar apelido, usa o nome que foi gravado no log originalmente
-                        nameField.textContent = log.userName || "Usuário desconhecido";
+                        nameField.textContent = log.userName || "Anônimo";
                     }
-                } catch (err) {
-                    console.error("Erro ao buscar apelido:", err);
-                }
+                } catch (err) { console.error(err); }
             } else {
                 logItem.querySelector('.user-name-field').textContent = "Visitante";
             }
