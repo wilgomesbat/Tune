@@ -676,8 +676,7 @@ function onPlayerStateChange(event) {
 
 if (event.data === 5 || event.data === -1) {
     console.log("🚀 Gatilho de segurança: Forçando Play Mudo...");
-    event.target.mute(); // Muta para garantir que o navegador aceite o Play automático
-    event.target.playVideo();
+        event.target.playVideo();
     
     // Tenta desmutar logo em seguida
     setTimeout(() => {
