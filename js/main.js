@@ -55,27 +55,39 @@ async function loadContent(pageName, id = null, shouldPushState = true) {
                 catch (e) { console.error(`Erro no setup de ${pageName}:`, e); }
             };
 
-            switch (pageName) {
-                case 'home':         safeSetup(setupHomePage); break;
-                case 'music':        safeSetup(setupMusicPage, id); break;
-                case 'album':        safeSetup(setupAlbumPage, id); break;
-                case 'artist':       safeSetup(setupArtistPage, id); break;
-                case 'playlist':     safeSetup(setupPlaylistPage, id); break;
-                case 'liked':        safeSetup(setupLikedPage); break;
-                case 'library':  
-                    safeSetup(setupLibraryPage, id); 
-                    if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
-                    break;
-                case 'loginartists': safeSetup(setupLoginartistsPage, id); break;
-                case 'banida':       console.warn("Usuário acessando tela de banimento."); break;
-                case 'search': 
-                    import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
-                    break;
-                default:
-                    console.warn(`Nenhum setup específico encontrado para: ${pageName}`);
-            }
+         // Dentro da sua função de navegação/load (provavelmente loadContent ou similar)
+switch (pageName) {
+    case 'home':         safeSetup(setupHomePage); break;
+    case 'music':        safeSetup(setupMusicPage, id); break;
+    case 'album':        safeSetup(setupAlbumPage, id); break;
+    case 'artist':       safeSetup(setupArtistPage, id); break;
+    case 'playlist':     safeSetup(setupPlaylistPage, id); break;
+    case 'liked':        safeSetup(setupLikedPage); break;
+    case 'library':  
+        safeSetup(setupLibraryPage, id); 
+        if (typeof checkAuthAndLoadLikedItems === 'function') checkAuthAndLoadLikedItems();
+        break;
+    case 'loginartists': safeSetup(setupLoginartistsPage, id); break;
+    case 'banida':       console.warn("Usuário acessando tela de banimento."); break;
+    case 'search': 
+        import('./search.js').then(m => m.setupSearchPage()).catch(e => console.error(e));
+        break;
 
-            if (window.currentUserUid) {
+   case 'artists': 
+    // Garante que o HTML já existe antes de tentar preencher o grid
+    setTimeout(() => {
+        if (typeof window.renderAllArtistsGrid === 'function') {
+            window.renderAllArtistsGrid();
+        }
+    }, 100); 
+    break;
+
+    default:
+        console.warn(`Nenhum setup específico encontrado para: ${pageName}`);
+}
+
+// Verificação de status do artista após o carregamento
+if (window.currentUserUid) {
     verificarStatusArtista(window.currentUserUid);
 }
 
@@ -1092,24 +1104,23 @@ async function toggleLike(type, itemId, buttonElement) {
         return;
     }
 
-    // Define o caminho correto baseado no tipo
-    const collectionPrefix = (type === 'music' || type === 'track') ? 'likedmusics' : 'likedalbuns';
-    const collectionPath = `${collectionPrefix}${currentUserUid}`;
-    const docRef = doc(db, collectionPath, itemId);
+    // --- MUDANÇA AQUI: Define o caminho como SUBCOLEÇÃO do usuário ---
+    // Estrutura: usuarios / {UID} / curtidas / {ITEM_ID}
+    const userCurtidasRef = collection(db, 'usuarios', currentUserUid, 'curtidas');
+    const docRef = doc(userCurtidasRef, itemId);
 
     try {
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) {
             // --- ADICIONAR CURTIDA ---
-            // Pegamos os dados da tela para o álbum ter capa e título na biblioteca
-            const title = document.getElementById('album-title-detail')?.textContent || 'Álbum';
+            const title = document.getElementById('album-title-detail')?.textContent || 'Título';
             const cover = document.getElementById('album-cover-detail')?.src || '';
 
             await setDoc(docRef, {
-                itemId: itemId, // Mantendo compatibilidade
-                id: itemId,     // Padrão que você usa
-                type: type,
+                itemId: itemId, 
+                id: itemId,     
+                type: (type === 'music' || type === 'track') ? 'music' : 'album',
                 title: title,
                 cover: cover,
                 timestamp: serverTimestamp()
@@ -1117,7 +1128,7 @@ async function toggleLike(type, itemId, buttonElement) {
 
             updateLikeButtonState(buttonElement, true);
             
-            if (type === 'music') {
+            if (type === 'music' || type === 'track') {
                 showToast('Adicionado a Músicas Curtidas.', 'like');
             } else {
                 showToast('Álbum adicionado à sua biblioteca.', 'like');
@@ -3275,69 +3286,127 @@ function createDefaultCard(item) {
     return div;
 }
 
+window.renderAllArtistsGrid = async function() {
+    const grid = document.getElementById('all-artists-grid');
+    const loader = document.getElementById('all-artists-loader');
+
+    if (!grid) return;
+
+    try {
+        const q = query(
+            collection(db, "usuarios"), 
+            where("artista", "==", "true"),
+            orderBy("nomeArtistico", "asc")
+        );
+
+        const querySnapshot = await getDocs(q);
+        grid.innerHTML = '';
+
+        // Foto padrão que usas no sistema
+        const fotoPadrao = './assets/artistpfp.png';
+
+        querySnapshot.forEach((docSnap) => {
+            const artist = docSnap.data();
+            const id = docSnap.id;
+            
+            // Verifica se a foto existe no banco, senão usa a padrão
+            const fotoArtista = artist.foto && artist.foto !== "" ? artist.foto : fotoPadrao;
+
+            const card = document.createElement('div');
+            card.className = 'artist-grid-card';
+            
+            // O segredo está no atributo 'onerror'
+            card.innerHTML = `
+                <img src="${fotoArtista}" 
+                     class="artist-grid-photo" 
+                     onerror="this.onerror=null; this.src='${fotoPadrao}';"
+                     alt="${artist.nomeArtistico || artist.nome}">
+                <span class="artist-grid-name">${artist.nomeArtistico || artist.nome}</span>
+            `;
+
+            card.onclick = () => {
+                if (typeof loadContent === 'function') {
+                    loadContent('artist', id); 
+                }
+            };
+
+            grid.appendChild(card);
+        });
+
+        if (loader) loader.style.display = 'none';
+
+    } catch (error) {
+        console.error("Erro ao carregar grid de artistas:", error);
+    }
+};
+
 async function loadHomeFavorites() {
     const grid = document.getElementById('favorites-grid');
     const container = document.getElementById('favorites-grid-container');
     
+    // currentUserUid deve estar definido globalmente no seu tunearts.js
     if (!currentUserUid || !grid) return;
 
     try {
-        const musicRef = collection(db, `likedmusics${currentUserUid}`);
-        const albumRef = collection(db, `likedalbuns${currentUserUid}`);
+        // Busca na subcoleção unificada dentro do documento do usuário
+        const favoritesRef = collection(db, 'usuarios', currentUserUid, 'curtidas');
         
-        const musicQuery = query(musicRef, orderBy("timestamp", "desc"), limit(3));
-        const albumQuery = query(albumRef, orderBy("timestamp", "desc"), limit(3));
+        // Ordena por data de curtida
+        const favQuery = query(favoritesRef, orderBy("timestamp", "desc"), limit(6));
+        const favSnap = await getDocs(favQuery);
 
-        const [musicSnap, albumSnap] = await Promise.all([
-            getDocs(musicQuery),
-            getDocs(albumQuery)
-        ]);
+        // Se estiver vazio, esconde o container e para
+        if (favSnap.empty) {
+            if (container) container.style.display = 'none';
+            return;
+        }
 
-        let favorites = [];
-        musicSnap.forEach(doc => favorites.push({ ...doc.data(), type: 'music', id: doc.id }));
-        albumSnap.forEach(doc => favorites.push({ ...doc.data(), type: 'album', id: doc.id }));
-
-        if (favorites.length === 0) return;
-
-        container.style.display = 'block';
+        let hasValidItems = false;
         grid.innerHTML = '';
 
-        favorites.forEach(item => {
+        favSnap.forEach(docSnap => {
+            const item = docSnap.data();
+            const itemId = docSnap.id;
+
+            // --- VALIDAÇÃO CRÍTICA ---
+            // Só renderiza se tiver título e capa. Se estiver undefined, ignora.
+            if (!item.title || !item.cover) {
+                
+                return; 
+            }
+
+            hasValidItems = true;
             const div = document.createElement('div');
             div.className = 'fav-item group';
-            const itemId = item.id || item.itemId;
 
             div.innerHTML = `
-                <img src="${item.cover || './assets/default-cover.png'}" class="fav-img">
+                <img src="${item.cover}" class="fav-img" onerror="this.src='./assets/default-cover.png'">
                 <div class="fav-text-container">
-                    <span class="fav-text">${item.title || item.album}</span>
+                    <span class="fav-text">${item.title}</span>
                 </div>
             `;
 
-            // --- LÓGICA DE NAVEGAÇÃO IGUAL AO BANNER ---
             div.onclick = () => {
                 const pageType = item.type === 'music' ? 'music' : 'album';
-                
-                console.log(`Navegando para ${pageType}: ${itemId}`);
-
-                // Tenta usar suas funções de navegação SPA
-                if (typeof navigateTo === 'function') {
-                    navigateTo(pageType, itemId);
-                } else if (typeof loadContent === 'function') {
+                if (typeof loadContent === 'function') {
                     loadContent(pageType, itemId);
                 } else {
-                    // Fallback caso não seja SPA
                     window.location.href = `${pageType}.html?id=${itemId}`;
                 }
             };
 
             grid.appendChild(div);
         });
+
+        // Se depois do loop nenhum item foi válido, esconde o container
+        if (container) {
+            container.style.display = hasValidItems ? 'block' : 'none';
+        }
+
     } catch (e) {
         console.error("Erro ao carregar favoritos:", e);
     }
 }
-
 
 // 2. Inicialização do Cache
 window.__HOME_CACHE__ = window.__HOME_CACHE__ || { loaded: false, html: null, scrollPosition: 0 };

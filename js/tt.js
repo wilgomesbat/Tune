@@ -32,7 +32,7 @@ let allArtistsData = [];
 let artistSearchTimeout; 
 
 
-
+const YT_API_KEY = 'AIzaSyCTy9IM54bO4CQudHJgnO_YNUSBtPrMzlU';
 
 // ===============================
 // BLOQUEIO GLOBAL
@@ -1396,7 +1396,7 @@ async function zerarStreamsMensais() {
 
 window.zerarStreamsMensais = zerarStreamsMensais;
 // --- CONFIGURAÇÕES GERAIS ---
-const YT_API_KEY = 'AIzaSyCTy9IM54bO4CQudHJgnO_YNUSBtPrMzlU';
+
 const ALBUMS_PER_PAGE = 20;
 let currentPage = 1;
 let importedTracks = []; 

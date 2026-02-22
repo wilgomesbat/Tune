@@ -1,0 +1,50 @@
+<div class="py-0 px-6 sm:px-8 bg-black min-h-full">
+ <button onclick="window.history.back()" class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full backdrop-blur-md hover:bg-white/20 transition-all">
+            <img src="/assets/chevron-left.svg" class="w-6" alt="Back">
+        </button>
+        
+ 
+        <div class="w-10"></div>
+    </header>
+
+    <div id="all-artists-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+    </div>
+
+    <div id="all-artists-loader" class="flex flex-col items-center justify-center py-20">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
+
+    </div>
+</div>
+
+<style>
+    .artist-grid-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 15px;
+        border-radius: 20px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 1px solid transparent;
+    }
+    .artist-grid-card:hover {
+        background: #101010;
+        transform: translateY(-5px);
+        
+    }
+    .artist-grid-photo {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-bottom: 12px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        
+    }
+    .artist-grid-name {
+        font-weight: 800;
+        color: #ffffff;
+        font-size: 14px;
+        text-align: center;
+    }
+</style>
