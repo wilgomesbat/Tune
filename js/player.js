@@ -358,48 +358,61 @@ function startYoutubeTracking() {
             }
         }
     }, 1000);
-}async function loadTrack(track) {
+}
+
+async function loadTrack(track) {
     if (!track) return;
 
-    const elements = getPlayerElements();
+    const elements = typeof getPlayerElements === 'function' ? getPlayerElements() : {};
     
-    // 1. LIMPEZA TOTAL (Mata timers e processos antigos para não encavalar)
-    if (window.streamTimer) clearTimeout(window.streamTimer);
-    if (window.playbackInterval) clearInterval(window.playbackInterval);
-    window.isProcessingStream = false;
-    
+    // 1. RESET DE SEGURANÇA (Limpa tudo da música anterior)
+    if (window.streamTimer) {
+        clearTimeout(window.streamTimer);
+        window.streamTimer = null;
+    }
+    if (window.playbackInterval) {
+        clearInterval(window.playbackInterval);
+        window.playbackInterval = null;
+    }
     if (typeof stopYoutubeTracking === "function") stopYoutubeTracking();
     
-    // 2. Define a música atual globalmente
+    window.isProcessingStream = false;
+    window.secondsCounter = 0;
+    window.lastStreamExecution = 0;
+
+    // 2. DEFINE A MÚSICA ATUAL
     window.currentTrack = track; 
 
-    // 3. REGISTRA O LOG DE CLIQUE
-    registrarLog(track.title, 'play_start', track.id);
-
-    // === CONFIGURAÇÃO DE IMAGENS ===
-    const coverUrl = track.cover || "assets/10.png";
-
-    function safeSetImage(imgElement, url) {
-        if (!imgElement) return;
-        imgElement.onerror = () => { imgElement.src = "assets/10.png"; };
-        imgElement.src = url;
+    // 3. LOG DE INÍCIO (Momento do clique)
+    if (typeof registrarLog === 'function') {
+        registrarLog(track.title, 'play_start', track.id);
     }
 
-    // Reset áudio nativo (HTML5)
+    // 4. RESET DE ÁUDIO NATIVO (Se houver algum player HTML5 rodando)
     if (window.audio) {
         window.audio.pause();
         window.audio.src = "";
     }
 
-    // Atualiza Interface
+    // 5. ATUALIZA INTERFACE (Capas e Títulos)
+    const coverUrl = track.cover || "assets/10.png";
+    
+    // Função auxiliar para evitar erro de imagem quebrada
+    const setImage = (el, url) => { if (el) el.src = url; };
+
     if (elements.musicPlayer) elements.musicPlayer.classList.remove("hidden");
-    safeSetImage(elements.miniPlayerCover, coverUrl);
-    safeSetImage(elements.fsPlayerCover, coverUrl);
+    
+    setImage(elements.miniPlayerCover, coverUrl);
+    setImage(elements.fsPlayerCover, coverUrl);
 
     if (elements.playerTitle) elements.playerTitle.textContent = track.title || "Sem título";
     if (elements.fsPlayerTitle) elements.fsPlayerTitle.textContent = track.title || "Sem título";
+    
+    // Exibe nome do artista se houver os elementos
+    if (elements.playerArtist) elements.playerArtist.textContent = track.artistName || "Artista Desconhecido";
+    if (elements.fsPlayerArtist) elements.fsPlayerArtist.textContent = track.artistName || "Artista Desconhecido";
 
-    // === EXTRAÇÃO ID YOUTUBE ===
+    // 6. EXTRAÇÃO E CARREGAMENTO DO YOUTUBE
     let videoId = "";
     const url = track.audioURL || "";
 
@@ -411,29 +424,43 @@ function startYoutubeTracking() {
         videoId = url;
     }
 
-    // === CARREGA O VÍDEO ===
     if (videoId) {
         if (elements.ytContainer) elements.ytContainer.classList.remove("hidden");
-
-        // Carrega o vídeo. O onPlayerStateChange vai cuidar de iniciar o timer de 20s sozinho!
-        if (window.loadYoutubeVideo) window.loadYoutubeVideo(videoId);
+        
+        // Carrega o vídeo no player global
+        if (window.loadYoutubeVideo) {
+            window.loadYoutubeVideo(videoId);
+        }
     }
 
-    // === INTERFACE E BACKGROUND ===
+    // 7. BACKGROUND E ESTILIZAÇÃO
     if (elements.fullScreenPlayer && elements.fullScreenPlayer.classList.contains("hidden")) {
         elements.fullScreenPlayer.classList.remove("hidden");
         document.body.classList.add("fs-active");
     }
 
-    updateArtistLabels(track.artist || track.uidars);
+    if (typeof updateArtistLabels === "function") {
+        updateArtistLabels(track.artist || track.uidars);
+    }
 
     if (typeof updateFullScreenBackground === "function") {
         updateFullScreenBackground(track);
-        updateMiniPlayerBackground(track);
+        if (typeof updateMiniPlayerBackground === "function") {
+            updateMiniPlayerBackground(track);
+        }
     }
 
+    // 8. ATIVAÇÃO DOS BOTÕES (Garante que o Play/Pause funcione para esta track)
+    setTimeout(() => {
+        if (typeof vincularBotoesInterface === 'function') {
+            vincularBotoesInterface();
+        }
+    }, 500);
+
+    // 9. PERSISTÊNCIA
     localStorage.setItem("currentTrack", JSON.stringify(track));
 }
+
 window.loadTrack = loadTrack;
 async function updateArtistLabels(artistUid) {
     if (!artistUid) return;
@@ -658,88 +685,97 @@ window.loadYoutubeVideo = function(urlRecebida) {
 });
 };
 
+function togglePlay() {
+    // Verifica se o player do YouTube existe e está pronto
+    if (!window.ytPlayer || typeof window.ytPlayer.getPlayerState !== 'function') {
+        console.error("❌ Player do YouTube não carregado ou não disponível.");
+        return;
+    }
+
+    const state = window.ytPlayer.getPlayerState();
+    
+    // Se estiver tocando (1), pausa. Se não, dá play.
+    if (state === 1) {
+        window.ytPlayer.pauseVideo();
+        console.log("⏸️ Comando: Pausar");
+    } else {
+        window.ytPlayer.playVideo();
+        console.log("▶️ Comando: Play");
+    }
+}
+
 // Variáveis globais (topo do arquivo)
 window.streamTimer = null; 
 window.isProcessingStream = false;
 
+function vincularBotoesInterface() {
+    const elements = typeof getPlayerElements === 'function' ? getPlayerElements() : {};
+    
+    // Vincula o botão principal
+    if (elements.playBtn) {
+        elements.playBtn.onclick = (e) => {
+            e.preventDefault();
+            togglePlay();
+        };
+    }
+
+    // Vincula o botão da tela cheia (se existir)
+    if (elements.fsPlayPauseBtn) {
+        elements.fsPlayPauseBtn.onclick = (e) => {
+            e.preventDefault();
+            togglePlay();
+        };
+    }
+}
+
+/**
+ * 3. MOTOR DE ESTADOS (YouTube API)
+ */
 function onPlayerStateChange(event) {
     console.log("🎬 Estado YouTube:", event.data);
-    
-    const elements = typeof getPlayerElements === 'function' ? getPlayerElements() : {};
+    const elements = getPlayerElements();
     const iconPlay = "/assets/Group.png";
     const iconPause = "/assets/pause.fill.png";
 
-    // 1. LIMPEZA TOTAL (Toda vez que o estado muda, o timer anterior MORRE)
-    if (window.streamTimer) {
-        clearTimeout(window.streamTimer);
-        window.streamTimer = null;
-    }
-    window.isProcessingStream = false;
+    if (window.streamTimer) { clearTimeout(window.streamTimer); window.streamTimer = null; }
 
-    // 2. GATILHO DE SEGURANÇA (Destravar ou Carregar nova música)
-    if (event.data === 5 || event.data === -1) {
-        console.log("🔄 Preparando vídeo...");
-        // Garante que o ícone de Play apareça enquanto carrega
-        if (elements.playBtn && elements.playBtn.querySelector('img')) {
-            elements.playBtn.querySelector('img').src = iconPlay;
-        }
+    if (event.data === 1) { // TOCANDO
+        startYoutubeTracking();
+        // Troca ícone para Pause
+        if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPause;
+        if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPause;
         
-        // Tenta dar play automático
-        event.target.playVideo();
-    }
-
-    // 3. ESTADO TOCANDO (PLAYING = 1)
-    if (event.data === 1) {
-        if (typeof startYoutubeTracking === 'function') startYoutubeTracking();
-        
-        // Troca ícone para PAUSE
-        if (elements.playBtn && elements.playBtn.querySelector('img')) {
-            elements.playBtn.querySelector('img').src = iconPause;
-        }
-
-        console.log("🔥 Motor de Streams: Iniciado.");
-        agendarProximoCiclo(); // Inicia a contagem dos 20s
+        agendarProximoCiclo();
     } 
-    
-    // 4. ESTADO PAUSADO (2) OU FINALIZADO (0)
-    else {
-        if (typeof stopYoutubeTracking === 'function') stopYoutubeTracking();
-        
-        // Troca ícone para PLAY
-        if (elements.playBtn && elements.playBtn.querySelector('img')) {
-            elements.playBtn.querySelector('img').src = iconPlay;
-        }
+    else { // PAUSADO OU OUTROS
+        stopYoutubeTracking();
+        // Troca ícone para Play
+        if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPlay;
+        if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPlay;
 
         if (event.data === 0) {
-            console.log("⏭️ Fim da música, pulando...");
             if (typeof window.pularParaProxima === 'function') window.pularParaProxima();
         }
     }
 }
 
 /**
- * FUNÇÃO DE AGENDAMENTO (Garante que nunca haja dois processos ao mesmo tempo)
+ * 4. AGENDADOR DE STREAMS (OS MILHÕES)
  */
 function agendarProximoCiclo() {
-    // Limpa qualquer timer existente antes de criar um novo
     if (window.streamTimer) clearTimeout(window.streamTimer);
 
     window.streamTimer = setTimeout(async () => {
-        // Só tenta gravar se o player ainda estiver tocando
         if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1 && !window.isProcessingStream) {
-            
-            window.isProcessingStream = true; // TRANCA a porta
-            console.log("⏱️ 20 segundos atingidos. Gravando pulso único...");
-            
+            window.isProcessingStream = true; 
             await validarStreamOficial(window.currentTrack);
-            
-            window.isProcessingStream = false; // ABRE a porta
-            
-            // SÓ AGORA agenda os próximos 20 segundos
+            window.isProcessingStream = false;
             agendarProximoCiclo(); 
         }
-    }, 20000); // 20 segundos
+    }, 20000);
 }
+
+
 
 /**
  * GRAVAÇÃO NO FIREBASE (Sincronizada e Atômica)
