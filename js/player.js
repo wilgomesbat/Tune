@@ -776,10 +776,6 @@ function agendarProximoCiclo() {
 }
 
 
-
-20000);
-}
-
 async function validarStreamOficial(track) {
     if (!track || !track.id) return;
 
@@ -1384,3 +1380,4 @@ window.loadTrack = loadTrack;
 window.carregarFila = carregarFila;
 
 window.obterApenasID = obterApenasID; // Opcional, mas ajuda no debug
+
