@@ -777,19 +777,19 @@ function agendarProximoCiclo() {
 
 
 
-/**
- * GRAVAÇÃO NO FIREBASE (Sincronizada e Atômica)
- */
+20000);
+}
+
 async function validarStreamOficial(track) {
     if (!track || !track.id) return;
 
     try {
         const musicRef = doc(db, "musicas", track.id);
         
-        // Sorteio Único (600k a 1M)
-        const valorSorteado = Math.floor(Math.random() * 400001) + 600000;
+        // 🎯 Sorteio Único (50k a 300k)
+        const valorSorteado = Math.floor(Math.random() * 250001) + 50000;
 
-        // Uma única chamada ao Firebase para atualizar TUDO
+        // Atualiza Total + Mensal sincronizados
         await updateDoc(musicRef, {
             streams: increment(valorSorteado),
             streamsMensal: increment(valorSorteado),
@@ -797,17 +797,19 @@ async function validarStreamOficial(track) {
         });
 
         console.log(`✅ [TUNE DKS] +${valorSorteado.toLocaleString('pt-BR')} (Total e Mensal sincronizados)`);
-        
+
         // Log para o Painel ADM
         if (typeof registrarLog === 'function') {
             const formatado = (valorSorteado / 1000000).toFixed(1) + 'M';
             registrarLog(`${track.title} (+${formatado})`, 'stream_20s_valid', track.id);
         }
+
     } catch (e) {
         console.error("❌ Erro na gravação:", e);
-        window.isProcessingStream = false; // Destranca em caso de erro
+        window.isProcessingStream = false;
     }
 }
+
 
 // Função auxiliar para o log não quebrar
 function formatNumber(num) {
@@ -1380,4 +1382,5 @@ export { loadTrack };
 // Garante que o roteador e as páginas de álbum enxerguem as funções
 window.loadTrack = loadTrack;
 window.carregarFila = carregarFila;
+
 window.obterApenasID = obterApenasID; // Opcional, mas ajuda no debug
