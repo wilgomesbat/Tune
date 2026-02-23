@@ -363,15 +363,17 @@ function startYoutubeTracking() {
 
     const elements = getPlayerElements();
     
-    // 1. Limpa timers anteriores para não bugar a contagem
-    clearTimeout(streamTimer);
-    stopYoutubeTracking();
+    // 1. LIMPEZA TOTAL (Mata timers e processos antigos para não encavalar)
+    if (window.streamTimer) clearTimeout(window.streamTimer);
+    if (window.playbackInterval) clearInterval(window.playbackInterval);
+    window.isProcessingStream = false;
+    
+    if (typeof stopYoutubeTracking === "function") stopYoutubeTracking();
     
     // 2. Define a música atual globalmente
     window.currentTrack = track; 
 
-    // 3. REGISTRA O LOG DE CLIQUE (Aqui o registro é imediato!)
-    // Mudei para 'play_start' para você saber que foi o momento do clique
+    // 3. REGISTRA O LOG DE CLIQUE
     registrarLog(track.title, 'play_start', track.id);
 
     // === CONFIGURAÇÃO DE IMAGENS ===
@@ -409,22 +411,12 @@ function startYoutubeTracking() {
         videoId = url;
     }
 
-    // === CARREGA E VALIDA STREAM ===
+    // === CARREGA O VÍDEO ===
     if (videoId) {
         if (elements.ytContainer) elements.ytContainer.classList.remove("hidden");
 
+        // Carrega o vídeo. O onPlayerStateChange vai cuidar de iniciar o timer de 20s sozinho!
         if (window.loadYoutubeVideo) window.loadYoutubeVideo(videoId);
-
-        startYoutubeTracking();
-
-        // Timer para validar o Stream e registrar que ouviu os 20s
-        streamTimer = setTimeout(() => {
-            if (typeof validarStreamOficial === "function") {
-                validarStreamOficial(track);
-                // REGISTRA O LOG DE SUCESSO (Após 20 segundos)
-                registrarLog(track.title, 'play_20s_valid', track.id);
-            }
-        }, 20000); // 20 segundos (ou sua variável TIME_TO_STREAM)
     }
 
     // === INTERFACE E BACKGROUND ===
@@ -666,52 +658,58 @@ window.loadYoutubeVideo = function(urlRecebida) {
 });
 };
 
+// Variáveis globais (topo do arquivo)
+window.streamTimer = null; 
+window.isProcessingStream = false;
 
 function onPlayerStateChange(event) {
     console.log("🎬 Estado YouTube:", event.data);
-    const elements = getPlayerElements();
     
+    const elements = typeof getPlayerElements === 'function' ? getPlayerElements() : {};
     const iconPlay = "/assets/Group.png";
     const iconPause = "/assets/pause.fill.png";
 
-if (event.data === 5 || event.data === -1) {
-    console.log("🚀 Gatilho de segurança: Forçando Play Mudo...");
-        event.target.playVideo();
-    
-    // Tenta desmutar logo em seguida
-    setTimeout(() => {
-        if (event.target.getPlayerState() === 1) {
-            event.target.unMute();
-            console.log("🔊 Áudio liberado com sucesso!");
+    // 1. LIMPEZA TOTAL (Toda vez que o estado muda, o timer anterior MORRE)
+    if (window.streamTimer) {
+        clearTimeout(window.streamTimer);
+        window.streamTimer = null;
+    }
+    window.isProcessingStream = false;
+
+    // 2. GATILHO DE SEGURANÇA (Destravar ou Carregar nova música)
+    if (event.data === 5 || event.data === -1) {
+        console.log("🔄 Preparando vídeo...");
+        // Garante que o ícone de Play apareça enquanto carrega
+        if (elements.playBtn && elements.playBtn.querySelector('img')) {
+            elements.playBtn.querySelector('img').src = iconPlay;
         }
-    }, 1000);
-}
-
-    // YT.PlayerState.PLAYING = 1
-    if (event.data === 1) { 
-        startYoutubeTracking(); 
         
-        if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPause;
-        if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPause;
+        // Tenta dar play automático
+        event.target.playVideo();
+    }
 
-        clearTimeout(window.streamTimer);
-        window.streamTimer = setTimeout(() => {
-            // Usamos window.ytPlayer e window.currentTrack para garantir escopo global
-            if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1) {
-                validarStreamOficial(window.currentTrack);
-                
-            }
-        }, 20000); 
+    // 3. ESTADO TOCANDO (PLAYING = 1)
+    if (event.data === 1) {
+        if (typeof startYoutubeTracking === 'function') startYoutubeTracking();
+        
+        // Troca ícone para PAUSE
+        if (elements.playBtn && elements.playBtn.querySelector('img')) {
+            elements.playBtn.querySelector('img').src = iconPause;
+        }
+
+        console.log("🔥 Motor de Streams: Iniciado.");
+        agendarProximoCiclo(); // Inicia a contagem dos 20s
     } 
+    
+    // 4. ESTADO PAUSADO (2) OU FINALIZADO (0)
     else {
-        // Para o rastreio se não estiver tocando
         if (typeof stopYoutubeTracking === 'function') stopYoutubeTracking();
-        clearTimeout(window.streamTimer);
+        
+        // Troca ícone para PLAY
+        if (elements.playBtn && elements.playBtn.querySelector('img')) {
+            elements.playBtn.querySelector('img').src = iconPlay;
+        }
 
-        if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPlay;
-        if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPlay;
-
-        // Se a música acabou (0)
         if (event.data === 0) {
             console.log("⏭️ Fim da música, pulando...");
             if (typeof window.pularParaProxima === 'function') window.pularParaProxima();
@@ -719,6 +717,68 @@ if (event.data === 5 || event.data === -1) {
     }
 }
 
+/**
+ * FUNÇÃO DE AGENDAMENTO (Garante que nunca haja dois processos ao mesmo tempo)
+ */
+function agendarProximoCiclo() {
+    // Limpa qualquer timer existente antes de criar um novo
+    if (window.streamTimer) clearTimeout(window.streamTimer);
+
+    window.streamTimer = setTimeout(async () => {
+        // Só tenta gravar se o player ainda estiver tocando
+        if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1 && !window.isProcessingStream) {
+            
+            window.isProcessingStream = true; // TRANCA a porta
+            console.log("⏱️ 20 segundos atingidos. Gravando pulso único...");
+            
+            await validarStreamOficial(window.currentTrack);
+            
+            window.isProcessingStream = false; // ABRE a porta
+            
+            // SÓ AGORA agenda os próximos 20 segundos
+            agendarProximoCiclo(); 
+        }
+    }, 20000); // 20 segundos
+}
+
+/**
+ * GRAVAÇÃO NO FIREBASE (Sincronizada e Atômica)
+ */
+async function validarStreamOficial(track) {
+    if (!track || !track.id) return;
+
+    try {
+        const musicRef = doc(db, "musicas", track.id);
+        
+        // Sorteio Único (600k a 1M)
+        const valorSorteado = Math.floor(Math.random() * 400001) + 600000;
+
+        // Uma única chamada ao Firebase para atualizar TUDO
+        await updateDoc(musicRef, {
+            streams: increment(valorSorteado),
+            streamsMensal: increment(valorSorteado),
+            lastMonthlyStreamDate: serverTimestamp()
+        });
+
+        console.log(`✅ [TUNE DKS] +${valorSorteado.toLocaleString('pt-BR')} (Total e Mensal sincronizados)`);
+        
+        // Log para o Painel ADM
+        if (typeof registrarLog === 'function') {
+            const formatado = (valorSorteado / 1000000).toFixed(1) + 'M';
+            registrarLog(`${track.title} (+${formatado})`, 'stream_20s_valid', track.id);
+        }
+    } catch (e) {
+        console.error("❌ Erro na gravação:", e);
+        window.isProcessingStream = false; // Destranca em caso de erro
+    }
+}
+
+// Função auxiliar para o log não quebrar
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num;
+}
 
 function updateInterfaceLabels(current, total) {
     const { fsProgressFill, fsCurrentTimeEl, fsTotalTimeEl } = getPlayerElements();
@@ -758,27 +818,6 @@ function updateInterfaceLabels(current, total) {
     if (miniTotal) miniTotal.textContent = totalTimeFormatted;
 }
 
-// --- FUNÇÕES DE APOIO ---
-
-async function validarStreamOficial(track) {
-    if (!track || !track.id) return;
-    try {
-        const musicRef = doc(db, "musicas", track.id);
-        const snap = await getDoc(musicRef);
-
-        if (snap.exists()) {
-            const data = snap.data();
-            let updateData = { lastMonthlyStreamDate: serverTimestamp() };
-
-            if (!data.streams || data.streams === 0) {
-                updateData.streams = Math.floor(Math.random() * 100001) + 100000;
-            } else {
-                updateData.streams = increment(1);
-            }
-            await updateDoc(musicRef, updateData);
-        }
-    } catch (e) { console.error("Erro Stream:", e); }
-}
 
 async function registrarLog(itemTitle, type, itemId) {
     try {
