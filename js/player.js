@@ -1,23 +1,24 @@
-// Importa as funções da biblioteca do Firebase
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { 
+    getAuth, 
+    onAuthStateChanged, 
+    signOut 
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
 import { 
     getFirestore, 
     doc, 
     getDoc, 
-    setDoc, 
+    setDoc,
     serverTimestamp,
     deleteDoc, 
     updateDoc, 
     increment,
-    collection, // 👈 ADICIONE ESTE
-    addDoc      // 👈 ADICIONE ESTE
+    collection, 
+    addDoc      
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-// Importa as instâncias já configuradas do seu main.js
-// Use './main.js' se estiverem na mesma pasta ou '../main.js' se o player estiver em /js/
-import { auth, db } from './firebase-config.js';
-// Agora você pode usar auth e db aqui livremente
-// ... restante do código (loadTrack, etc)
 
+// 2. Importe o auth e db do seu arquivo de configuração
+import { auth, db } from './firebase-config.js';
 // FUNÇÃO GLOBAL PADRÃO DO TUNE
 window.playTrackGlobal = function(track) {
     if (!track) return;
@@ -362,105 +363,48 @@ function startYoutubeTracking() {
 
 async function loadTrack(track) {
     if (!track) return;
+    const el = getPlayerElements();
 
-    const elements = typeof getPlayerElements === 'function' ? getPlayerElements() : {};
-    
-    // 1. RESET DE SEGURANÇA (Limpa tudo da música anterior)
-    if (window.streamTimer) {
-        clearTimeout(window.streamTimer);
-        window.streamTimer = null;
-    }
-    if (window.playbackInterval) {
-        clearInterval(window.playbackInterval);
-        window.playbackInterval = null;
-    }
+    // 1. Limpeza de processos
+    if (window.streamTimer) clearTimeout(window.streamTimer);
     if (typeof stopYoutubeTracking === "function") stopYoutubeTracking();
-    
     window.isProcessingStream = false;
-    window.secondsCounter = 0;
-    window.lastStreamExecution = 0;
-
-    // 2. DEFINE A MÚSICA ATUAL
     window.currentTrack = track; 
+    window.streamEntregueNestaExecucao = false; 
+    window.isProcessingStream = false;
+    if (window.streamTimer) clearTimeout(window.streamTimer);
 
-    // 3. LOG DE INÍCIO (Momento do clique)
-    if (typeof registrarLog === 'function') {
-        registrarLog(track.title, 'play_start', track.id);
-    }
-
-    // 4. RESET DE ÁUDIO NATIVO (Se houver algum player HTML5 rodando)
-    if (window.audio) {
-        window.audio.pause();
-        window.audio.src = "";
-    }
-
-    // 5. ATUALIZA INTERFACE (Capas e Títulos)
+    // 2. Atualiza Textos e Capas
     const coverUrl = track.cover || "assets/10.png";
+    if (el.musicPlayer) el.musicPlayer.classList.remove("hidden");
+    if (el.playerTitle) el.playerTitle.textContent = track.title;
+    if (el.miniPlayerCover) el.miniPlayerCover.src = coverUrl;
+    if (el.fsPlayerCover) el.fsPlayerCover.src = coverUrl;
+
+    // 3. ATUALIZA CORES E SLIDE (O que tinha parado)
+    // Chamamos as funções locais
+    updateFullScreenBackground(track);
+    updateMiniPlayerBackground(track);
     
-    // Função auxiliar para evitar erro de imagem quebrada
-    const setImage = (el, url) => { if (el) el.src = url; };
-
-    if (elements.musicPlayer) elements.musicPlayer.classList.remove("hidden");
-    
-    setImage(elements.miniPlayerCover, coverUrl);
-    setImage(elements.fsPlayerCover, coverUrl);
-
-    if (elements.playerTitle) elements.playerTitle.textContent = track.title || "Sem título";
-    if (elements.fsPlayerTitle) elements.fsPlayerTitle.textContent = track.title || "Sem título";
-    
-    // Exibe nome do artista se houver os elementos
-    if (elements.playerArtist) elements.playerArtist.textContent = track.artistName || "Artista Desconhecido";
-    if (elements.fsPlayerArtist) elements.fsPlayerArtist.textContent = track.artistName || "Artista Desconhecido";
-
-    // 6. EXTRAÇÃO E CARREGAMENTO DO YOUTUBE
-    let videoId = "";
-    const url = track.audioURL || "";
-
-    if (url.includes("v=")) {
-        videoId = url.split("v=")[1].split("&")[0];
-    } else if (url.includes("youtu.be/")) {
-        videoId = url.split("youtu.be/")[1].split("?")[0];
-    } else if (url.length >= 10 && url.length <= 15) {
-        videoId = url;
-    }
-
-    if (videoId) {
-        if (elements.ytContainer) elements.ytContainer.classList.remove("hidden");
-        
-        // Carrega o vídeo no player global
-        if (window.loadYoutubeVideo) {
-            window.loadYoutubeVideo(videoId);
-        }
-    }
-
-    // 7. BACKGROUND E ESTILIZAÇÃO
-    if (elements.fullScreenPlayer && elements.fullScreenPlayer.classList.contains("hidden")) {
-        elements.fullScreenPlayer.classList.remove("hidden");
-        document.body.classList.add("fs-active");
-    }
-
     if (typeof updateArtistLabels === "function") {
         updateArtistLabels(track.artist || track.uidars);
     }
 
-    if (typeof updateFullScreenBackground === "function") {
-        updateFullScreenBackground(track);
-        if (typeof updateMiniPlayerBackground === "function") {
-            updateMiniPlayerBackground(track);
+    // 4. Carrega o Vídeo
+    const videoId = obterApenasID(track.audioURL);
+    if (videoId) {
+        if (window.ytPlayer && typeof window.ytPlayer.loadVideoById === 'function') {
+            window.ytPlayer.loadVideoById(videoId);
+        } else if (typeof window.loadYoutubeVideo === "function") {
+            window.loadYoutubeVideo(videoId);
         }
     }
 
-    // 8. ATIVAÇÃO DOS BOTÕES (Garante que o Play/Pause funcione para esta track)
-    setTimeout(() => {
-        if (typeof vincularBotoesInterface === 'function') {
-            vincularBotoesInterface();
-        }
-    }, 500);
-
-    // 9. PERSISTÊNCIA
+    // 5. Re-vincula botões e salva
+    if (typeof vincularBotoesInterface === "function") vincularBotoesInterface();
     localStorage.setItem("currentTrack", JSON.stringify(track));
 }
-
+// 2. Disponibiliza para o mundo (Escopo Global)
 window.loadTrack = loadTrack;
 async function updateArtistLabels(artistUid) {
     if (!artistUid) return;
@@ -728,43 +672,94 @@ function vincularBotoesInterface() {
     }
 }
 
-/**
- * 3. MOTOR DE ESTADOS (YouTube API)
- */
-function onPlayerStateChange(event) {
+window.streamTimer = null; 
+window.isProcessingStream = false;
+window.streamEntregueNestaExecucao = false; // NOVA TRAVA: Garante apenas 1 vez por play
+
+window.onPlayerStateChange = function(event) {
     console.log("🎬 Estado YouTube:", event.data);
-    const elements = getPlayerElements();
+    
+    const el = getPlayerElements();
     const iconPlay = "/assets/Group.png";
     const iconPause = "/assets/pause.fill.png";
 
-    if (window.streamTimer) { clearTimeout(window.streamTimer); window.streamTimer = null; }
+    // 1. LIMPEZA DE SEGURANÇA
+    // Se o vídeo mudar de estado (pausar, travar, etc), paramos o cronômetro de 20s
+    if (window.streamTimer) { 
+        clearTimeout(window.streamTimer); 
+        window.streamTimer = null; 
+    }
 
-    if (event.data === 1) { // TOCANDO
-        startYoutubeTracking();
-        // Troca ícone para Pause
-        if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPause;
-        if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPause;
+    // 2. DESTRAVA CARREGAMENTO (Loop de estados 3, 5, -1)
+    if (event.data === 5 || event.data === -1) {
+        event.target.playVideo();
+    }
+
+    // 3. ESTADO: TOCANDO (1)
+    if (event.data === 1) {
+        if (typeof startYoutubeTracking === 'function') startYoutubeTracking();
         
-        agendarProximoCiclo();
-    } 
-    else { // PAUSADO OU OUTROS
-        stopYoutubeTracking();
-        // Troca ícone para Play
-        if (elements.playBtn) elements.playBtn.querySelector('img').src = iconPlay;
-        if (elements.fsPlayPauseBtn) elements.fsPlayPauseBtn.querySelector('img').src = iconPlay;
+        // --- ATUALIZA ÍCONES ---
+        // Mini Player (Lado direito)
+        if (el.playBtn) el.playBtn.querySelector('img').src = iconPause;
+        
+        // Full Screen
+        if (el.fsPlayPauseBtn) {
+            const fsImg = el.fsPlayPauseBtn.querySelector('img');
+            if (fsImg) fsImg.src = iconPause;
+            
+            // Se você usa o sistema de IDs específicos no FS:
+            const playIcon = document.getElementById('fs-play-icon');
+            const pauseIcon = document.getElementById('fs-pause-icon');
+            if (playIcon) playIcon.classList.add('hidden');
+            if (pauseIcon) pauseIcon.classList.remove('hidden');
+        }
 
-        if (event.data === 0) {
-            if (typeof window.pularParaProxima === 'function') window.pularParaProxima();
+        // --- MOTOR DE STREAMS (INJEÇÃO ÚNICA) ---
+        // Só inicia o timer se a música ainda NÃO foi contabilizada nesta execução
+        if (!window.streamEntregueNestaExecucao) {
+            console.log("⏳ Motor Tune DKS: Validando stream em 20s...");
+            
+            window.streamTimer = setTimeout(async () => {
+                // Verifica se após 20s o player ainda está tocando
+                if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1) {
+                    await validarStreamOficial(window.currentTrack);
+                    
+                    // TRAVA: Impede que injete de novo enquanto a mesma música estiver carregada
+                    window.streamEntregueNestaExecucao = true; 
+                    console.log("🔒 Stream única finalizada. Motor em repouso.");
+                }
+            }, 20000); 
+        } else {
+            console.log("ℹ️ Stream já contabilizada para esta música.");
+        }
+    } 
+    
+    // 4. ESTADO: PAUSADO (2) OU FIM (0)
+    else {
+        if (typeof stopYoutubeTracking === 'function') stopYoutubeTracking();
+        
+        // --- ATUALIZA ÍCONES PARA PLAY ---
+        if (el.playBtn) el.playBtn.querySelector('img').src = iconPlay;
+        if (el.fsPlayPauseBtn) {
+            const fsImg = el.fsPlayPauseBtn.querySelector('img');
+            if (fsImg) fsImg.src = iconPlay;
+
+            const playIcon = document.getElementById('fs-play-icon');
+            const pauseIcon = document.getElementById('fs-pause-icon');
+            if (playIcon) playIcon.classList.remove('hidden');
+            if (pauseIcon) pauseIcon.classList.add('hidden');
+        }
+
+        // Se a música acabou, pula para a próxima
+        if (event.data === 0 && typeof window.pularParaProxima === "function") {
+            window.pularParaProxima();
         }
     }
-}
+};
 
-/**
- * 4. AGENDADOR DE STREAMS (OS MILHÕES)
- */
 function agendarProximoCiclo() {
     if (window.streamTimer) clearTimeout(window.streamTimer);
-
     window.streamTimer = setTimeout(async () => {
         if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1 && !window.isProcessingStream) {
             window.isProcessingStream = true; 
@@ -776,36 +771,39 @@ function agendarProximoCiclo() {
 }
 
 
+
 async function validarStreamOficial(track) {
-    if (!track || !track.id) return;
+    if (!track || !track.id || window.isProcessingStream) return;
 
     try {
+        window.isProcessingStream = true; // Tranca
         const musicRef = doc(db, "musicas", track.id);
         
-        // 🎯 Sorteio Único (50k a 300k)
-        const valorSorteado = Math.floor(Math.random() * 250001) + 50000;
+        // Sorteio entre 50k e 400k
+        const valorSorteado = Math.floor(Math.random() * 350001) + 50000;
 
-        // Atualiza Total + Mensal sincronizados
         await updateDoc(musicRef, {
             streams: increment(valorSorteado),
             streamsMensal: increment(valorSorteado),
             lastMonthlyStreamDate: serverTimestamp()
         });
 
-        console.log(`✅ [TUNE DKS] +${valorSorteado.toLocaleString('pt-BR')} (Total e Mensal sincronizados)`);
-
-        // Log para o Painel ADM
+        console.log(`✅ [TUNE DKS] +${valorSorteado.toLocaleString('pt-BR')} (Injeção Única Concluída)`);
+        
         if (typeof registrarLog === 'function') {
-            const formatado = (valorSorteado / 1000000).toFixed(1) + 'M';
+            const formatado = valorSorteado >= 1000000 
+                ? (valorSorteado / 1000000).toFixed(1) + 'M' 
+                : (valorSorteado / 1000).toFixed(0) + 'K';
+                
             registrarLog(`${track.title} (+${formatado})`, 'stream_20s_valid', track.id);
         }
-
+        
+        window.isProcessingStream = false; // Destranca
     } catch (e) {
         console.error("❌ Erro na gravação:", e);
         window.isProcessingStream = false;
     }
 }
-
 
 // Função auxiliar para o log não quebrar
 function formatNumber(num) {
@@ -906,26 +904,19 @@ function setupPlayerListeners() {
         musicPlayer, fsCloseButton, ytContainer, fsPlayerCover 
     } = elements;
 
-// No player.js -> dentro de setupPlayerListeners
+// Dentro de setupPlayerListeners, substitua o clique do botão de play:
 if (fsPlayPauseBtn) {
     fsPlayPauseBtn.onclick = (e) => {
         e.preventDefault();
-        
-        if (!currentTrack) return;
+        if (!window.currentTrack) return;
 
-        // Se o player existe, alterna o estado
         if (window.ytPlayer && typeof window.ytPlayer.getPlayerState === 'function') {
             const state = window.ytPlayer.getPlayerState();
-            if (state === 1) { // 1 = Tocando
-                window.ytPlayer.pauseVideo();
-            } else {
-                window.ytPlayer.playVideo();
-            }
+            // Se estiver tocando, pausa. Se não, dá play.
+            state === 1 ? window.ytPlayer.pauseVideo() : window.ytPlayer.playVideo();
         } else {
-            // SE O VÍDEO NÃO CARREGOU: Forçamos o carregamento aqui
-            // O clique do usuário agora dá "permissão" para o som tocar
-            console.log("🚀 Primeiro clique detectado, carregando vídeo...");
-            loadTrack(currentTrack); 
+            // Só carrega se o player realmente não existir
+            window.loadTrack(window.currentTrack);
         }
     };
 }
@@ -1275,11 +1266,11 @@ if (userProfileButton && profileDropdown) {
     });
 }
 
-// --- Lógica de Logout ---
+// --- Agora sua Lógica de Logout vai funcionar ---
 if (logoutLink) {
     logoutLink.addEventListener('click', e => {
         e.preventDefault();
-        signOut(auth)
+        signOut(auth) // Agora o navegador saberá o que é signOut!
             .then(() => {
                 window.location.href = LOGIN_URL;
             })
@@ -1373,11 +1364,12 @@ document.addEventListener("DOMContentLoaded", () => {
     setupQueueControls();
 });
 // No final do seu player.js
-export { loadTrack };
 
-// Garante que o roteador e as páginas de álbum enxerguem as funções
+
+// Exportação para módulos
+export { loadTrack, carregarFila, obterApenasID };
+
+// Atribuição ao window para acesso global (HTML/Roteador)
 window.loadTrack = loadTrack;
 window.carregarFila = carregarFila;
-
-window.obterApenasID = obterApenasID; // Opcional, mas ajuda no debug
-
+window.obterApenasID = obterApenasID;

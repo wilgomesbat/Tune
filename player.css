@@ -89,6 +89,12 @@ body.fs-active #music-player {
 
 }
 
+/* Estilo do botão à direita */
+.player-right {
+    display: flex;
+    align-items: center;
+}
+
 /* Container para a primeira linha (Capa, Controles, Volume) */
 .player-main-content {
     display: flex;

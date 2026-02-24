@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js"; // CORRIGIDO
 
 const firebaseConfig = {
     apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
@@ -14,3 +14,6 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+// Exportar o signOut também facilita a vida em outros arquivos
+export { signOut };

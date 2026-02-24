@@ -827,137 +827,203 @@ document.addEventListener('click', async (e) => {
         }
     }
 });
+
 // ============================================
-// 2. FUNÇÃO DE SUBMISSÃO PRINCIPAL
+// 1. SUBMISSÃO DE MÚSICA (SINGLE)
 // ============================================
 window.handleReleaseSubmission = async (e) => {
     e.preventDefault();
     
-    // Referência do botão para feedback visual
     const btn = document.getElementById('btnSubmit');
     if (!currentUser) {
         window.showToast("Erro: Usuário não autenticado.", "error");
         return;
     }
 
-// Captura dos novos inputs
+    // Captura de Inputs
     const title = document.getElementById('relTitle').value.trim();
     const youtubeUrl = document.getElementById('relAudioLink').value.trim();
     const coverFileInput = document.getElementById('relCover');
     const status = document.getElementById('relStatus').value;
-    
-    // NOVIDADES:
     const duration = document.getElementById('relDuration').value.trim();
     const isExplicit = document.getElementById('relExplicit').checked;
     const genre = document.getElementById('relGenre').value;
-    const releaseDateTime = document.getElementById('relReleaseDate').value; // Captura Data + Hora
+    const releaseDateTime = document.getElementById('relReleaseDate').value;
 
     // --- BLOCO DE VALIDAÇÕES RÍGIDAS ---
-
     if (!duration.includes(':')) {
         window.showToast("Informe a duração no formato mm:ss", "error");
         return;
     }
 
     if (status === 'agendado' && !releaseDateTime) {
-    window.showToast("Escolha uma data e horário para o agendamento!", "error");
-    return;
-}
+        window.showToast("Escolha uma data e horário para o agendamento!", "error");
+        return;
+    }
 
-    // 1. Validação de Título
     if (title.length < 2) {
         window.showToast("Insira o título da música!", "error");
         return;
     }
 
-    // 2. Validação de Foto (Capa)
     if (!coverFileInput.files || coverFileInput.files.length === 0) {
         window.showToast("Selecione uma imagem de capa!", "error");
         return;
     }
 
-if (!youtubeUrl) {
-    window.showToast("O link do YouTube é obrigatório!", "error");
-    return;
-}
+    const isValidYt = youtubeUrl.includes("youtube.com") || youtubeUrl.includes("youtu.be");
+    if (!isValidYt) {
+        window.showToast("Link inválido! Insira um link do YouTube.", "error");
+        return;
+    }
 
-// Verifica se a string contém os domínios básicos do YouTube
-const isValidYt = youtubeUrl.includes("youtube.com") || youtubeUrl.includes("youtu.be");
-
-if (!isValidYt) {
-    window.showToast("Link inválido! Por favor, insira um link do YouTube.", "error");
-    return;
-}
-
+    // Início do Processamento
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
 
     try {
-        // A. Busca Nome Artístico no Firestore
-        let nomeDoArtista = currentUser.displayName || "Artista";
+        // A. Busca Nome Artístico
+        let nomeDoArtista = "Artista";
         const userDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
         if (userDoc.exists()) {
-            nomeDoArtista = userDoc.data().nomeArtistico || userDoc.data().nome || nomeDoArtista;
+            nomeDoArtista = userDoc.data().nomeArtistico || userDoc.data().nome || "Artista";
         }
 
-const originalFile = coverFileInput.files[0];
-const compressedBlob = await compressImage(originalFile, 500, 500); // Reduz para 500x500
+        // B. Compressão e Upload da Capa
+        const originalFile = coverFileInput.files[0];
+        const compressedBlob = await compressImage(originalFile, 500, 500);
 
-const formData = new FormData();
-// Enviamos o blob comprimido em vez do arquivo original
-formData.append("file", compressedBlob);
-formData.append("upload_preset", UPLOAD_PRESET);
-formData.append("folder", `tune/posts/releases/${currentUser.uid}`);
+        const formData = new FormData();
+        formData.append("file", compressedBlob);
+        formData.append("upload_preset", UPLOAD_PRESET);
+        formData.append("folder", `tune/posts/releases/${currentUser.uid}`);
 
-// Removido o campo "transformation" que causava erro 400
-// O Cloudinary aplicará o que estiver definido no preset, 
-// mas como já diminuímos a imagem no canvas, ela já irá leve.
+        const uploadResponse = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+            { method: "POST", body: formData }
+        );
 
-const uploadResponse = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-    {
-        method: "POST",
-        body: formData
-    }
-);
+        const uploadData = await uploadResponse.json();
+        if (!uploadData.secure_url) throw new Error("Erro ao enviar capa.");
 
-const uploadData = await uploadResponse.json();
+        const coverUrl = uploadData.secure_url;
 
-if (!uploadData.secure_url) {
-    console.error(uploadData);
-    throw new Error("Erro ao enviar capa para o Cloudinary");
-}
+        // C. Salvamento no Firestore
+        await addDoc(collection(db, "musicas"), {
+            title: title,
+            artist: currentUser.uid,
+            artistName: nomeDoArtista,
+            audioURL: youtubeUrl,
+            duration: duration,
+            explicit: isExplicit,
+            genre: genre,
+            cover: coverUrl,
+            album: "Single", 
+            streams: 0,
+            single: "true",
+            status: status,
+            scheduledTime: (status === 'publico') ? "Imediato" : releaseDateTime,
+            timestamp: serverTimestamp()
+        });
 
-const coverUrl = uploadData.secure_url;
-
-
-        // C. Salvamento do Documento no Firestore
-await addDoc(collection(db, "musicas"), {
-    title: title,
-    artist: currentUser.uid,
-    artistName: nomeDoArtista,
-    audioURL: youtubeUrl,
-    duration: duration,
-    explicit: isExplicit,
-    genre: genre,
-    cover: coverUrl,
-    album: "Single", 
-    streams: 0,
-    single: "true",
-    status: status,
-    // Se estiver em "Lançar Agora", salva como Imediato, senão salva a data/hora escolhida
-    scheduledTime: (status === 'publico') ? "Imediato" : releaseDateTime,
-    timestamp: serverTimestamp()
-});
-        // Feedback de Sucesso
         window.showToast("Música publicada com sucesso!", "success");
-
-window.showToast("Lançamento configurado!", "success");
         setTimeout(() => { if (typeof loadContent === 'function') loadContent('releases'); }, 1500);
 
     } catch (err) {
+        console.error("Erro na submissão:", err);
         window.showToast("Erro: " + err.message, "error");
         btn.disabled = false;
+        btn.innerHTML = 'PUBLICAR MÚSICA';
+    }
+};
+
+// ============================================
+// 2. SUBMISSÃO DE ÁLBUM (BATCH)
+// ============================================
+window.handleAlbumSubmission = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnSubmitAlbum');
+    
+    if (!currentUser) return window.showToast("Usuário não logado", "error");
+
+    const trackInputs = document.querySelectorAll('.track-title-input');
+    if (trackInputs.length === 0) return window.showToast("Importe as músicas do YouTube antes!", "error");
+
+    // Bloqueio de UI
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO ÁLBUM...';
+
+    try {
+        const batch = writeBatch(db); // Inicializa a transação em lote
+
+        // 1. Upload da Capa do Álbum
+        const coverFileInput = document.getElementById('relCoverAlbum');
+        if (!coverFileInput.files[0]) throw new Error("Selecione a capa do álbum.");
+
+        const originalFile = coverFileInput.files[0];
+        const compressedBlob = await compressImage(originalFile, 600, 600); 
+        
+        const formData = new FormData();
+        formData.append("file", compressedBlob);
+        formData.append("upload_preset", UPLOAD_PRESET);
+        formData.append("folder", `tune/posts/albums/${currentUser.uid}`);
+        
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: "POST", body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadData.secure_url) throw new Error("Erro no upload da capa.");
+        
+        const coverUrl = uploadData.secure_url;
+
+        // 2. Criar Referência e Dados do Álbum
+        const albumRef = doc(collection(db, "albuns"));
+        const artistDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
+        const artistName = artistDoc.exists() ? (artistDoc.data().nomeArtistico || artistDoc.data().nome) : "Artista";
+
+        const albumData = {
+            album: document.getElementById('albumName').value.trim(),
+            artist: artistName,
+            cover: coverUrl,
+            date: document.getElementById('releaseDate').value,
+            duration: document.getElementById('duration').value,
+            genre: document.getElementById("genre").value,
+            uidars: currentUser.uid,
+            status: "Em Revisão",
+            timestamp: serverTimestamp()
+        };
+
+        batch.set(albumRef, albumData);
+
+        // 3. Criar Músicas Vinculadas ao Álbum
+        trackInputs.forEach((input, index) => {
+            const musicRef = doc(collection(db, "musicas"));
+            batch.set(musicRef, {
+                album: albumRef.id, // ID gerado acima
+                artist: currentUser.uid,
+                artistName: artistName,
+                audioURL: input.dataset.videoid,
+                cover: coverUrl,
+                genre: albumData.genre,
+                title: input.value.trim(),
+                trackNumber: index + 1,
+                status: "Em Revisão",
+                streams: 0,
+                single: "false"
+            });
+        });
+
+        // Execução Atômica (Ou vai tudo, ou não vai nada)
+        await batch.commit();
+
+        window.showToast("Álbum e músicas enviados!", "success");
+        setTimeout(() => { if (typeof loadContent === 'function') loadContent('releases'); }, 2000);
+
+    } catch (err) {
+        console.error("Erro detalhado no Álbum:", err);
+        window.showToast("Erro: " + err.message, "error");
+        btn.disabled = false;
+        btn.innerHTML = 'ENVIAR ÁLBUM';
     }
 };
 
@@ -968,37 +1034,41 @@ window.handleAlbumSubmission = async (e) => {
     if (!currentUser) return window.showToast("Usuário não logado", "error");
 
     const trackInputs = document.querySelectorAll('.track-title-input');
-    if (trackInputs.length === 0) return window.showToast("Importe as músicas!", "error");
+    if (trackInputs.length === 0) return window.showToast("Importe as músicas do YouTube antes!", "error");
 
+    // Bloqueio de UI
     btn.disabled = true;
-    btn.innerHTML = 'ENVIANDO...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO ÁLBUM...';
 
     try {
-        // --- AQUI ESTÁ A CORREÇÃO ---
-        // Se writeBatch(db) falhar, o erro aparecerá aqui
-        const batch = writeBatch(db); 
+        const batch = writeBatch(db); // Inicializa a transação em lote
 
-        // 1. Upload da Capa
+        // 1. Upload da Capa do Álbum
         const coverFileInput = document.getElementById('relCoverAlbum');
+        if (!coverFileInput.files[0]) throw new Error("Selecione a capa do álbum.");
+
         const originalFile = coverFileInput.files[0];
         const compressedBlob = await compressImage(originalFile, 600, 600); 
         
         const formData = new FormData();
         formData.append("file", compressedBlob);
         formData.append("upload_preset", UPLOAD_PRESET);
+        formData.append("folder", `tune/posts/albums/${currentUser.uid}`);
         
         const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
             method: "POST", body: formData
         });
         const uploadData = await uploadRes.json();
+        if (!uploadData.secure_url) throw new Error("Erro no upload da capa.");
+        
         const coverUrl = uploadData.secure_url;
 
-        // 2. Criar Álbum
+        // 2. Criar Referência e Dados do Álbum
         const albumRef = doc(collection(db, "albuns"));
         const artistDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
-        const artistName = artistDoc.exists() ? (artistDoc.data().nomeArtistico || artistDoc.data().nome) : "N/A";
+        const artistName = artistDoc.exists() ? (artistDoc.data().nomeArtistico || artistDoc.data().nome) : "Artista";
 
-        batch.set(albumRef, {
+        const albumData = {
             album: document.getElementById('albumName').value.trim(),
             artist: artistName,
             cover: coverUrl,
@@ -1007,37 +1077,40 @@ window.handleAlbumSubmission = async (e) => {
             genre: document.getElementById("genre").value,
             uidars: currentUser.uid,
             status: "Em Revisão",
-            timestamp: new Date().toISOString()
-        });
+            timestamp: serverTimestamp()
+        };
 
-        // 3. Criar Músicas
+        batch.set(albumRef, albumData);
+
+        // 3. Criar Músicas Vinculadas ao Álbum
         trackInputs.forEach((input, index) => {
             const musicRef = doc(collection(db, "musicas"));
             batch.set(musicRef, {
-                album: albumRef.id,
+                album: albumRef.id, // ID gerado acima
                 artist: currentUser.uid,
                 artistName: artistName,
                 audioURL: input.dataset.videoid,
                 cover: coverUrl,
-                genre: document.getElementById("genre").value,
+                genre: albumData.genre,
                 title: input.value.trim(),
                 trackNumber: index + 1,
                 status: "Em Revisão",
-                streams: 0
+                streams: 0,
+                single: "false"
             });
         });
 
-        // Finalizar
+        // Execução Atômica (Ou vai tudo, ou não vai nada)
         await batch.commit();
-        window.showToast("Álbum enviado com sucesso!", "success");
-        setTimeout(() => location.reload(), 2000);
+
+        window.showToast("Álbum e músicas enviados!", "success");
+        setTimeout(() => { if (typeof loadContent === 'function') loadContent('releases'); }, 2000);
 
     } catch (err) {
-        console.error("Erro detalhado:", err);
-        // Se o erro for "writeBatch is not defined", precisamos importar ele no topo do arquivo
-        window.showToast("Erro técnico: " + err.message, "error");
+        console.error("Erro detalhado no Álbum:", err);
+        window.showToast("Erro: " + err.message, "error");
         btn.disabled = false;
-        btn.innerHTML = 'Enviar';
+        btn.innerHTML = 'ENVIAR ÁLBUM';
     }
 };
 // ============================================
