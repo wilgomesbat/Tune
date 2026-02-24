@@ -1113,6 +1113,154 @@ window.handleAlbumSubmission = async (e) => {
         btn.innerHTML = 'ENVIAR ÁLBUM';
     }
 };
+
+// ============================================
+// ⭐ GERADOR AUTOMÁTICO "THIS IS" ⭐
+// ============================================
+
+async function verificarERenderizarBotaoThisIs() {
+    if (!currentUser) return;
+    
+    const container = document.getElementById('card-this-is-creator');
+    if (!container) return;
+
+    // Verifica se o artista já tem uma playlist na coleção "albuns" (ou "playlists" se preferir)
+    // conforme seu padrão de "category: Stations"
+    const q = query(
+        collection(db, "albuns"), 
+        where("uidars", "==", currentUser.uid), 
+        where("category", "==", "Stations")
+    );
+
+    const snap = await getDocs(q);
+    
+    if (snap.empty) {
+        container.classList.remove('hidden');
+        document.getElementById('btn-gerar-thisis').onclick = gerarPlaylistThisIs;
+    }
+}
+async function gerarPlaylistThisIs() {
+    const btn = document.getElementById('btn-gerar-thisis');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ALINHANDO ELEMENTOS...';
+
+    try {
+        const userDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
+        const userData = userDoc.data();
+        const nomeArtista = userData.nomeArtistico || userData.nome || "Artista";
+        const fotoUrl = userData.foto || "./assets/artistpfp.png";
+
+        // 1. Carregamento de Recursos
+        try {
+            await Promise.all([
+                document.fonts.load("10pt 'Nationale Black'"),
+                document.fonts.load("10pt 'Nationale Bold'")
+            ]);
+        } catch (fErr) { console.warn("Fontes não carregadas, usando fallbacks."); }
+
+        const canvas = document.getElementById("canvas-thisis");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 500;
+        canvas.height = 500;
+
+        const imgArtista = new Image();
+        const imgLogo = new Image();
+        imgArtista.crossOrigin = "anonymous";
+        imgLogo.src = "./assets/image-removebg-preview.png"; 
+        imgArtista.src = fotoUrl;
+
+        await Promise.all([
+            new Promise(res => imgArtista.onload = res),
+            new Promise(res => imgLogo.onload = res)
+        ]);
+
+        // 2. Cor Dominante
+        ctx.drawImage(imgArtista, 0, 0, 10, 10);
+        const p = ctx.getImageData(5, 5, 1, 1).data;
+        const corDominante = `rgb(${p[0]}, ${p[1]}, ${p[2]})`;
+        ctx.clearRect(0, 0, 500, 500);
+
+        // 3. Fundo (Divisão Spotify Style)
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, 500, 250); // Metade superior
+        ctx.fillStyle = corDominante;
+        ctx.fillRect(0, 250, 500, 250); // Metade inferior
+
+        // 4. Logo e Texto "THIS IS" (ALINHADOS NO TOPO)
+        // Definimos um eixo Y fixo para ambos ficarem na mesma linha
+        const eixoYTopo = 75; 
+
+        // Logo (Invertida para Preto)
+        
+        ctx.drawImage(imgLogo, 35, 40, 40, 40); 
+        
+// 4. Logo e Texto "THIS IS" (Alinhados)
+        
+
+
+        ctx.fillStyle = "#000000";
+        ctx.textAlign = "center";
+        ctx.font = "normal 32px 'Nationale Regular', 'Arial Black', sans-serif";
+        ctx.fillText("THIS IS", 250, 75);
+
+        // 5. FOTO DO ARTISTA (300x300 Centralizada)
+        const fotoSize = 300; 
+        const fotoX = (500 - fotoSize) / 2;
+        const fotoY = (500 - fotoSize) / 2; 
+        ctx.drawImage(imgArtista, fotoX, fotoY, fotoSize, fotoSize);
+
+        // 6. Nome do Artista (Nationale Bold) - SEM UPPERCASE
+        let fontSize = 42;
+        ctx.fillStyle = "#ffffff";
+        ctx.font = `normal ${fontSize}px 'Nationale Bold', Arial, sans-serif`;
+
+        // Ajuste de tamanho dinâmico usando o nome original
+        while (ctx.measureText(nomeArtista).width > 440 && fontSize > 28) {
+            fontSize -= 2;
+            ctx.font = `normal ${fontSize}px 'Nationale Bold', Arial, sans-serif`;
+        }
+
+        // Posicionado com respiro na parte inferior
+        ctx.fillText(nomeArtista, 250, 470);
+
+        // 7. Upload para Cloudinary e Firestore
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append("file", blob);
+            formData.append("upload_preset", UPLOAD_PRESET);
+            formData.append("folder", "tune/stations");
+
+            const uploadRes = await fetch(
+                `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+                { method: "POST", body: formData }
+            );
+            const data = await uploadRes.json();
+
+            await addDoc(collection(db, "playlists"), {
+                name: `This is ${nomeArtista}`,
+                artist: nomeArtista,
+                uidars: currentUser.uid,
+                cover: data.secure_url,
+                category: "Stations",
+                genres: userData.genres || [],
+                dataCriacao: serverTimestamp(),
+                status: "publico"
+            });
+
+            window.showToast("Playlist oficial criada com sucesso!");
+            document.getElementById("card-this-is-creator")?.remove();
+        }, "image/jpeg", 0.95);
+
+    } catch (error) {
+        console.error("Erro no alinhamento:", error);
+        window.showToast("Erro ao processar imagem", "error");
+        btn.disabled = false;
+        btn.innerHTML = "GERAR AGORA";
+    }
+}
+// Chamar a verificação quando o dashboard carregar
+// Adicione isso dentro da sua função setupDashboardPage() existente
+
 // ============================================
 // ⭐ DASHBOARD E AUXILIARES ⭐
 // ============================================
@@ -1131,6 +1279,7 @@ function setupDashboardPage() {
     });
 
     loadTopTracks(uid);
+    verificarERenderizarBotaoThisIs();
 }
 
 async function loadTopTracks(uid) {

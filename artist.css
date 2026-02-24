@@ -179,21 +179,7 @@ body, html {
     gap: 15px;
 }
 
-.btn-play {
-    background-color: white;
-    color: black;
-    border: none;
-    border-radius: 50px;
-    padding: 12px 30px;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
 
-.btn-play:hover { transform: scale(1.05); }
 
 .btn-secondary {
     background-color: rgba(255,255,255,0.1);
@@ -413,3 +399,139 @@ body, html {
 }
 
 .icon-asset { width: 24px;  }
+
+.about-section { padding: 20px; }
+
+.about-card {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    height: 400px;
+    border-radius: 12px;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 30px;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+}
+
+.about-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(transparent 30%, rgba(0,0,0,0.8));
+    z-index: 1;
+}
+
+.about-content {
+    position: relative;
+    z-index: 2;
+    max-width: 600px;
+}
+
+.ranking-badge {
+    font-family: 'Nationale Bold', sans-serif;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: #0d72ea; /* Azul do print */
+    color: white;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    z-index: 2;
+ 
+}
+
+.ranking-badge span { font-size: 20px; }
+.ranking-badge small { font-size: 10px; text-transform: uppercase; }
+
+.monthly-listeners {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+    color: #fff;
+}
+
+.bio-excerpt {
+    font-size: 0.95rem;
+    color: rgba(255,255,255,0.9);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.action-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 25px;
+}
+
+
+.btn-play {
+    font-family: 'Nationale Bold', sans-serif;
+    background-color: white;
+    color: black;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 30px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn-play:hover { transform: scale(1.05); }
+
+/* Botão Seguir (Estilo contorno/glass) */
+.btn-seguir-pill {
+    font-family: 'Nationale Bold', sans-serif;
+    background: rgba(255, 255, 255, 0.123);
+       color: white;
+    border-radius: 50px;
+    padding: 12px 30px;
+    border-radius: 500px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-seguir-pill:hover {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: white;
+}
+
+.btn-seguir-pill .follow-text {
+   font-size: 15px;
+    font-weight: 500;
+}
+
+.btn-seguir-pill .icon-asset {
+    width: 20px;
+    height: 20px;
+}
+
+/* Estado "Seguindo" (via JS) */
+.btn-seguir-pill.following {
+    background: white;
+    color: black;
+}
+.btn-seguir-pill.following .icon-asset {
+    filter: invert(1); /* Inverte o ícone para ficar preto no fundo branco */
+}

@@ -1,3 +1,21 @@
+<style>
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('/fonts/Nationale-Bold.woff2') format('woff2'),
+         url('/fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('/fonts/Nationale-Black.woff2') format('woff2'),
+         url('/fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+</style>
+
+
 <div class="dashboard-container">
     
     <div class="metrics-grid">
@@ -23,6 +41,7 @@
         </div>
 
         
+        
 
     <div class="top-tracks-section">
         <div class="section-header">
@@ -37,5 +56,22 @@
             </div>
         </div>
     </div>
+
+    <div id="card-this-is-creator" class="metric-card highlight hidden" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); cursor: pointer;">
+    <div class="card-header">
+        <span class="label" style="color: white;">Tune Stations</span>
+    </div>
+    <div style="padding: 10px 0;">
+        <h3 style="color: white; font-size: 1.2rem;">Criar minha playlist "This Is"</h3>
+        <p style="color: rgba(255,255,255,0.8); font-size: 0.8rem;">Gere sua arte oficial e playlist personalizada com um clique.</p>
+    </div>
+    <button id="btn-gerar-thisis" class="btn-primary" style="background: white; color: black; border: none; padding: 10px; border-radius: 8px; font-weight: bold; width: 100%;">
+        GERAR AGORA
+    </button>
+</div>
+
+<canvas id="canvas-thisis" width="500" height="500" style="display: none;"></canvas>
+
+
 
 </div>

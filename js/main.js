@@ -738,37 +738,62 @@ function formatNumber(num) {
 export async function setupArtistPage(artistUid) {
     if (!artistUid) return;
 
-    // 1. Mostrar o loading antes de iniciar as buscas
+    // 1. Controle de Loading
     const loadingOverlay = document.getElementById('loading-overlay');
     const mainContent = document.getElementById('main-content');
-    
     if (loadingOverlay) loadingOverlay.classList.remove('hidden');
     if (mainContent) mainContent.classList.remove('loaded');
 
     try {
-        // 2. CARREGAR PERFIL (Header)
+        // 2. CARREGAR PERFIL, BIO E IMAGEM DE FUNDO
         const artistDoc = await getDoc(doc(db, "usuarios", artistUid));
         if (artistDoc.exists()) {
             const data = artistDoc.data();
+            
+            // Atualiza Nome e Header
+            document.getElementById('artist-name').innerText = data.nomeArtistico || "Artista";
             const headerEl = document.getElementById('artist-header');
             if (headerEl && data.foto) {
                 headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
-                headerEl.style.backgroundImage = 'none';
             }
-            document.getElementById('artist-name').innerText = data.nomeArtistico || "Artista";
-            const bioEl = document.getElementById('artist-bio-text');
-            if (bioEl) bioEl.innerText = data.bio || `${data.nomeArtistico} é um destaque no Tune.`;
+
+            // Atualiza Card "Sobre" (Estilo Spotify/Zara Larsson)
+            const aboutCard = document.getElementById('artist-about-card');
+            const bioTextEl = document.getElementById('artist-bio-text');
+            
+            if (aboutCard && data.foto) {
+                aboutCard.style.backgroundImage = `url('${data.foto}')`;
+            }
+            if (bioTextEl) {
+                // Busca a chave 'bio' ou usa fallback
+                bioTextEl.innerText = data.bio || `${data.nomeArtistico} é um destaque no Tune.`;
+            }
         }
 
-        // 3. CALCULAR TOTAL DE STREAMS
+        // 3. CALCULAR STREAMS (TOTAL E MENSAL)
         const musicasRef = collection(db, "musicas");
-        const qStreams = query(musicasRef, where("artist", "==", artistUid));
-        const streamsSnap = await getDocs(qStreams);
-        let total = 0;
-        streamsSnap.forEach(d => total += Number(d.data().streams || 0));
-        document.getElementById('total-streams').innerText = formatNumber(total);
+        const qArtistMusics = query(musicasRef, where("artist", "==", artistUid));
+        const artistMusicsSnap = await getDocs(qArtistMusics);
+        
+        let totalAllTime = 0;
+        let totalMonthly = 0;
 
-        // 4. EXECUTAR FUNÇÕES DE CONTEÚDO EM PARALELO
+        artistMusicsSnap.forEach(d => {
+            const mData = d.data();
+            totalAllTime += Number(mData.streams || 0);
+            totalMonthly += Number(mData.streamsMensal || 0);
+        });
+
+        // Exibe no Header e no Card Sobre
+        document.getElementById('total-streams').innerText = formatNumber(totalAllTime);
+        const monthlyEl = document.getElementById('artist-monthly-listeners');
+        if (monthlyEl) monthlyEl.innerText = `${formatNumber(totalMonthly)} ouvintes mensais`;
+
+        // 4. CÁLCULO DE RANKING GLOBAL
+        // Compara este artista com todos os outros baseando-se em streamsMensal
+        await calculateGlobalRanking(artistUid);
+
+        // 5. EXECUTAR CONTEÚDO EM PARALELO
         await Promise.all([
             loadTopSongs(artistUid),
             loadArtistAlbums(artistUid),
@@ -776,26 +801,62 @@ export async function setupArtistPage(artistUid) {
             checkFollowStatus(artistUid)
         ]);
 
-        // 5. CONFIGURAR BOTÃO SEGUIR
-        const followBtn = document.querySelector('.btn-seguir');
+        const followBtn = document.querySelector('.btn-seguir-pill');
         if (followBtn) {
-            followBtn.onclick = () => toggleFollow(artistUid);
-        }
-
-        // 6. SUCESSO: Apenas chama a função, sem declará-la de novo
-        if (typeof hideLoadingAndShowContent === 'function') {
-            hideLoadingAndShowContent();
+            console.log("Botão de seguir encontrado! Vinculando clique...");
+            followBtn.onclick = async () => {
+                console.log("Botão pressionado!");
+                await toggleFollow(artistUid);
+            };
+        } else {
+            console.error("ERRO: Botão .btn-seguir-pill não existe no HTML!");
         }
 
     } catch (error) {
         console.error("Erro no setup da página:", error);
-        if (typeof hideLoadingAndShowContent === 'function') {
-            hideLoadingAndShowContent();
-        }
+        if (typeof hideLoadingAndShowContent === 'function') hideLoadingAndShowContent();
     }
 }
+
 /**
- * FUNÇÃO 1: Músicas Populares (Top 5)
+ * FUNÇÃO DE RANKING: Calcula a posição do artista no mundo
+ */
+async function calculateGlobalRanking(artistUid) {
+    try {
+        const allMusicsSnap = await getDocs(collection(db, "musicas"));
+        const artistTotals = {};
+
+        // Agrupa streamsMensal por artista
+        allMusicsSnap.forEach(doc => {
+            const data = doc.data();
+            const uid = data.artist;
+            const sm = Number(data.streamsMensal || 0);
+            artistTotals[uid] = (artistTotals[uid] || 0) + sm;
+        });
+
+        // Transforma em array, ordena do maior para o menor e pega o index
+        const sortedArtists = Object.entries(artistTotals)
+            .sort((a, b) => b[1] - a[1])
+            .map(entry => entry[0]);
+
+        const position = sortedArtists.indexOf(artistUid) + 1;
+
+        const badge = document.getElementById('ranking-badge');
+        const rankingNum = document.getElementById('ranking-number');
+        
+        if (position > 0 && badge) {
+            rankingNum.innerText = `#${position}`;
+            badge.classList.remove('hidden'); // Só mostra se estiver no ranking
+        }
+    } catch (e) {
+        console.error("Erro Ranking:", e);
+    }
+}
+
+
+
+/**
+ * MÚSICAS POPULARES (TOP 5)
  */
 async function loadTopSongs(artistUid) {
     const container = document.getElementById('popular-songs-list');
@@ -907,30 +968,57 @@ async function loadArtistSingles(artistUid) {
     } catch (e) { console.error("Erro Singles:", e); }
 }
 
-/**
- * FUNÇÃO 4: Sistema de Seguir
- */
 async function checkFollowStatus(artistUid) {
     const user = auth.currentUser;
     if (!user) return;
+    
     const followRef = doc(db, `usuarios/${user.uid}/seguindo`, artistUid);
     const docSnap = await getDoc(followRef);
-    const followIcon = document.querySelector('.btn-seguir img');
-    if (followIcon) {
-        followIcon.src = docSnap.exists() ? 
-            "/assets/cancel_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg" : 
-            "/assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+    
+    const followBtn = document.querySelector('.btn-seguir-pill');
+    const followText = followBtn.querySelector('.follow-text');
+    const followIcon = followBtn.querySelector('.icon-asset');
+
+    if (docSnap.exists()) {
+        followBtn.classList.add('following');
+        if (followText) followText.innerText = "Seguindo";
+        if (followIcon) followIcon.src = "/assets/cancel_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg"; // Ícone de check se tiver
+    } else {
+        followBtn.classList.remove('following');
+        if (followText) followText.innerText = "Seguir";
+        if (followIcon) followIcon.src = "/assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
     }
 }
 
 async function toggleFollow(artistUid) {
     const user = auth.currentUser;
     if (!user) return alert("Inicia sessão para seguir!");
+
+    // Referência do documento na subcoleção 'seguindo' do usuário logado
     const followRef = doc(db, `usuarios/${user.uid}/seguindo`, artistUid);
-    const docSnap = await getDoc(followRef);
-    if (docSnap.exists()) await deleteDoc(followRef);
-    else await setDoc(followRef, { artistId: artistUid, dataSeguida: serverTimestamp() });
-    checkFollowStatus(artistUid);
+    
+    try {
+        const docSnap = await getDoc(followRef);
+
+        if (docSnap.exists()) {
+            // Se já segue, remove
+            await deleteDoc(followRef);
+            console.log("Deixou de seguir");
+        } else {
+            // Se não segue, adiciona
+            await setDoc(followRef, { 
+                artistId: artistUid, 
+                dataSeguida: serverTimestamp() 
+            });
+            console.log("Começou a seguir");
+        }
+
+        // CHAMA A ATUALIZAÇÃO VISUAL APÓS A MUDANÇA
+        await checkFollowStatus(artistUid);
+
+    } catch (error) {
+        console.error("Erro ao seguir artista:", error);
+    }
 }
 
 async function playMusic(musicId) {
@@ -3443,6 +3531,97 @@ window.renderAllArtistsGrid = async function() {
     }
 };
 
+
+async function carregarPaginaCurtidas() {
+    auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+            console.log("Usuário não logado");
+            return;
+        }
+
+        // 1. MAPEAMENTO DOS ELEMENTOS DO SEU HTML
+        const playlistTitle = document.getElementById('playlist-title-detail');
+        const playlistDesc = document.getElementById('playlist-description-detail');
+        const playlistCover = document.getElementById('playlist-cover-detail');
+        const bgBlur = document.getElementById('bg-image-blur');
+        const tracksContainer = document.getElementById('tracks-container');
+
+        // 2. CONFIGURAÇÃO VISUAL DA "PLAYLIST" (Gerada por JS)
+        const tituloPlaylist = "Músicas Curtidas";
+        const capaPlaylist = "https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png"; // Sua capa roxa
+
+        if (playlistTitle) playlistTitle.textContent = tituloPlaylist;
+        if (playlistCover) playlistCover.src = capaPlaylist;
+        if (bgBlur) bgBlur.style.backgroundImage = `url(${capaPlaylist})`;
+        if (playlistDesc) playlistDesc.textContent = `Sua coleção pessoal • ${user.displayName || 'Usuário'}`;
+
+        try {
+            // 3. BUSCA AS MÚSICAS CURTIDAS (Conforme a imagem do Firestore)
+            // Caminho: usuarios > UID > likedmusicsUID
+            const likedCollName = `likedmusics${user.uid}`;
+            const q = query(collection(db, "usuarios", user.uid, likedCollName), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+
+            const musicasParaFila = [];
+            tracksContainer.innerHTML = ""; // Limpa o container
+
+            if (querySnapshot.empty) {
+                tracksContainer.innerHTML = '<p class="text-center text-white/40 py-20">Você ainda não tem músicas curtidas.</p>';
+                return;
+            }
+
+            // 4. RENDERIZAÇÃO DA LISTA DE MÚSICAS
+            querySnapshot.forEach((docSnap) => {
+                const track = { id: docSnap.id, ...docSnap.data() };
+                musicasParaFila.push(track);
+
+                const index = musicasParaFila.length - 1;
+
+                // Cria o item da música usando a estrutura de flex do Tailwind que você já usa
+                tracksContainer.innerHTML += `
+                    <div class="flex items-center justify-between p-3 hover:bg-white/5 rounded-lg group cursor-pointer transition-all" 
+                         onclick="window.carregarFila(window.listaCurtidasExecucao, ${index})">
+                        
+                        <div class="flex items-center gap-4">
+                            <span class="text-white/40 w-6 text-center group-hover:hidden">${index + 1}</span>
+                            <div class="hidden group-hover:block w-6 text-white">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5.14v14l11-7-11-7z"/></svg>
+                            </div>
+                            
+                            <img src="${track.cover || 'assets/10.png'}" class="w-12 h-12 rounded shadow-md object-cover">
+                            
+                            <div class="flex flex-col">
+                                <span class="font-bold text-white">${track.title || "Sem título"}</span>
+                                <span class="text-sm text-white/60">${track.artist || "Artista"}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-6">
+                            <button class="text-white/40 hover:text-white transition">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // 5. DISPONIBILIZA A LISTA PARA O PLAYER
+            window.listaCurtidasExecucao = musicasParaFila;
+
+            // Configura o botão principal "REPRODUZIR" do cabeçalho
+            const btnPlayHeader = document.querySelector('.btn-play');
+            if (btnPlayHeader) {
+                btnPlayHeader.onclick = () => window.carregarFila(window.listaCurtidasExecucao, 0);
+            }
+
+        } catch (error) {
+            console.error("Erro ao carregar músicas do Firestore:", error);
+        }
+    });
+}
+
+
+
 async function loadHomeFavorites() {
     const grid = document.getElementById('favorites-grid');
     const container = document.getElementById('favorites-grid-container');
@@ -3741,7 +3920,7 @@ async function setupHomePage() {
             setupForroGenreSection(),   
             setupPopSection(),
             setupFanArtistSection(),
-            
+            carregarPaginaCurtidas(),
             loadHomeFavorites(),
             loadTopArtists()
         ]);
