@@ -1114,31 +1114,37 @@ window.handleAlbumSubmission = async (e) => {
     }
 };
 
-// ============================================
-// ⭐ GERADOR AUTOMÁTICO "THIS IS" ⭐
-// ============================================
-
 async function verificarERenderizarBotaoThisIs() {
     if (!currentUser) return;
-    
     const container = document.getElementById('card-this-is-creator');
     if (!container) return;
 
-    // Verifica se o artista já tem uma playlist na coleção "albuns" (ou "playlists" se preferir)
-    // conforme seu padrão de "category: Stations"
-    const q = query(
-        collection(db, "albuns"), 
-        where("uidars", "==", currentUser.uid), 
-        where("category", "==", "Stations")
-    );
+    try {
+        // Busca se já existe uma playlist deste artista na categoria Stations
+        const q = query(collection(db, "playlists"), 
+            where("uidars", "==", currentUser.uid), 
+            where("category", "==", "Stations")
+        );
 
-    const snap = await getDocs(q);
-    
-    if (snap.empty) {
-        container.classList.remove('hidden');
-        document.getElementById('btn-gerar-thisis').onclick = gerarPlaylistThisIs;
+        const snap = await getDocs(q);
+
+        if (!snap.empty) {
+            // BLOQUEIO: Se o usuário já tiver a playlist, garante que o card continue invisível
+            container.classList.add('hidden');
+            container.style.display = 'none';
+        } else {
+            // Se NÃO tiver, remove a classe hidden para tornar o card visível
+            container.classList.remove('hidden');
+            container.style.display = 'block'; // Ou 'flex' dependendo do seu layout
+            document.getElementById('btn-gerar-thisis').onclick = gerarPlaylistThisIs;
+        }
+    } catch (e) {
+        console.error("Erro ao verificar playlist existente:", e);
+        // Em caso de erro, por segurança, mantemos escondido
+        container.classList.add('hidden');
     }
 }
+
 async function gerarPlaylistThisIs() {
     const btn = document.getElementById('btn-gerar-thisis');
     btn.disabled = true;
@@ -1258,12 +1264,7 @@ async function gerarPlaylistThisIs() {
         btn.innerHTML = "GERAR AGORA";
     }
 }
-// Chamar a verificação quando o dashboard carregar
-// Adicione isso dentro da sua função setupDashboardPage() existente
 
-// ============================================
-// ⭐ DASHBOARD E AUXILIARES ⭐
-// ============================================
 
 function setupDashboardPage() {
     const uid = currentUser?.uid;
@@ -1279,6 +1280,7 @@ function setupDashboardPage() {
     });
 
     loadTopTracks(uid);
+    
     verificarERenderizarBotaoThisIs();
 }
 

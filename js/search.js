@@ -130,7 +130,7 @@ function renderResults(results, container) {
                 <img src="${item.cover || item.capa || item.image || 'default-cover.png'}" class="img-song">
                 <div class="info">
                     <p class="title">${item.name || item.nome || item.album}</p>
-                    <p class="subtitle">${isAlbum ? 'Álbum' : 'Playlist'} de ${item.artistName || item.owner || 'Tune'}</p>
+                    <p class="subtitle">${isAlbum ? 'Álbum' : 'Playlist'}</p>
                 </div>
             </div>`;
     });

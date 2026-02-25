@@ -1056,17 +1056,16 @@ async function setupPlaylistPage(playlistId) {
     if (!playlistId) return;
 
     try {
-        // 2. Busca de dados no Firebase
+        // 2. Busca de dados da Playlist no Firebase
         const playlistRef = doc(db, "playlists", playlistId);
         const playlistSnap = await getDoc(playlistRef);
 
         if (!playlistSnap.exists()) {
             if (playlistTitleDetail) playlistTitleDetail.textContent = "Playlist não encontrada";
-            tracksContainer.innerHTML = `<p class="text-gray-400">Playlist não encontrada.</p>`;
+            if (tracksContainer) tracksContainer.innerHTML = `<p class="text-gray-400">Playlist não encontrada.</p>`;
             return;
         }
 
-        // --- INICIALIZAÇÃO DE VARIÁVEIS (Ordem Crítica) ---
         const playlist = { id: playlistSnap.id, ...playlistSnap.data() };
         const coverUrl = playlist.cover || fallbackImage;
         const playlistName = playlist.name || "Sem título";
@@ -1074,30 +1073,29 @@ async function setupPlaylistPage(playlistId) {
         // 3. Atualização da UI (Textos e Imagens)
         if (playlistTitleDetail) playlistTitleDetail.textContent = playlistName;
         if (playlistImgDetail) playlistImgDetail.src = coverUrl;
-
         if (playlistDescriptionDetail) {
             playlistDescriptionDetail.textContent = playlist.category === "Stations" 
                 ? "Baseada nas músicas deste artista." 
                 : (playlist.description || "");
         }
 
-        // 4. Aplicação do Fundo Borrado (O "Plano B" sem ColorThief)
         if (bgBlur) {
             bgBlur.style.backgroundImage = `url('${coverUrl}')`;
         }
 
-        // 5. Lógica de Busca de Músicas (Tracks)
+        // 4. Definição de Variáveis de Controle
         let tracks = [];
         const automaticTopNames = ["Top 50", "Daily Top 50", "Top 50 Brasil", "Top 50 World"]; 
         const isRecentReleases = ["Novidades da Semana", "Novidades", "Lançamentos da Semana"].includes(playlistName);
         const isAutomaticTop = automaticTopNames.includes(playlistName) && playlist.category === "Charts";
         const generosBR = ["Sertanejo", "Funk", "Pagode", "MPB", "Forró", "Arrocha"]; 
 
-        // --- A) Charts Automáticos ---
+        // --- A) Lógica de Charts Automáticos (Ranking Estável 50/50) ---
         if (isAutomaticTop) {
             const isBrasilChart = playlistName.includes("Brasil");
             const isWorldChart = playlistName.includes("World");
 
+            // Busca os 200 melhores por mensal para garantir que a base seja de sucessos reais
             const q = query(
                 collection(db, "musicas"), 
                 orderBy("streamsMensal", "desc"), 
@@ -1106,7 +1104,22 @@ async function setupPlaylistPage(playlistId) {
             
             const snap = await getDocs(q);
             let rawTracks = [];
-            snap.forEach((d) => rawTracks.push({ id: d.id, ...d.data() }));
+
+            snap.forEach((d) => {
+                const data = d.data();
+                
+                // FÓRMULA DE SCORE HÍBRIDO TUNE
+                // S = streams (diário/atual) | SM = streamsMensal (histórico)
+                // Score = (S * 0.5) + (SM * 0.5)
+                const sDaily = data.streams || 0;
+                const sMonthly = data.streamsMensal || 0;
+                const tuneScore = (sDaily * 0.5) + (sMonthly * 0.5);
+
+                rawTracks.push({ id: d.id, ...data, tuneScore: tuneScore });
+            });
+
+            // Ordenação Final pelo Score Híbrido (Estabilidade + Viral)
+            rawTracks.sort((a, b) => b.tuneScore - a.tuneScore);
 
             if (isBrasilChart) {
                 tracks = rawTracks.filter(m => {
@@ -1146,7 +1159,6 @@ async function setupPlaylistPage(playlistId) {
                 subSnap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
             } 
             else if (playlist.track_ids?.length > 0) {
-                // Busca por IDs (limitado a 30 por performance)
                 const ids = playlist.track_ids.slice(0, 30);
                 const q = query(collection(db, "musicas"), where("__name__", "in", ids));
                 const snapIn = await getDocs(q);
@@ -1154,18 +1166,21 @@ async function setupPlaylistPage(playlistId) {
             }
         }
 
-        // 6. Ordenação Final e Renderização
+        // 5. Ordenação Final (para playlists manuais/álbuns)
         if (!isAutomaticTop && !playlist.uidars) { 
             tracks.sort((a, b) => (a.trackNumber || 99) - (b.trackNumber || 99));
         }
 
-        // Chama sua função de renderizar a lista no HTML
+        // 6. Renderização
         if (typeof renderTracksSpotifyStyle === "function") {
             renderTracksSpotifyStyle(tracks, playlist, isAutomaticTop);
         }
 
     } catch (error) {
         console.error("Erro ao carregar playlist:", error);
+        if (tracksContainer) {
+            tracksContainer.innerHTML = `<p class="text-red-500">Ocorreu um erro ao carregar as músicas.</p>`;
+        }
     }
 }
 
@@ -3260,7 +3275,7 @@ async function fetchAndRenderNewSingles() {
 
 // 1. Aumente o tempo para teste (ex: 7 dias = 168 horas)
 const tempoLimite = new Date();
-tempoLimite.setHours(tempoLimite.getHours() - 42); 
+tempoLimite.setHours(tempoLimite.getHours() - 72); 
 
 // 2. Query ajustada
 const q = query(

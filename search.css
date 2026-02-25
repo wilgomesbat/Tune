@@ -1,142 +1,159 @@
-
-
+/* --- Tipografia (Mantida) --- */
 @font-face {
     font-family: 'Nationale Regular';
     src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
          url('./fonts/Nationale-Regular.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
+    font-weight: normal; font-style: normal;
 }
 @font-face {
     font-family: 'Nationale Bold';
     src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
          url('./fonts/Nationale-Bold.woff') format('woff');
-    font-weight: bold;
-    font-style: normal;
+    font-weight: bold; font-style: normal;
 }
 @font-face {
     font-family: 'Nationale Black';
     src: url('./fonts/Nationale-Black.woff2') format('woff2'),
          url('./fonts/Nationale-Black.woff') format('woff');
-    font-weight: bold;
-    font-style: normal;
+    font-weight: bold; font-style: normal;
 }
 
+/* --- Layout Principal --- */
+body {
+    background-color: #000;
+    margin: 0;
+    color: #fff;
+}
+
+/* Header da Busca: Ajustado para grudar no conteúdo abaixo */
 .search-header {
-  padding: 12px 16px;
-  background-color: #000; /* Fundo da página */
-  position: sticky;
-  top: 0;
-  z-index: 10;
+    padding: 16px 16px 8px 16px; /* Padding inferior reduzido para 8px */
+    background-color: #000; 
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+    z-index: 100;
 }
 
 .search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  max-width: 364px; /* Tamanho padrão Spotify */
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 500px; /* Aumentado levemente para melhor usabilidade */
 }
 
 .search-input-wrapper input {
-  width: 100%;
-  height: 48px;
-  background-color: #242424; /* Cor cinza da imagem */
-  border: none;
-  border-radius: 500px; /* Formato pílula */
-  padding: 0 48px; /* Espaço para a lupa na esquerda */
-  color: white;
-  font-size: 14px;
-  font-family: 'Nationale Regular', sans-serif;
-  outline: none;
-  transition: background-color 0.2s;
-}
-
-.search-input-wrapper input:hover {
-  background-color: #2a2a2a;
+    width: 100%;
+    height: 48px;
+    background-color: #242424;
+    border: none;
+    border-radius: 500px;
+    padding: 0 48px;
+    color: white;
+    font-size: 14px;
+    font-family: 'Nationale Regular', sans-serif;
+    outline: none;
+    transition: background-color 0.2s;
 }
 
 .search-input-wrapper input:focus {
-  background-color: #2a2a2a;
-  box-shadow: 0 0 0 2px white; /* Borda branca fina ao focar */
+    background-color: #2a2a2a;
+    box-shadow: 0 0 0 2px white;
 }
 
-/* Posicionamento do Ícone */
 .search-icon-svg {
-  position: absolute;
-  left: 15px;
-  width: 20px;
-  height: 20px;
-  color: #b3b3b3;
-  pointer-events: none;
+    position: absolute;
+    left: 15px;
+    width: 20px;
+    height: 20px;
+    color: #b3b3b3;
+    pointer-events: none;
 }
 
-/* Estilo do Placeholder */
-.search-input-wrapper input::placeholder {
-  color: #757575;
-}
-/* Container Geral */
+/* --- Containers de Conteúdo (Resultados e Grid) --- */
+/* Forçamos o alinhamento lateral de 16px para bater com o header */
+.search-results-list, 
 .categories-container {
-  padding: 0 20px;
+    padding: 0 16px; 
+    margin-top: 0; /* Gruda no header acima */
 }
 
 .categories-container h2 {
-  font-family: 'Nationale Bold', sans-serif;
-  font-size: 24px;
-  margin-bottom: 20px;
-  letter-spacing: -1px;
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 22px;
+    margin: 12px 0 16px 0; /* Margem superior reduzida para aproximar da busca */
+    letter-spacing: -1px;
 }
 
-/* Grid System */
+/* Grid de Categorias */
 .category-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr); /* 2 colunas como na imagem */
-  gap: 24px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
 }
 
-/* Card Style */
 .category-card {
-  position: relative;
-  height: 100px; /* Mais alto como no app */
-  border-radius: 8px;
-  padding: 16px;
-  overflow: hidden; /* Corta a imagem que sai do card */
-  cursor: pointer;
-  transition: transform 0.2s ease;
+    position: relative;
+    height: 100px;
+    border-radius: 4px; /* Mais quadrado, conforme o design atual do app */
+    padding: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease;
 }
 
 .category-card span {
-  font-family: 'Nationale Black', sans-serif;
-  font-size: 24px;
-  font-weight: 900;
-  color: white;
-  word-wrap: break-word;
-  max-width: 80%;
-  display: block;
+    font-family: 'Nationale Black', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    color: white;
+    position: relative;
+    z-index: 2;
 }
 
-/* Posicionamento da Imagem (O truque do Spotify) */
 .category-card img {
-  position: absolute;
-  right: -20px;
-  bottom: -5px;
-  width: 100px;
-  height: 100px;
-  border-radius: 12px;
-  transform: rotate(25deg); /* Inclinação característica */
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    position: absolute;
+    right: -10px;
+    bottom: -5px;
+    width: 70px;
+    height: 70px;
+    border-radius: 4px;
+    transform: rotate(25deg);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 
-/* Cores da Imagem */
-.pink { background-color: #406d50; } /* Ajustado para o rosa/vermelho da música */
-.green { background-color: #1E3264; } /* Ajustado para o azul marinho do podcast original */
-.purple { background-color: #8D67AB; }
-.dark-blue { background-color: #1E3264; }
-.red { background-color: #E8115B; }
-.bright-pink { background-color: #E8115B; }
-.blue { background-color: #1E3264; }
-.orange { background-color: #D84000; }
+/* --- Itens da Lista de Busca --- */
+.search-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0; /* Padding vertical, lateral herdado do container */
+    cursor: pointer;
+}
 
-/* Cores específicas baseadas na sua imagem */
+/* --- Responsividade (Ajustada) --- */
+@media (max-width: 480px) {
+    .search-header {
+        padding: 12px 16px 4px 16px;
+    }
+    
+    .category-card {
+        height: 90px;
+    }
+
+    .category-card span {
+        font-size: 16px;
+    }
+
+    .category-card img {
+        width: 60px;
+        height: 60px;
+    }
+}
+
+.hidden { display: none !important; }
+
+/* Cores de Fundo (Mantidas) */
 .pink { background-color: #406d50; }
 .green { background-color: #794ac2; }
 .purple { background-color: #f55b37; }
@@ -144,20 +161,19 @@
 .red { background-color: #6f62a8; }
 .bright-pink { background-color: #2c2c2c; }
 
-/* Hover effect */
-.category-card:hover {
-  transform: scale(1.02);
+.search-input-wrapper input::placeholder {
+  color: #757575;
 }
 
-/* Container de resultados */
+/* --- Resultados --- */
+/* O container agora flui naturalmente abaixo da barra */
 .search-results-list {
     display: flex;
     flex-direction: column;
     padding: 10px;
-    background: #121212; /* Fundo escuro do Spotify */
+    background: #000; /* Fundo preto para combinar com o header */
 }
 
-/* Item da lista */
 .search-item {
     display: flex;
     align-items: center;
@@ -171,11 +187,11 @@
     background: rgba(255, 255, 255, 0.1);
 }
 
-/* Imagens */
+/* Imagens com diferenciação visual conforme o tipo */
 .img-song, .img-album {
     width: 50px;
     height: 50px;
-    border-radius: 4px; /* Quadrado arredondado */
+    border-radius: 4px; /* Quadrado para músicas/álbuns */
     margin-right: 12px;
     object-fit: cover;
 }
@@ -183,18 +199,18 @@
 .img-artist {
     width: 50px;
     height: 50px;
-    border-radius: 50%; /* Círculo perfeito */
+    border-radius: 50%; /* Redondo para artistas */
     margin-right: 12px;
     object-fit: cover;
 }
 
-/* Textos */
 .info {
     display: flex;
     flex-direction: column;
 }
 
 .title {
+    font-family: 'Nationale Bold';
     color: white;
     font-size: 16px;
     font-weight: 500;
@@ -202,6 +218,7 @@
 }
 
 .subtitle {
+    font-family: 'Nationale Regular';
     color: #b3b3b3;
     font-size: 14px;
     margin: 4px 0 0 0;
@@ -209,7 +226,6 @@
     align-items: center;
 }
 
-/* Badge de "Explícito" (O quadradinho 'E') */
 .badge-e {
     background: #b3b3b3;
     color: #121212;
@@ -221,57 +237,4 @@
     display: inline-block;
 }
 
-.hidden { display: none; }
-
-/* --- Responsividade para Celular --- */
-@media (max-width: 480px) {
-  /* Diminui o espaçamento lateral para ganhar área útil */
-  .categories-container {
-    padding: 0 12px;
-  }
-
-  .categories-container h2 {
-    font-size: 18px; /* Título da seção menor */
-    margin-bottom: 12px;
-  }
-
-  /* Diminui o espaço entre os cards */
-  .category-grid {
-    gap: 12px;
-  }
-
-  /* Ajusta o tamanho do card */
-  .category-card {
-    height: 80px; /* Altura reduzida para mobile */
-    padding: 10px;
-    border-radius: 4px;
-  }
-
-  /* Ajusta o texto dentro do card */
-  .category-card span {
-    font-size: 16px; /* Fonte menor para caber em 2 linhas se necessário */
-    max-width: 70%;  /* Garante que o texto não bata na imagem */
-    line-height: 1.1;
-  }
-
-  /* Ajusta a imagem para não sumir, mas ficar proporcional */
-  .category-card img {
-    width: 65px;  /* Imagem menor */
-    height: 65px;
-    right: -12px; /* Menos deslocamento para fora */
-    bottom: -2px;
-    transform: rotate(25deg);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-  }
-}
-
-/* Ajuste para telas muito pequenas (ex: iPhone SE) */
-@media (max-width: 350px) {
-  .category-card span {
-    font-size: 14px;
-  }
-  .category-card img {
-    width: 55px;
-    height: 55px;
-  }
-}
+.hidden { display: none !important; }

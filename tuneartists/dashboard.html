@@ -1,3 +1,7 @@
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script type="module" src="./js/tunearts.js"></script>
+
 <style>
 @font-face {
     font-family: 'Nationale Bold';
@@ -13,7 +17,190 @@
     font-weight: bold;
     font-style: normal;
 }
+.dashboard-stats-container {
+    background: #0a0a0a;
+    border-radius: 16px;
+    padding: 24px;
+    margin: 20px auto;
+    max-width: 800px;
+    border: 1px solid #1a1a1a;
+}
+
+.stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.stats-header h3 {
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 1.2rem;
+    color: #fff;
+    margin: 0;
+}
+
+#total-day-streams {
+    color: #ff3232;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+#chart-wrapper {
+    position: relative;
+    min-height: 300px;
+    width: 100%;
+    background: #050505;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Spinner de carregamento */
+#chart-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.3);
+    font-size: 0.8rem;
+    z-index: 5;
+}
+
+#artist-main-chart {
+    z-index: 10;
+}
+
+.activity-card-container {
+    --primary: #ff3232;
+    --bg-card: #1a1e23;
+    --text-main: #ffffff;
+    --text-dim: #666;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+}
+
+.activity {
+    background-color: var(--bg-card);
+    border-radius: 1.5em;
+    color: var(--text-dim);
+    width: 100%;
+    max-width: 320px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.activity__header {
+    border-bottom: 1px solid #2a2e35;
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 24px;
+    align-items: center;
+}
+
+.activity__body {
+    padding: 20px 24px;
+}
+
+.activity__summary {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.activity__value {
+    font-size: 2.5em;
+    color: var(--text-main);
+    line-height: 1;
+}
+
+.activity__change {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 1.1em;
+    color: var(--text-main);
+}
+
+.icon--success { color: #00c853; }
+.icon--danger { color: #ff3232; }
+
+.activity__graph {
+    display: flex;
+    justify-content: space-between;
+    height: 150px;
+    align-items: flex-end;
+}
+
+.activity__graph-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 30px;
+}
+
+.bar-inner {
+    width: 10px;
+    height: 100px;
+    background: #2a2e35;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+.bar-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: linear-gradient(to top, var(--primary), #ff6666);
+    height: 0%; /* Animado pelo JS */
+    transition: height 1s cubic-bezier(0.65, 0, 0.35, 1);
+    border-radius: 10px;
+}
+
+
+
+.activity__graph {
+    display: flex;
+    justify-content: space-between;
+    height: 120px;
+    align-items: flex-end;
+    gap: 2px; /* Espaço reduzido para caber 24 barras */
+}
+
+.activity__graph-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+}
+
+.bar-inner {
+    width: 4px; /* Barras mais finas para o gráfico de horas */
+    height: 100px;
+    background: #2a2e35;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.bar-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: #ff3232;
+    height: 0%; 
+    transition: height 0.8s ease-out;
+}
+
+.graph-label {
+    font-size: 8px; /* Fonte menor para as horas */
+    margin-top: 5px;
+    color: #666;
+}
+
 </style>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
 
 <div class="dashboard-container">
@@ -40,7 +227,14 @@
             </div>
         </div>
 
-        
+
+
+
+<svg width="0" height="0" style="display: none;">
+    <symbol id="more" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="3" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="21" cy="12" r="1.5"/></g></symbol>
+    <symbol id="arrow-up" viewBox="0 0 21 21"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm4 12a1 1 0 0 1-2 0v-2.58l-4.29 4.29a1 1 0 0 1-1.42-1.42L12.58 10H10a1 1 0 0 1 0-2h4.67a.67.67 0 0 1 .67.67V14z" transform="translate(-1.5,-1.5)"/></symbol>
+    <symbol id="arrow-down" viewBox="0 0 21 21"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm4 12a1 1 0 0 1-2 0v-2.58l-4.29 4.29a1 1 0 0 1-1.42-1.42L12.58 10H10a1 1 0 0 1 0-2h4.67a.67.67 0 0 1 .67.67V14z" transform="rotate(90,10.5,10.5) translate(-1.5,-1.5)"/></symbol>
+</svg>
         
 
     <div class="top-tracks-section">

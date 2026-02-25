@@ -408,7 +408,7 @@ async function loadTrack(track) {
         }
     }
 
-async function carregarEstadoCurtida(trackId) {
+async function checkCurrentTrackLikedState(trackId) {
     const user = auth.currentUser;
     if (!user) return;
 
@@ -806,31 +806,30 @@ async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return;
 
     try {
-        window.isProcessingStream = true; // Tranca
+        window.isProcessingStream = true; // Trava para evitar cliques duplos
         const musicRef = doc(db, "musicas", track.id);
         
-        // Sorteio entre 50k e 400k
+        // Sorteio entre 50k e 400k para simular volume de streams
         const valorSorteado = Math.floor(Math.random() * 350001) + 50000;
 
         await updateDoc(musicRef, {
-            streams: increment(valorSorteado),
-            streamsMensal: increment(valorSorteado),
-            lastMonthlyStreamDate: serverTimestamp()
+            streams: increment(valorSorteado),       // Contador Diário/Geral
+            streamsMensal: increment(valorSorteado), // Contador para Estabilidade do Chart
+            lastMonthlyStreamDate: serverTimestamp() // Data da última atualização
         });
 
-        console.log(`✅ [TUNE DKS] +${valorSorteado.toLocaleString('pt-BR')} (Injeção Única Concluída)`);
+        console.log(`✅ [TUNE] ${track.title}: +${valorSorteado.toLocaleString('pt-BR')} streams (Híbrido)`);
         
         if (typeof registrarLog === 'function') {
             const formatado = valorSorteado >= 1000000 
                 ? (valorSorteado / 1000000).toFixed(1) + 'M' 
                 : (valorSorteado / 1000).toFixed(0) + 'K';
-                
             registrarLog(`${track.title} (+${formatado})`, 'stream_20s_valid', track.id);
         }
         
-        window.isProcessingStream = false; // Destranca
+        window.isProcessingStream = false;
     } catch (e) {
-        console.error("❌ Erro na gravação:", e);
+        console.error("❌ Erro ao validar stream:", e);
         window.isProcessingStream = false;
     }
 }
