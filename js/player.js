@@ -419,8 +419,8 @@ async function carregarEstadoCurtida(trackId) {
 
     if (icon) {
         icon.src = snap.exists() 
-            ? "./assets/heart_minus_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg" 
-            : "./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+            ? "/assets/heart_minus_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg" 
+            : "/assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
     }
 }
 
