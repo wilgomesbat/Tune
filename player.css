@@ -593,7 +593,7 @@ body.fs-active #full-screen-player {
     width: 100%;
     max-width: 330px;
     aspect-ratio: 1;
-    margin: 20px 0 40px 0;
+    margin: 40px 0 40px 0;
     z-index: 10;
     position: relative;
         box-shadow: 0 20px 50px rgba(0,0,0,0.5);
@@ -687,6 +687,19 @@ body.fs-active #full-screen-player {
     opacity: 0.5;
 }
 
+
+#fs-player-close-btn {
+        display: flex !important;
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        background: rgba(255,255,255,0.1);
+        border: none;
+        border-radius: 50%;
+        padding: 10px;
+        cursor: pointer;
+        z-index: 100;
+    }
 .fs-vol-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 10px; }
 .fs-vol-fill { width: 50%; height: 100%; background: white; border-radius: 10px; }
 
@@ -731,18 +744,7 @@ body.fs-active #full-screen-player {
         box-shadow: 0 30px 60px rgba(0, 0, 0, 0.135); /* Sombra mais profunda no PC */
     }
 
-    #fs-player-close-btn {
-        display: flex !important;
-        position: absolute;
-        top: 40px;
-        right: 40px;
-        background: rgba(255,255,255,0.1);
-        border: none;
-        border-radius: 50%;
-        padding: 12px;
-        cursor: pointer;
-        z-index: 100;
-    }
+    
 
     #fs-player-close-btn img { width: 20px; }
     .fs-top-bar { display: none; }
