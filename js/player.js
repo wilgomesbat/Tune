@@ -374,6 +374,14 @@ async function loadTrack(track) {
     window.isProcessingStream = false;
     if (window.streamTimer) clearTimeout(window.streamTimer);
 
+// 1. Atualiza o Mini Player
+    if (el.playerTitle) el.playerTitle.textContent = track.title || "Sem título";
+    if (el.playerArtist) el.playerArtist.textContent = track.artistName || "Artista Desconhecido";
+
+    // 2. ATUALIZA O FULL SCREEN (Onde estava falhando)
+    if (el.fsPlayerTitle) el.fsPlayerTitle.textContent = track.title || "Sem título";
+    if (el.fsPlayerArtist) el.fsPlayerArtist.textContent = track.artistName || "Artista Desconhecido";
+
     // 2. Atualiza Textos e Capas
     const coverUrl = track.cover || "assets/10.png";
     if (el.musicPlayer) el.musicPlayer.classList.remove("hidden");
@@ -385,7 +393,7 @@ async function loadTrack(track) {
     // Chamamos as funções locais
     updateFullScreenBackground(track);
     updateMiniPlayerBackground(track);
-    
+    checkCurrentTrackLikedState(track.id);
     if (typeof updateArtistLabels === "function") {
         updateArtistLabels(track.artist || track.uidars);
     }
@@ -399,6 +407,22 @@ async function loadTrack(track) {
             window.loadYoutubeVideo(videoId);
         }
     }
+
+async function carregarEstadoCurtida(trackId) {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const likedCollName = `likedmusics${user.uid}`;
+    const musicRef = doc(db, "usuarios", user.uid, likedCollName, trackId);
+    const snap = await getDoc(musicRef);
+    const icon = document.querySelector('.fs-action-buttons .fs-icon-btn img');
+
+    if (icon) {
+        icon.src = snap.exists() 
+            ? "./assets/heart_minus_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg" 
+            : "./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+    }
+}
 
     // 5. Re-vincula botões e salva
     if (typeof vincularBotoesInterface === "function") vincularBotoesInterface();
@@ -423,63 +447,69 @@ async function updateArtistLabels(artistUid) {
 }
 
 
-
 async function checkCurrentTrackLikedState(musicId) {
     const user = auth.currentUser;
-    // Seleciona o ícone correto dentro do container de botões de ação
     const likeBtnIcon = document.querySelector('.fs-action-buttons .fs-icon-btn:first-child img');
     
+    // 1. RESET IMEDIATO: Assume que não está curtida para evitar o bug visual
+    if (likeBtnIcon) {
+        likeBtnIcon.src = "./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+    }
+
     if (!user || !musicId || !likeBtnIcon) return;
 
-    const likedCollectionName = `likedmusics${user.uid}`;
-    const musicRef = doc(db, "usuarios", user.uid, likedCollectionName, musicId);
+    // 2. CAMINHO DA SUBCOLEÇÃO: usuarios > UID > likedmusicsUID > musicId
+    const likedCollName = `likedmusics${user.uid}`;
+    const musicRef = doc(db, "usuarios", user.uid, likedCollName, musicId);
 
     try {
         const snap = await getDoc(musicRef);
         if (snap.exists()) {
-            // Se existir: mostra o ícone PREENCHIDO (FILL1)
+            // 3. SÓ MUDA PARA PREENCHIDO SE O DOCUMENTO EXISTIR
             likeBtnIcon.src = "./assets/heart_minus_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg"; 
-        } else {
-            // Se não existir: mostra o ícone VAZIO (FILL0)
-            likeBtnIcon.src = "./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
         }
     } catch (error) {
         console.error("Erro ao verificar estado de curtida:", error);
     }
 }
 
-async function toggleLike(musicData) {
+async function toggleLike(trackData) {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user) {
+        alert("Você precisa estar logado para curtir músicas.");
+        return;
+    }
 
-    const likedCollectionName = `likedmusics${user.uid}`;
-    const musicRef = doc(db, "usuarios", user.uid, likedCollectionName, musicData.id);
+    // Define o nome da subcoleção conforme sua imagem do Firestore
+    const likedCollName = `likedmusics${user.uid}`;
+    
+    // usuarios -> UID -> likedmusicsUID -> TrackID
+    const musicRef = doc(db, "usuarios", user.uid, likedCollName, trackData.id);
     const likeBtnIcon = document.querySelector('.fs-action-buttons .fs-icon-btn:first-child img');
 
     try {
         const snap = await getDoc(musicRef);
+        
         if (snap.exists()) {
-            // Agora o deleteDoc vai funcionar!
+            // Remove da subcoleção
             await deleteDoc(musicRef);
             if (likeBtnIcon) {
-                // Volta para o ícone de "Mais" (vazio)
                 likeBtnIcon.src = "./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
             }
-            console.log("Removido das curtidas");
+            console.log("Removido das curtidas [Subcoleção]");
         } else {
-            // Adiciona às curtidas
+            // Adiciona na subcoleção do usuário
             await setDoc(musicRef, {
-                id: musicData.id,
-                title: musicData.title || musicData.nome,
-                artist: musicData.artistName || "Artista",
-                cover: musicData.cover,
-                timestamp: new Date()
+                id: trackData.id,
+                title: trackData.title,
+                artist: trackData.artistName || trackData.artist || "Artista",
+                cover: trackData.cover,
+                timestamp: serverTimestamp()
             });
             if (likeBtnIcon) {
-                // Muda para o ícone de "Menos/Preenchido"
                 likeBtnIcon.src = "./assets/heart_minus_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg";
             }
-            console.log("Adicionado às curtidas");
+            console.log("Adicionado às curtidas [Subcoleção]");
         }
     } catch (error) {
         console.error("Erro ao processar curtida:", error);
@@ -952,27 +982,36 @@ if (musicPlayer) {
         console.log("📲 Full Screen aberto");
     });
 }
+// --- 3. BOTÕES DE AÇÃO (LIKE E SHARE) ---
+const actionBtns = document.querySelectorAll('.fs-action-buttons .fs-icon-btn');
 
-    // --- 3. BOTÕES DE AÇÃO (LIKE E SHARE) ---
-    const actionBtns = document.querySelectorAll('.fs-action-buttons .fs-icon-btn');
-    if (actionBtns.length >= 2) {
-        const likeBtn = actionBtns[0];
-        const shareBtn = actionBtns[1];
+if (actionBtns.length >= 2) {
+    const likeBtn = actionBtns[0];
+    const shareBtn = actionBtns[1];
 
-        if (likeBtn) {
-            likeBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (currentTrack) toggleLike(currentTrack);
-            };
-        }
-
-        if (shareBtn) {
-            shareBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (currentTrack) openSharePlayer(currentTrack);
-            };
-        }
+    if (likeBtn) {
+        // Usamos onclick direto para garantir que o evento anterior seja subscrito
+        likeBtn.onclick = async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Verificamos a track atual na window para evitar erro de escopo
+            if (window.currentTrack) {
+                await toggleLike(window.currentTrack);
+            } else {
+                console.warn("Nenhuma música carregada para curtir.");
+            }
+        };
     }
+
+    if (shareBtn) {
+        shareBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.currentTrack) openSharePlayer(window.currentTrack);
+        };
+    }
+}
 
     // --- 4. CONTROLE DE VOLUME (SINCRONIZADO) ---
     const handleVol = (e) => {
