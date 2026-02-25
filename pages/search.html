@@ -8,18 +8,53 @@
 </head>
 <body>
 
-  <!-- Barra de pesquisa -->
-  <div class="search-bar">
-    <div class="search-icon">
-      <svg role="img" height="24" width="24" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 101.414-1.414l-4.344-4.344a9.157 9.157 0 002.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z"></path>
-      </svg>
-    </div>
-    <input type="text" id="searchInput" placeholder="O que você vai ouvir?" />
+<div class="search-header">
+  <div class="search-input-wrapper">
+    <svg class="search-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 101.414-1.414l-4.344-4.344a9.157 9.157 0 002.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z" fill="currentColor"></path>
+    </svg>
+    <input type="text" id="searchInput" placeholder="O que você quer ouvir?" autocomplete="off">
   </div>
+</div>
 
-  <!-- Resultados da pesquisa -->
-  <div id="searchResultsDropdown" class="search-results hidden"></div>
+<div id="searchResultsDropdown" class="search-results hidden"></div>
+
+
+  <div class="categories-container">
+  <h2>Navegar por todas as seções</h2>
+  
+  <div class="category-grid">
+    <div class="category-card pink">
+      <span>Pop</span>
+      <img src="https://i.ibb.co/Mx5pcWS7/image.png" alt="Pop">
+    </div>
+
+    <div class="category-card green">
+      <span>Trap</span>
+      <img src="https://i.ibb.co/3Y00XvY5/wlnl3qcrkkkvadsmqxgj.webp" alt="Trap">
+    </div>
+
+    <div class="category-card purple">
+      <span>Brasil</span>
+      <img src="https://i.ibb.co/gZ4qQmXH/image.png" alt="Brasil">
+    </div>
+
+    <div class="category-card dark-blue">
+      <span>Sertanejo</span>
+      <img src="https://i.ibb.co/Z64FNhfn/image.png" alt="Personalizado">
+    </div>
+
+    <div class="category-card red">
+      <span>Lançamentos</span>
+          </div>
+
+    <div class="category-card bright-pink">
+      <span>Charts</span>
+      <img src="https://i.ibb.co/Xk7Fr2nY/top50world.png" alt="Sessions">
+    </div>
+
+  </div>
+</div>
 
 
 
