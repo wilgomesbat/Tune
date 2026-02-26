@@ -851,54 +851,52 @@ function agendarProximoCiclo() {
     }, 20000);
 }
 
-// Variável global para contar abusos na sessão atual
+// Objeto para controlar o tempo individual de cada música (Cache de Sessão)
+window.historicoValidacao = window.historicoValidacao || {};
 window.spamCounter = window.spamCounter || 0;
 
 async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
     const agora = Date.now();
-    const tempoMinimoReplay = 120000; // 2 minutos entre plays da mesma música
+    const tempoMinimoReplay = 120000; // 2 minutos para a MESMA música
     const user = typeof auth !== 'undefined' ? auth.currentUser : null;
     
-    // Identificação para o log
     const uidLog = user ? user.uid : 'deslogado';
     const nomeLog = user ? (user.displayName || user.email || "Usuário Tune") : "Visitante";
 
-    // --- 1. LÓGICA DE SUSPENSÃO (ANTISPAM) ---
-    if (window.ultimaMusicaValidada === track.id) {
-        const tempoPassado = agora - window.ultimoTimestampValidado;
+    // --- 1. INTELIGÊNCIA DE BLOQUEIO POR ID ---
+    // Verificamos se ESTA música específica foi validada recentemente
+    const ultimaValidacaoDestaMusica = window.historicoValidacao[track.id] || 0;
+    const tempoPassado = agora - ultimaValidacaoDestaMusica;
+
+    if (tempoPassado < tempoMinimoReplay) {
+        window.spamCounter++;
+        const faltam = Math.round((tempoMinimoReplay - tempoPassado) / 1000);
         
-        if (tempoPassado < tempoMinimoReplay) {
-            window.spamCounter++; // Aumenta o nível de suspeita
-            const faltam = Math.round((tempoMinimoReplay - tempoPassado) / 1000);
-            
-            // Define a gravidade do log
-            const statusSpam = window.spamCounter >= 12 ? "🔥 BLOQUEIO POR REINCIDÊNCIA" : "DETECÇÃO DE AUTOCLICK";
+        const statusSpam = window.spamCounter >= 10 ? "🔥 REINCIDÊNCIA" : "DETECÇÃO DE AUTOCLICK";
 
-            try {
-                await addDoc(collection(db, "logs_atividades"), {
-                    type: 'play_spam_ban',
-                    itemTitle: statusSpam,
-                    itemId: track.id,
-                    userId: uidLog,
-                    userName: nomeLog,
-                    timestamp: serverTimestamp(),
-                    device: navigator.userAgent.includes("iPhone") ? "iPhone" : "Desktop",
-                    motivo: `Tentativa nº ${window.spamCounter} (Faltam ${faltam}s)`
-                });
-            } catch (e) { console.error("Erro ao logar spam:", e); }
+        try {
+            await addDoc(collection(db, "logs_atividades"), {
+                type: 'play_spam_ban',
+                itemTitle: statusSpam,
+                itemId: track.id,
+                userId: uidLog,
+                userName: nomeLog,
+                timestamp: serverTimestamp(),
+                device: navigator.platform,
+                motivo: `Repetição de "${track.title}" (Faltam ${faltam}s)`
+            });
+        } catch (e) { console.error(e); }
 
-            console.warn(`🚫 [SUSPENSO] ${statusSpam}. Tentativa ${window.spamCounter}.`);
-            return false; 
-        }
+        console.warn(`🚫 [BLOQUEIO INDIVIDUAL] "${track.title}" já validada recentemente.`);
+        return false; 
     }
 
+    // --- 2. SE PASSOU DA TRAVA (OU É UMA MÚSICA NOVA) ---
     try {
         window.isProcessingStream = true;
         const musicRef = doc(db, "musicas", track.id);
-        
-        // Sorteio de valor Tune DKS
         const valorSorteado = Math.floor(Math.random() * 180001) + 20000;
 
         let updates = {
@@ -907,46 +905,32 @@ async function validarStreamOficial(track) {
             lastMonthlyStreamDate: serverTimestamp()
         };
 
-        // --- 2. REGISTRO DE OUVINTE ÚNICO (MENSAL) ---
+        // Ouvinte Mensal
         if (user) {
-            const dataAtual = new Date();
-            const mesAno = `${dataAtual.getMonth() + 1}_${dataAtual.getFullYear()}`;
-            const registroId = `${mesAno}_${user.uid}_${track.id}`;
-            const registroRef = doc(db, "registro_ouvintes", registroId);
-            
+            const mesAno = `${new Date().getMonth() + 1}_${new Date().getFullYear()}`;
+            const registroRef = doc(db, "registro_ouvintes", `${mesAno}_${user.uid}_${track.id}`);
             const registroSnap = await getDoc(registroRef);
-
             if (!registroSnap.exists()) {
                 updates.ouvintesMensais = increment(1);
-                await setDoc(registroRef, {
-                    userId: user.uid,
-                    trackId: track.id,
-                    periodo: mesAno,
-                    timestamp: serverTimestamp()
-                });
-                console.log("👤 +1 Ouvinte Mensal contabilizado.");
+                await setDoc(registroRef, { userId: user.uid, trackId: track.id, periodo: mesAno, timestamp: serverTimestamp() });
             }
         }
 
-        // --- 3. GRAVAÇÃO FINAL ---
         await updateDoc(musicRef, updates);
 
-        // --- 4. LOG DE SUCESSO ---
+        // LOG DE SUCESSO
         await addDoc(collection(db, "logs_atividades"), {
             type: 'play_20s_valid',
             itemTitle: track.title,
             itemId: track.id,
             userId: uidLog,
             userName: nomeLog,
-            timestamp: serverTimestamp(),
-            valorGerado: valorSorteado,
-            device: navigator.userAgent.includes("iPhone") ? "iPhone" : "Desktop"
+            timestamp: serverTimestamp()
         });
 
-        // RESET: Se ele validou uma música com sucesso, limpamos o contador de spam
-        window.spamCounter = 0;
-        window.ultimaMusicaValidada = track.id;
-        window.ultimoTimestampValidado = Date.now();
+        // SALVA O TEMPO DE VALIDAÇÃO DESTA MÚSICA ESPECÍFICA
+        window.historicoValidacao[track.id] = Date.now();
+        window.spamCounter = 0; 
         
         console.log(`✅ [VALIDADO] +${valorSorteado.toLocaleString()} para "${track.title}"`);
         
@@ -954,7 +938,7 @@ async function validarStreamOficial(track) {
         return true; 
 
     } catch (e) {
-        console.error("❌ Erro fatal na validação:", e);
+        console.error("❌ Erro:", e);
         window.isProcessingStream = false;
         return false;
     }
