@@ -854,16 +854,21 @@ function agendarProximoCiclo() {
 async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
+    // --- 1. FEEDBACK VISUAL IMEDIATO ---
+    // Isso garante que você veja no console o que foi clicado, independente do bloqueio
+    console.log(`🎵 TUNE CHECK: Verificando stream para "${track.title}"...`);
+
     const agora = Date.now();
-    const tempoMinimoReplay = 120000; // 2 minutos (Trava de Spam)
+    const tempoMinimoReplay = 120000; // 2 minutos
     const user = typeof auth !== 'undefined' ? auth.currentUser : null;
 
-    // 1. TRAVA DE SPAM (Evita que o mesmo play conte 2x rápido demais)
+    // --- 2. LOGICA DE SUSPENSÃO (SPAM BLOCK) ---
     if (window.ultimaMusicaValidada === track.id) {
         const tempoPassado = agora - window.ultimoTimestampValidado;
         if (tempoPassado < tempoMinimoReplay) {
-            console.warn(`🚫 [SPAM BLOCK] Bloqueado no Firebase. Faltam ${Math.round((tempoMinimoReplay - tempoPassado)/1000)}s.`);
-            return false;
+            const faltam = Math.round((tempoMinimoReplay - tempoPassado) / 1000);
+            console.warn(`🚫 [SUSPENSO] "${track.title}" já pontuou. Aguarde ${faltam}s para validar novamente.`);
+            return false; 
         }
     }
 
@@ -872,53 +877,46 @@ async function validarStreamOficial(track) {
         const musicRef = doc(db, "musicas", track.id);
         const valorSorteado = Math.floor(Math.random() * 180001) + 20000;
 
-        // Preparamos o objeto de atualização com os Streams (Diário e Mensal)
         let updates = {
             streams: increment(valorSorteado),
             streamsMensal: increment(valorSorteado),
             lastMonthlyStreamDate: serverTimestamp()
         };
 
-        // --- LÓGICA DE OUVINTES MENSAIS ---
-        // Só validamos ouvinte único se o usuário estiver LOGADO
+        // --- 3. REGISTRO DE OUVINTE ÚNICO ---
         if (user) {
             const dataAtual = new Date();
-            const mesAno = `${dataAtual.getMonth() + 1}_${dataAtual.getFullYear()}`; // Ex: 2_2026
-            
-            // Criamos um ID de documento único: "MES_ANO_USERID_TRACKID"
+            const mesAno = `${dataAtual.getMonth() + 1}_${dataAtual.getFullYear()}`;
             const registroId = `${mesAno}_${user.uid}_${track.id}`;
             const registroRef = doc(db, "registro_ouvintes", registroId);
-            
             const registroSnap = await getDoc(registroRef);
 
-            // Se esse registro NÃO existe, é a primeira vez que esse usuário ouve essa música este mês
             if (!registroSnap.exists()) {
-                console.log("👤 Novo ouvinte mensal detectado!");
-                updates.ouvintesMensais = increment(1); // Adiciona +1 ouvinte único na música
-                
-                // Salva o registro para não contar de novo este mês
+                updates.ouvintesMensais = increment(1);
                 await setDoc(registroRef, {
                     userId: user.uid,
                     trackId: track.id,
                     periodo: mesAno,
                     timestamp: serverTimestamp()
                 });
+                console.log(`👤 Novo ouvinte mensal para: ${track.title}`);
             }
         }
 
-        // 2. ENVIA TUDO PARA O FIREBASE
+        // --- 4. GRAVAÇÃO FINAL ---
         await updateDoc(musicRef, updates);
 
-        // Atualiza memória local para a próxima validação
+        // Atualiza memória de sucesso
         window.ultimaMusicaValidada = track.id;
         window.ultimoTimestampValidado = Date.now();
         
-        console.log(`✅ [TUNE] +${valorSorteado.toLocaleString('pt-BR')} streams gravados.`);
+        console.log(`✅ [VALIDADO] +${valorSorteado.toLocaleString('pt-BR')} streams para "${track.title}"`);
+        
         window.isProcessingStream = false;
         return true; 
 
     } catch (e) {
-        console.error("❌ Erro ao validar stream:", e);
+        console.error("❌ Erro técnico ao validar:", e);
         window.isProcessingStream = false;
         return false;
     }
