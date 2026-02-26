@@ -854,20 +854,38 @@ function agendarProximoCiclo() {
 async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
-    // --- 1. FEEDBACK VISUAL IMEDIATO ---
-    // Isso garante que você veja no console o que foi clicado, independente do bloqueio
-    console.log(`🎵 TUNE CHECK: Verificando stream para "${track.title}"...`);
+    console.log(`🎵 TUNE CHECK: Verificando "${track.title}"...`);
 
     const agora = Date.now();
     const tempoMinimoReplay = 120000; // 2 minutos
     const user = typeof auth !== 'undefined' ? auth.currentUser : null;
+    
+    // Identificação do usuário para o log
+    const uidLog = user ? user.uid : 'deslogado';
+    const nomeLog = user ? (user.displayName || user.email || "Usuário Tune") : "Visitante";
 
-    // --- 2. LOGICA DE SUSPENSÃO (SPAM BLOCK) ---
+    // --- LOGICA DE SUSPENSÃO (ANTISPAM) ---
     if (window.ultimaMusicaValidada === track.id) {
         const tempoPassado = agora - window.ultimoTimestampValidado;
+        
         if (tempoPassado < tempoMinimoReplay) {
             const faltam = Math.round((tempoMinimoReplay - tempoPassado) / 1000);
-            console.warn(`🚫 [SUSPENSO] "${track.title}" já pontuou. Aguarde ${faltam}s para validar novamente.`);
+            
+            // GRAVA O LOG DE SPAM (IGUAL AO SEU PRINT DO FIRESTORE)
+            try {
+                await addDoc(collection(db, "logs_atividades"), {
+                    type: 'play_spam_ban', // Tipo exato que seu banco usa
+                    itemTitle: "DETECÇÃO DE AUTOCLICK",
+                    itemId: track.id,
+                    userId: uidLog,
+                    userName: nomeLog,
+                    timestamp: serverTimestamp(),
+                    device: navigator.userAgent.includes("iPhone") ? "iPhone" : "Desktop",
+                    motivo: `Tentativa em ${faltam}s`
+                });
+            } catch (e) { console.error("Erro ao logar spam:", e); }
+
+            console.warn(`🚫 [SUSPENSO] Bloqueado. Aguarde ${faltam}s.`);
             return false; 
         }
     }
@@ -883,12 +901,10 @@ async function validarStreamOficial(track) {
             lastMonthlyStreamDate: serverTimestamp()
         };
 
-        // --- 3. REGISTRO DE OUVINTE ÚNICO ---
+        // Registro de Ouvinte Mensal Único
         if (user) {
-            const dataAtual = new Date();
-            const mesAno = `${dataAtual.getMonth() + 1}_${dataAtual.getFullYear()}`;
-            const registroId = `${mesAno}_${user.uid}_${track.id}`;
-            const registroRef = doc(db, "registro_ouvintes", registroId);
+            const mesAno = `${new Date().getMonth() + 1}_${new Date().getFullYear()}`;
+            const registroRef = doc(db, "registro_ouvintes", `${mesAno}_${user.uid}_${track.id}`);
             const registroSnap = await getDoc(registroRef);
 
             if (!registroSnap.exists()) {
@@ -899,24 +915,31 @@ async function validarStreamOficial(track) {
                     periodo: mesAno,
                     timestamp: serverTimestamp()
                 });
-                console.log(`👤 Novo ouvinte mensal para: ${track.title}`);
             }
         }
 
-        // --- 4. GRAVAÇÃO FINAL ---
         await updateDoc(musicRef, updates);
 
-        // Atualiza memória de sucesso
+        // LOG DE SUCESSO
+        await addDoc(collection(db, "logs_atividades"), {
+            type: 'play_20s_valid',
+            itemTitle: track.title,
+            itemId: track.id,
+            userId: uidLog,
+            userName: nomeLog,
+            timestamp: serverTimestamp(),
+            device: navigator.userAgent.includes("iPhone") ? "iPhone" : "Desktop"
+        });
+
         window.ultimaMusicaValidada = track.id;
         window.ultimoTimestampValidado = Date.now();
         
-        console.log(`✅ [VALIDADO] +${valorSorteado.toLocaleString('pt-BR')} streams para "${track.title}"`);
-        
+        console.log(`✅ [VALIDADO] +${valorSorteado.toLocaleString()} streams.`);
         window.isProcessingStream = false;
         return true; 
 
     } catch (e) {
-        console.error("❌ Erro técnico ao validar:", e);
+        console.error("❌ Erro:", e);
         window.isProcessingStream = false;
         return false;
     }

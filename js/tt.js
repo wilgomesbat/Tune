@@ -1656,12 +1656,12 @@ async function setupLogsPage() {
     const logsContainer = document.getElementById('logs-container');
     if (!logsContainer) return;
 
-    logsContainer.innerHTML = '<p class="text-gray-500 p-4 text-center">Monitorando Tune em tempo real...</p>';
+    logsContainer.innerHTML = '<div class="p-8 text-center text-gray-500 italic">Iniciando monitoramento Tune DKS...</div>';
 
-    // Buscamos na coleção onde você está salvando (ajuste para "logs" ou "logs_atividades")
     const logsRef = collection(db, "logs_atividades"); 
     const q = query(logsRef, orderBy("timestamp", "desc"), limit(50));
 
+    // Monitoramento em tempo real (Snapshot)
     onSnapshot(q, (snapshot) => {
         logsContainer.innerHTML = ''; 
         
@@ -1669,63 +1669,67 @@ async function setupLogsPage() {
             const log = docSnap.data();
             const logId = docSnap.id;
             
-            const logItem = document.createElement('div');
-            logItem.id = `log-${logId}`;
-            
-            // --- LÓGICA DE CORES POR TIPO ---
-            let borderColor = 'border-gray-500'; // Default
+            let borderColor = 'border-gray-600'; 
             let icon = '📄';
-            let label = 'Ação';
+            let label = 'Atividade';
 
-            if (log.type === 'play_start') {
-                borderColor = 'border-blue-400';
-                icon = '🔘';
-                label = 'Clicou no Play';
-            } else if (log.type === 'play_20s_valid') {
-                borderColor = 'border-green-500';
-                icon = '✅';
-                label = 'Stream Validada';
-            } else if (log.type === 'album_view') {
-                borderColor = 'border-purple-500';
-                icon = '💿';
-                label = 'Viu Álbum';
+            // --- LÓGICA DE FILTRO POR TIPO ---
+            switch (log.type) {
+                case 'play_start':
+                    borderColor = 'border-blue-400';
+                    icon = '🔘';
+                    label = 'Play';
+                    break;
+                case 'play_20s_valid':
+                    borderColor = 'border-green-500';
+                    icon = '✅';
+                    label = 'Stream Validada';
+                    break;
+                case 'play_spam_ban': // SINCRONIZADO COM O BANCO
+                    borderColor = 'border-red-600';
+                    icon = '⚠️';
+                    label = 'BLOQUEIO SPAM';
+                    break;
+                case 'album_view':
+                    borderColor = 'border-purple-500';
+                    icon = '💿';
+                    label = 'Viu Álbum';
+                    break;
             }
 
-            logItem.className = `flex items-center justify-between p-3 mb-2 bg-[#121212] rounded border-l-4 ${borderColor} transition-all`;
+            const logItem = document.createElement('div');
+            logItem.className = `flex items-center justify-between p-3 mb-2 bg-[#181818] rounded border-l-4 ${borderColor} animate-in fade-in duration-500`;
 
             const timestamp = log.timestamp?.seconds ? new Date(log.timestamp.seconds * 1000) : new Date();
-            const hora = timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const hora = timestamp.toLocaleTimeString('pt-BR');
 
             logItem.innerHTML = `
                 <div class="flex items-center gap-3">
                     <span class="text-xl">${icon}</span>
                     <div>
-                        <p class="text-white text-sm font-bold user-name-field">Carregando...</p>
-                        <p class="text-gray-400 text-[11px]">${label}: <b class="text-gray-200">${log.itemTitle}</b></p>
-                        ${log.device ? `<p class="text-[9px] text-gray-600 uppercase mt-1">${log.device}</p>` : ''}
+                        <p class="text-white text-sm font-bold user-name-field" data-uid="${log.userId}">Carregando...</p>
+                        <p class="text-gray-400 text-[11px]">${label}: <b class="text-gray-100">${log.itemTitle}</b></p>
+                        ${log.motivo ? `<p class="text-[9px] text-red-400 font-bold uppercase mt-1">${log.motivo}</p>` : ''}
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-[10px] text-gray-600 font-mono mb-1">${log.userId?.substring(0,8) || '---'}</p>
+                    <p class="text-[9px] text-gray-700 font-mono">${log.userId?.substring(0,10) || '---'}</p>
                     <span class="text-xs text-gray-500 font-mono">${hora}</span>
                 </div>
             `;
             logsContainer.appendChild(logItem);
 
-            // --- BUSCA APELIDO ---
+            // Busca apelido do usuário para não ficar "Carregando"
             if (log.userId && log.userId !== "deslogado") {
                 try {
-                    const userRef = doc(db, "usuarios", log.userId);
-                    const userSnap = await getDoc(userRef);
+                    const userSnap = await getDoc(doc(db, "usuarios", log.userId));
                     const nameField = logItem.querySelector('.user-name-field');
-                    
                     if (userSnap.exists()) {
-                        const userData = userSnap.data();
-                        nameField.textContent = userData.apelido || userData.nome || log.userName;
+                        nameField.textContent = userSnap.data().apelido || userSnap.data().nome || log.userName;
                     } else {
                         nameField.textContent = log.userName || "Anônimo";
                     }
-                } catch (err) { console.error(err); }
+                } catch (e) { console.error(e); }
             } else {
                 logItem.querySelector('.user-name-field').textContent = "Visitante";
             }
