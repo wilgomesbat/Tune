@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, serverTimestamp,  collection, doc, getDoc, updateDoc, setDoc, query, where, onSnapshot, orderBy, getDocs, limit, addDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, startAfter, serverTimestamp,  collection, doc, getDoc, updateDoc, setDoc, query, where, onSnapshot, orderBy, getDocs, limit, addDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { getDatabase, ref as databaseRef, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
@@ -1733,6 +1733,293 @@ async function setupLogsPage() {
     });
 }
 
+let lastMusicDoc = null;
+const LIMIT_PER_PAGE = 20;
+
+window.openEditMusicModal = async (musicId) => {
+    const modal = document.getElementById('editMusicModal');
+    if (!modal) return;
+
+    try {
+        const snap = await getDoc(doc(db, "musicas", musicId));
+        if (!snap.exists()) return;
+
+        const data = snap.data();
+
+        const setField = (id, value) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = value ?? "";
+        };
+
+        setField('musicDocId', musicId);
+        setField('mTitle', data.title);
+
+        // 🔥 fallback inteligente
+        setField('mArtistName', data.artistName || data.artist_name || "");
+        setField('mArtistUid', data.artist || "");
+
+        setField('mAlbum', data.album);
+        setField('mCover', data.cover);
+        setField('mAudioURL', data.audioURL);
+        setField('mDuration', data.duration);
+        setField('mGenre', data.genre);
+
+        setField('mStreams', data.streams ?? 0);
+        setField('mStreamsMensal', data.streamsMensal ?? 0);
+
+        setField('mStatus', data.status ?? "publico");
+
+        document.getElementById('mExplicit').value = String(data.explicit ?? false);
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+    } catch (err) {
+        console.error("Erro ao abrir modal:", err);
+    }
+};
+
+window.closeMusicModal = () => {
+    const modal = document.getElementById('editMusicModal');
+    if (!modal) return;
+
+    modal.classList.remove("flex");
+    modal.classList.add("hidden");
+};
+
+// --- 2. LÓGICA DE BUSCA E RENDERIZAÇÃO ---
+async function fetchMusicas(isLoadMore = false) {
+    const grid = document.getElementById('musicsGrid');
+    const pagination = document.getElementById('paginationSection');
+    const searchInput = document.getElementById('musicSearchInput');
+    
+    if (!grid) return;
+
+    if (!isLoadMore) {
+        grid.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500 animate-pulse">CARREGANDO...</div>';
+        lastMusicDoc = null;
+    }
+
+    try {
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        let q;
+
+        // Se houver busca, ignoramos paginação para simplificar
+        if (searchTerm) {
+            q = query(collection(db, "musicas"), limit(100));
+            if (pagination) pagination.classList.add('hidden');
+        } else {
+            // Paginação por título
+            if (isLoadMore && lastMusicDoc) {
+                q = query(collection(db, "musicas"), orderBy("title"), startAfter(lastMusicDoc), limit(LIMIT_PER_PAGE));
+            } else {
+                q = query(collection(db, "musicas"), orderBy("title"), limit(LIMIT_PER_PAGE));
+            }
+        }
+
+        const snap = await getDocs(q);
+        if (snap.empty && !isLoadMore) {
+            grid.innerHTML = '<p class="text-gray-500 col-span-full text-center">Nenhuma música encontrada.</p>';
+            return;
+        }
+
+        lastMusicDoc = snap.docs[snap.docs.length - 1];
+        let docs = snap.docs;
+
+        // Filtro manual para busca
+        if (searchTerm) {
+            docs = docs.filter(d => {
+                const val = d.data();
+                return val.title?.toLowerCase().includes(searchTerm) || val.artistName?.toLowerCase().includes(searchTerm);
+            });
+        } else if (pagination) {
+            pagination.classList.toggle('hidden', snap.docs.length < LIMIT_PER_PAGE);
+        }
+
+        if (!isLoadMore) grid.innerHTML = '';
+
+        docs.forEach(docSnap => {
+            const m = docSnap.data();
+            const card = document.createElement('div');
+            card.className = "bg-black rounded-lg overflow-hidden border border-gray-900 group relative hover:border-red-600 transition-all";
+            card.innerHTML = `
+                <div class="relative aspect-square">
+                    <img src="${m.cover}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" loading="lazy">
+                    <button onclick="openEditMusicModal('${docSnap.id}')" class="absolute bottom-2 right-2 bg-white text-black w-10 h-10 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-all transform hover:scale-110 z-20">
+                        <i class='bx bxs-pencil text-xl'></i>
+                    </button>
+                </div>
+                <div class="p-3">
+                    <h4 class="text-white text-[11px] font-bold truncate uppercase">${m.title || 'Sem Nome'}</h4>
+                    <p class="text-gray-500 text-[9px] truncate">${m.artistName || 'Artista'}</p>
+                </div>`;
+            grid.appendChild(card);
+        });
+
+    } catch (e) {
+        console.error("Erro no fetch:", e);
+        grid.innerHTML = `<p class="text-red-500 text-center col-span-full">Erro de índice ou conexão. Verifique o console (F12).</p>`;
+    }
+}
+
+function setupMusicEvents() {
+    const form = document.getElementById('editMusicForm');
+    const search = document.getElementById('musicSearchInput');
+    const loadMore = document.getElementById('btnLoadMoreMusics');
+
+    if (form) {
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('musicDocId')?.value;
+            if (!id) return alert("ID da música não encontrado.");
+
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "SALVANDO...";
+            }
+
+            // Função segura para pegar valores
+            const getValue = (id) => {
+                const el = document.getElementById(id);
+                return el ? el.value : "";
+            };
+
+            const getNumber = (id) => {
+                const val = getValue(id);
+                return val !== "" ? Number(val) : 0;
+            };
+
+            const updateData = {
+                title: getValue('mTitle'),
+                cover: getValue('mCover'),
+                audioURL: getValue('mAudioURL'),
+                duration: getValue('mDuration'),
+                genre: getValue('mGenre'),
+                artistName: getValue('mArtistName'),
+                artist: getValue('mArtistUid'),
+                album: getValue('mAlbum'),
+                streams: getNumber('mStreams'),
+                streamsMensal: getNumber('mStreamsMensal'),
+                status: getValue('mStatus'),
+                explicit: getValue('mExplicit') === "true",
+                updatedAt: new Date()
+            };
+
+            try {
+                await updateDoc(doc(db, "musicas", id), updateData);
+
+                closeMusicModal();
+                fetchMusicas();
+                alert("Música atualizada com sucesso!");
+
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao atualizar: " + err.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = "SALVAR ALTERAÇÕES";
+                }
+            }
+        });
+    }
+
+    if (search) {
+        search.addEventListener("input", () => fetchMusicas());
+    }
+
+    if (loadMore) {
+        loadMore.addEventListener("click", () => fetchMusicas(true));
+    }
+}
+
+// --- 3. O OBSERVADOR ÚNICO (ADICIONE AQUI) ---
+const musicObserver = new MutationObserver(() => {
+    const grid = document.getElementById('musicsGrid');
+    const btnDel = document.getElementById('btnDeleteArtistMusics');
+
+    // Se o grid apareceu e está vazio, carrega músicas
+    if (grid && grid.children.length === 0) {
+        fetchMusicas();
+        // Configura evento de busca uma única vez
+        const searchInput = document.getElementById('musicSearchInput');
+        if (searchInput && !searchInput.dataset.init) {
+            searchInput.dataset.init = "true";
+            searchInput.oninput = () => {
+                clearTimeout(window.searchTimer);
+                window.searchTimer = setTimeout(() => fetchMusicas(), 500);
+            };
+        }
+    }
+
+    // Se o botão de deletar apareceu, ativa a função
+    if (btnDel) {
+        configurarExclusaoEmMassa();
+    }
+});
+
+musicObserver.observe(document.body, { childList: true, subtree: true });
+
+// Execução inicial para carregamento direto
+if (document.getElementById('musicsGrid')) {
+    setupMusicEvents();
+    fetchMusicas();
+}
+
+
+
+
+// --- 1. FUNÇÃO DE EXCLUSÃO EM MASSA ---
+async function configurarExclusaoEmMassa() {
+    const btnDelete = document.getElementById('btnDeleteArtistMusics');
+    const inputUid = document.getElementById('deleteArtistUid');
+
+    // Se o botão não existe ou já foi ativado, interrompe
+    if (!btnDelete || !inputUid || btnDelete.dataset.init === "true") return;
+
+    btnDelete.dataset.init = "true"; // Marca para não duplicar o clique
+    btnDelete.onclick = async () => {
+        const artistUid = inputUid.value.trim();
+        if (!artistUid) return alert("Insira o UID do artista!");
+
+        if (!confirm(`⚠️ Deletar TODAS as músicas do artista: ${artistUid}?`)) return;
+        if (!confirm("CONFIRMAÇÃO FINAL: Esta ação é permanente!")) return;
+
+        btnDelete.disabled = true;
+        btnDelete.innerText = "DELETANDO...";
+
+        try {
+            const q = query(collection(db, "musicas"), where("artist", "==", artistUid));
+            const snap = await getDocs(q);
+
+            if (snap.empty) {
+                alert("Nenhuma música encontrada para este UID.");
+            } else {
+                const batch = writeBatch(db);
+                snap.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+                alert(`Sucesso! ${snap.size} músicas removidas.`);
+                inputUid.value = "";
+                fetchMusicas(); // Recarrega a grid
+            }
+        } catch (e) {
+            alert("Erro: " + e.message);
+        } finally {
+            btnDelete.disabled = false;
+            btnDelete.innerText = "DELETAR TODAS AS MÚSICAS DESTE ARTISTA";
+        }
+    };
+}
+
+
+
+// Chamada de emergência caso já esteja na tela
+if (document.getElementById('musicsGrid')) fetchMusicas();
+if (document.getElementById('btnDeleteArtistMusics')) configurarExclusaoEmMassa();
 // ============================================
 // ⭐ SETUP DA PÁGINA addmusic (VERSÃO COMPLETA E CORRIGIDA) ⭐
 // ============================================
@@ -2363,3 +2650,6 @@ function setupDashboardPage() {
     fetchAndRenderTopSongsList();
 }
 
+if (document.getElementById('musicsGrid')) {
+    setupManageMusicsPage();
+}

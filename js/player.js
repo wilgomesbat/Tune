@@ -23,7 +23,10 @@ import { auth, db } from './firebase-config.js';
 window.playTrackGlobal = function(track) {
     if (!track) return;
 
-    console.log("🎵 TUNE GLOBAL PLAY:", track.title);
+   const user = auth.currentUser; 
+    if (user) {
+        detectarSpamCliques(user.uid);
+    }
 
     // Abre mini player
     const mini = document.getElementById("music-player");
@@ -49,8 +52,40 @@ if (!window.streamGuard) {
     };
 }
 
+// Gera um ID único para esta aba específica ao abrir o site
+if (!window.tabId) {
+    window.tabId = Date.now().toString() + Math.random().toString();
+}
 
+// --- SISTEMA DE TRAVA GLOBAL (Local Storage com ID de Aba) ---
+function tentarObterPosseDoPlayer() {
+    const agora = Date.now();
+    const ultimaAtividade = localStorage.getItem('tune_player_active_at');
+    const donaDaPosse = localStorage.getItem('tune_player_tab_id');
+    
+    // Se existe atividade recente E o ID da aba que gravou é DIFERENTE desta aqui
+    if (ultimaAtividade && (agora - parseInt(ultimaAtividade) < 5000) && donaDaPosse !== window.tabId) {
+        console.warn("🚫 Outra aba ativa detectada (ID diferente). Bloqueando stream.");
+        return false;
+    }
 
+    // Se estiver livre ou se a dona já for esta aba, renova a posse
+    localStorage.setItem('tune_player_active_at', agora);
+    localStorage.setItem('tune_player_tab_id', window.tabId);
+    return true;
+}
+
+// Heartbeat para manter a posse enquanto toca
+let heartbeatInterval = null;
+function iniciarHeartbeat() {
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    heartbeatInterval = setInterval(() => {
+        if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1) {
+            localStorage.setItem('tune_player_active_at', Date.now());
+            localStorage.setItem('tune_player_tab_id', window.tabId);
+        }
+    }, 3000);
+}
 
 // No topo do seu player.js
 let playlistAtual = []; // Armazena o array de objetos das músicas
@@ -126,7 +161,7 @@ async function safePlay() {
         try {
             await audio.play();
         } catch (err) {
-            console.warn("Play bloqueado ou sem source.");
+           
         }
     }
 }
@@ -335,7 +370,7 @@ function stopYoutubeTracking() {
     if (ytProgressInterval) {
         clearInterval(ytProgressInterval);
         ytProgressInterval = null;
-        console.log("🛑 Rastreio do YouTube parado.");
+       
     }
 }
 
@@ -370,6 +405,8 @@ async function loadTrack(track) {
     if (typeof stopYoutubeTracking === "function") stopYoutubeTracking();
     window.isProcessingStream = false;
     window.currentTrack = track; 
+    window.streamEntregueNestaExecucao = false; // Permite o motor de 20s rodar para a NOVA música
+    window.isProcessingStream = false;        // Destrava o processo de gravação
     window.streamEntregueNestaExecucao = false; 
     window.isProcessingStream = false;
     if (window.streamTimer) clearTimeout(window.streamTimer);
@@ -496,7 +533,7 @@ async function toggleLike(trackData) {
             if (likeBtnIcon) {
                 likeBtnIcon.src = "./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
             }
-            console.log("Removido das curtidas [Subcoleção]");
+           
         } else {
             // Adiciona na subcoleção do usuário
             await setDoc(musicRef, {
@@ -509,7 +546,7 @@ async function toggleLike(trackData) {
             if (likeBtnIcon) {
                 likeBtnIcon.src = "./assets/heart_minus_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg";
             }
-            console.log("Adicionado às curtidas [Subcoleção]");
+           
         }
     } catch (error) {
         console.error("Erro ao processar curtida:", error);
@@ -608,7 +645,7 @@ async function openSharePlayer(data) {
 
 // 2. API DO YOUTUBE
 window.onYouTubeIframeAPIReady = function() {
-    console.log("✅ API do YouTube pronta.");
+  
 };
 
 // --- 1. DEFINIÇÃO NO TOPO (Escopo do Módulo) ---
@@ -666,15 +703,17 @@ function togglePlay() {
         return;
     }
 
+    detectarSpamCliques(user.uid);
+
     const state = window.ytPlayer.getPlayerState();
     
     // Se estiver tocando (1), pausa. Se não, dá play.
     if (state === 1) {
         window.ytPlayer.pauseVideo();
-        console.log("⏸️ Comando: Pausar");
+      
     } else {
         window.ytPlayer.playVideo();
-        console.log("▶️ Comando: Play");
+       
     }
 }
 
@@ -702,87 +741,84 @@ function vincularBotoesInterface() {
     }
 }
 
+// --- VARIÁVEIS DE CONTROLE GLOBAL (Deixe fora da função) ---
 window.streamTimer = null; 
 window.isProcessingStream = false;
-window.streamEntregueNestaExecucao = false; // NOVA TRAVA: Garante apenas 1 vez por play
+window.streamEntregueNestaExecucao = false; 
+window.idDaMusicaAtualNoPlayer = null; // Nova trava para identificar troca de faixa
 
 window.onPlayerStateChange = function(event) {
-    console.log("🎬 Estado YouTube:", event.data);
-    
+    const state = event.data;
     const el = getPlayerElements();
     const iconPlay = "/assets/Group.png";
     const iconPause = "/assets/pause.fill.png";
 
+    if (window.currentTrack && window.idDaMusicaAtualNoPlayer !== window.currentTrack.id) {
+        window.idDaMusicaAtualNoPlayer = window.currentTrack.id;
+        window.streamEntregueNestaExecucao = false;
+    }
+
     // 1. LIMPEZA DE SEGURANÇA
-    // Se o vídeo mudar de estado (pausar, travar, etc), paramos o cronômetro de 20s
-    if (window.streamTimer) { 
-        clearTimeout(window.streamTimer); 
-        window.streamTimer = null; 
+    if (state === 2 || state === 0 || state === -1) {
+        if (window.streamTimer) { 
+            clearTimeout(window.streamTimer); 
+            window.streamTimer = null; 
+        }
     }
 
-    // 2. DESTRAVA CARREGAMENTO (Loop de estados 3, 5, -1)
-    if (event.data === 5 || event.data === -1) {
-        event.target.playVideo();
-    }
+    if (state === 5 || state === -1) { event.target.playVideo(); }
 
-    // 3. ESTADO: TOCANDO (1)
-    if (event.data === 1) {
+    // 2. ESTADO: TOCANDO (1)
+    if (state === 1) {
         if (typeof startYoutubeTracking === 'function') startYoutubeTracking();
         
-        // --- ATUALIZA ÍCONES ---
-        // Mini Player (Lado direito)
+        // Atualiza Ícones
         if (el.playBtn) el.playBtn.querySelector('img').src = iconPause;
-        
-        // Full Screen
         if (el.fsPlayPauseBtn) {
             const fsImg = el.fsPlayPauseBtn.querySelector('img');
             if (fsImg) fsImg.src = iconPause;
-            
-            // Se você usa o sistema de IDs específicos no FS:
             const playIcon = document.getElementById('fs-play-icon');
             const pauseIcon = document.getElementById('fs-pause-icon');
-            if (playIcon) playIcon.classList.add('hidden');
-            if (pauseIcon) pauseIcon.classList.remove('hidden');
+            if (playIcon) { playIcon.classList.add('hidden'); pauseIcon.classList.remove('hidden'); }
         }
 
-        // --- MOTOR DE STREAMS (INJEÇÃO ÚNICA) ---
-        // Só inicia o timer se a música ainda NÃO foi contabilizada nesta execução
-        if (!window.streamEntregueNestaExecucao) {
-            console.log("⏳ Motor Tune DKS: Validando stream em 20s...");
+        // MOTOR DE STREAMS
+        if (!window.streamEntregueNestaExecucao && !window.streamTimer) {
+           
             
             window.streamTimer = setTimeout(async () => {
-                // Verifica se após 20s o player ainda está tocando
                 if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1) {
-                    await validarStreamOficial(window.currentTrack);
                     
-                    // TRAVA: Impede que injete de novo enquanto a mesma música estiver carregada
-                    window.streamEntregueNestaExecucao = true; 
-                    console.log("🔒 Stream única finalizada. Motor em repouso.");
+                    // ESPERA A RESPOSTA DO FIREBASE
+                    const gravouNoBanco = await validarStreamOficial(window.currentTrack);
+                    
+                    if (gravouNoBanco) {
+                        window.streamEntregueNestaExecucao = true; 
+                       
+                    } else {
+                        console.log("⚠️ O stream não foi contabilizado devido às regras de SPAM.");
+                        // Não setamos streamEntregueNestaExecucao como true para permitir 
+                        // que o sistema tente de novo se o tempo de spam passar.
+                    }
+                    window.streamTimer = null;
                 }
             }, 20000); 
-        } else {
-            console.log("ℹ️ Stream já contabilizada para esta música.");
         }
     } 
     
-    // 4. ESTADO: PAUSADO (2) OU FIM (0)
+    // 3. ESTADO: PAUSADO / FIM
     else {
         if (typeof stopYoutubeTracking === 'function') stopYoutubeTracking();
-        
-        // --- ATUALIZA ÍCONES PARA PLAY ---
         if (el.playBtn) el.playBtn.querySelector('img').src = iconPlay;
         if (el.fsPlayPauseBtn) {
             const fsImg = el.fsPlayPauseBtn.querySelector('img');
             if (fsImg) fsImg.src = iconPlay;
-
             const playIcon = document.getElementById('fs-play-icon');
             const pauseIcon = document.getElementById('fs-pause-icon');
-            if (playIcon) playIcon.classList.remove('hidden');
-            if (pauseIcon) pauseIcon.classList.add('hidden');
+            if (playIcon) { playIcon.classList.remove('hidden'); pauseIcon.classList.add('hidden'); }
         }
 
-        // Se a música acabou, pula para a próxima
-        if (event.data === 0 && typeof window.pularParaProxima === "function") {
+        if (state === 0 && typeof window.pularParaProxima === "function") {
             window.pularParaProxima();
         }
     }
@@ -800,37 +836,41 @@ function agendarProximoCiclo() {
     }, 20000);
 }
 
-
-
 async function validarStreamOficial(track) {
-    if (!track || !track.id || window.isProcessingStream) return;
+    if (!track || !track.id || window.isProcessingStream) return false;
+
+    const agora = Date.now();
+    const tempoMinimoReplay = 120000; // 2 minutos
+
+    if (window.ultimaMusicaValidada === track.id) {
+        const tempoPassado = agora - window.ultimoTimestampValidado;
+        if (tempoPassado < tempoMinimoReplay) {
+            console.warn(`🚫 [SPAM BLOCK] Bloqueado no Firebase. Faltam ${Math.round((tempoMinimoReplay - tempoPassado)/1000)}s.`);
+            return false; // AVISA QUE FALHOU
+        }
+    }
 
     try {
-        window.isProcessingStream = true; // Trava para evitar cliques duplos
+        window.isProcessingStream = true;
         const musicRef = doc(db, "musicas", track.id);
-        
-        // Sorteio entre 50k e 400k para simular volume de streams
         const valorSorteado = Math.floor(Math.random() * 180001) + 20000;
-        
+
         await updateDoc(musicRef, {
-            streams: increment(valorSorteado),       // Contador Diário/Geral
-            streamsMensal: increment(valorSorteado), // Contador para Estabilidade do Chart
-            lastMonthlyStreamDate: serverTimestamp() // Data da última atualização
+            streams: increment(valorSorteado),
+            streamsMensal: increment(valorSorteado),
+            lastMonthlyStreamDate: serverTimestamp()
         });
 
-        console.log(`✅ [TUNE] ${track.title}: +${valorSorteado.toLocaleString('pt-BR')} streams (Híbrido)`);
+        window.ultimaMusicaValidada = track.id;
+        window.ultimoTimestampValidado = Date.now();
         
-        if (typeof registrarLog === 'function') {
-            const formatado = valorSorteado >= 1000000 
-                ? (valorSorteado / 1000000).toFixed(1) + 'M' 
-                : (valorSorteado / 1000).toFixed(0) + 'K';
-            registrarLog(`${track.title} (+${formatado})`, 'stream_20s_valid', track.id);
-        }
-        
+        console.log(`✅ [FIREBASE] +${valorSorteado.toLocaleString('pt-BR')} gravados com sucesso.`);
         window.isProcessingStream = false;
+        return true; // AVISA QUE DEU CERTO
     } catch (e) {
-        console.error("❌ Erro ao validar stream:", e);
+     
         window.isProcessingStream = false;
+        return false;
     }
 }
 
@@ -918,6 +958,51 @@ function setupYoutubeAction() {
     }
 }
 
+let clickCount = 0;
+let lastClickTime = 0;
+const SPAM_THRESHOLD = 5; // Cliques permitidos
+const SPAM_TIME_WINDOW = 2000; // Janela de 2 segundos
+
+async function detectarSpamCliques(userId) {
+    const now = Date.now();
+
+    if (now - lastClickTime < SPAM_TIME_WINDOW) {
+        clickCount++;
+    } else {
+        clickCount = 1; // Reseta se passou do tempo
+    }
+
+    lastClickTime = now;
+
+    if (clickCount >= SPAM_THRESHOLD) {
+        await suspenderUsuario(userId);
+    }
+}
+
+async function suspenderUsuario(userId) {
+    if (!userId || userId === "deslogado") return;
+
+    const suspensaoAte = new Date(Date.now() + 5 * 60000); // 5 minutos
+
+    try {
+        // Registra o log com o tipo específico para o seu painel
+        if (typeof registrarLog === "function") {
+            await registrarLog("SUSPENSÃO: DETECÇÃO DE AUTOCLICK", "play_spam_ban", userId);
+        }
+
+        await updateDoc(doc(db, "usuarios", userId), {
+            status: "suspenso",
+            suspensaoAte: suspensaoAte,
+            motivoSuspensao: "Uso de autoclicks/spam detectado pelo Player"
+        });
+
+        window.location.reload(); // Recarrega para ativar o bloqueio global
+        
+    } catch (e) {
+        console.error("Erro ao suspender:", e);
+    }
+}
+
 /**
  * CONFIGURAÇÃO DOS LISTENERS DO PLAYER
  * Gerencia cliques em Play, Pause, Like, Share e Volume.
@@ -971,7 +1056,7 @@ if (musicPlayer) {
 
         const fs = document.getElementById("full-screen-player");
         if (!fs) {
-            console.warn("❌ #full-screen-player não encontrado");
+          
             return;
         }
 
@@ -1046,7 +1131,7 @@ if (actionBtns.length >= 2) {
     if (fsCloseButton) {
         fsCloseButton.onclick = (e) => {
             e.stopPropagation();
-            console.log("❌ Fechando Player Full Screen");
+          
             
             document.body.classList.remove('fs-active');
             

@@ -1,0 +1,142 @@
+<main id="main" class="p-4">
+    <h1 class="text-black text-3xl font-bold mb-9">Gerenciar Músicas</h1>
+
+    <div class="mb-6 relative">
+        <input type="text" id="musicSearchInput" placeholder="Buscar música por título ou artista..." class="w-full p-3 pl-10 bg-black text-white rounded-lg border border-gray-800 focus:border-red-600 outline-none" />
+        <i class='bx bx-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'></i>
+    </div>
+
+    <div id="musicsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+    </div>
+
+    <button onclick="testeForceFetch()" class="bg-blue-600 text-white px-4 py-2 rounded text-xs mb-4">
+    FORÇAR CARREGAMENTO (DEBUG)
+</button>
+
+<div id="paginationSection" class="mt-10 mb-10 text-center hidden">
+    <button id="btnLoadMoreMusics" class="bg-gray-900 text-white border border-gray-700 px-8 py-3 rounded-full font-bold uppercase text-xs hover:bg-red-600 hover:border-red-600 transition-all">
+        Carregar Próximas Músicas
+    </button>
+</div>
+
+<div class="mt-10 p-4 border border-red-900/50 bg-red-900/10 rounded-lg">
+    <h3 class="text-red-500 font-bold text-sm uppercase mb-4 flex items-center">
+        <i class='bx bxs-error-alt mr-2'></i> Zona de Perigo: Exclusão em Massa
+    </h3>
+    
+    <div class="space-y-4">
+        <div>
+            <label class="block text-[10px] text-gray-400 font-bold uppercase mb-1">UID do Artista para Limpeza</label>
+            <input type="text" id="deleteArtistUid" placeholder="Cole o UID do artista aqui..." 
+                   class="w-full bg-black border border-gray-800 p-2 rounded text-white text-xs focus:border-red-600 outline-none" />
+        </div>
+        
+        <p class="text-[9px] text-gray-500 italic">
+            * Isso removerá permanentemente <strong>TODAS</strong> as músicas vinculadas a este UID na coleção "musicas".
+        </p>
+
+        <button type="button" id="btnDeleteArtistMusics" 
+                class="w-full bg-red-600/20 border border-red-600 text-red-500 font-bold py-2 rounded text-xs hover:bg-red-600 hover:text-white transition-all">
+            DELETAR TODAS AS MÚSICAS DESTE ARTISTA
+        </button>
+    </div>
+</div>
+
+    <div id="editMusicModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        
+        <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
+            <h2 class="text-2xl font-semibold text-white">Editar Dados da Música</h2>
+            <button type="button" onclick="closeMusicModal()" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+        </div>
+
+        <form id="editMusicForm">
+            <input type="hidden" id="musicDocId">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Título da Música</label>
+                        <input id="mTitle" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white focus:border-red-600 outline-none" required />
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-1">URL do Áudio (YouTube/Link)</label>
+                        <input id="mAudioURL" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white focus:border-red-600 outline-none" />
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-1">URL da Capa (Imagem)</label>
+                        <input id="mCover" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white focus:border-red-600 outline-none" required />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Gênero</label>
+                            <input id="mGenre" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white focus:border-red-600 outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Duração</label>
+                            <input id="mDuration" type="text" placeholder="2:43" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white focus:border-red-600 outline-none" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Nome do Artista</label>
+                        <input id="mArtistName" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white focus:border-red-600 outline-none" required />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-1">UID do Artista</label>
+                        <input id="mArtistUid" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white opacity-50" readonly />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Álbum / "Single"</label>
+                            <input id="mAlbum" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white focus:border-red-600 outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Status</label>
+                            <select id="mStatus" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white focus:border-red-600 outline-none">
+                                <option value="publico">público</option>
+                                <option value="pendente">pendente</option>
+                                <option value="privado">privado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 bg-red-900/10 p-4 rounded-lg border border-red-900/20">
+                        <div>
+                            <label class="block text-[10px] font-bold text-red-500 uppercase mb-1">Total Streams</label>
+                            <input id="mStreams" type="number" class="w-full bg-transparent text-white text-lg font-bold outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-red-500 uppercase mb-1">Streams Mensal</label>
+                            <input id="mStreamsMensal" type="number" class="w-full bg-transparent text-white text-lg font-bold outline-none" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Conteúdo Explícito</label>
+                        <select id="mExplicit" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white focus:border-red-600 outline-none">
+                            <option value="false">Não</option>
+                            <option value="true">Sim</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 flex justify-end gap-3 border-t border-gray-700 pt-5">
+                <button type="button" onclick="closeMusicModal()" class="px-6 py-2 text-gray-400 hover:text-white transition font-bold uppercase text-xs">Cancelar</button>
+                <button type="submit" id="btnSaveMusic" class="bg-white text-black font-black px-10 py-3 rounded hover:bg-red-600 hover:text-white transition-all text-xs uppercase tracking-widest">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+</main>

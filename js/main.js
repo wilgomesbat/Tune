@@ -142,17 +142,12 @@ function initializeRouting() {
     }, 100);
 }
 
-onAuthStateChanged(auth, (user) => {
-    // 1. Detecta o caminho real. No Firebase, a home é "/"
+onAuthStateChanged(auth, async (user) => {
     const path = window.location.pathname;
-    
-    // Verifica se é a página de login/raiz de forma segura
     const isAtLogin = path === "/" || path.includes("index.html") || path === "/index";
 
     if (!user) {
         console.warn("Usuário não logado.");
-
-        // SÓ redireciona se o usuário tentar acessar uma página interna (não raiz)
         if (!isAtLogin) {
             console.log("Proteção: Redirecionando para raiz");
             window.location.href = "/"; 
@@ -160,20 +155,94 @@ onAuthStateChanged(auth, (user) => {
         return;
     }
 
-    // --- USUÁRIO LOGADO ---
-    console.log("✅ Usuário autenticado:", user.uid);
+    // --- VERIFICAÇÃO DE STATUS (BLOQUEIO POR SPAM) ---
+    try {
+        const userRef = doc(db, "usuarios", user.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+
+            if (userData.status === "suspenso") {
+                const agora = new Date();
+                const expira = userData.suspensaoAte?.toDate();
+
+                if (expira && agora < expira) {
+                    // SE AINDA ESTIVER SUSPENSO: Trava a navegação global
+                    renderizarTelaBloqueioTune(expira);
+                    return; // Interrompe a execução para não carregar o site
+                } else {
+                    // SE O TEMPO PASSOU: Reativa a conta automaticamente
+                    await updateDoc(userRef, { status: "ativo" });
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao verificar status de suspensão:", error);
+    }
+
+    // --- USUÁRIO LOGADO E ATIVO ---
+    console.log("✅ Usuário autenticado e ativo:", user.uid);
     window.currentUserUid = user.uid;
 
-    // Se estiver logado e na raiz, apenas carrega a home sem refresh
     if (isAtLogin) {
         window.loadContent('home', null, false);
     } else {
-        // Se estiver em uma URL profunda (ex: /perfil), roda o roteador
         initializeRouting();
     }
 
     verificarStatusArtista(user.uid);
 });
+
+function renderizarTelaBloqueioTune(dataExpira) {
+    const minutosRestantes = Math.ceil((dataExpira - new Date()) / 60000);
+    
+    // Verifica se o modal já existe para não duplicar
+    if (document.getElementById('ban-popup-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'ban-popup-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 100000;
+        background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(15px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 20px; font-family: 'Nationale Regular', sans-serif;
+    `;
+
+    overlay.innerHTML = `
+        <div style="background: #0a0a0a; border: 1px solid #1a1a1a; padding: 50px 40px; border-radius: 32px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 1);">
+            
+
+            <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(244, 67, 54, 0.1); color: #f44336; padding: 10px 20px; border-radius: 100px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; border: 1px solid rgba(244, 67, 54, 0.2); margin-bottom: 24px;">
+                                Acesso Suspenso
+            </div>
+
+
+            <h1 style="font-family: 'Nationale Black'; font-size: 26px; color: #fff; margin-bottom: 12px; text-transform: uppercase;">Conta Suspensa</h1>
+            <p style="color: #888; font-size: 15px; line-height: 1.6; margin-bottom: 25px;">
+                Identificamos uma atividade irregular de cliques na sua conta. Para proteger os nossos artistas, o seu acesso foi restringido temporariamente.
+            </p>
+
+            <div style="background: #111; border: 1px solid #222; padding: 20px; border-radius: 16px; margin-bottom: 30px;">
+                <p style="font-size: 10px; color: #444; text-transform: uppercase; margin-bottom: 5px; font-weight: bold;">Poderá voltar em</p>
+                <span style="font-size: 24px; font-weight: bold; color: #fff;">${minutosRestantes} minutos</span>
+            </div>
+
+            <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 20px;">
+                <a href="termos.html" style="color: #555; text-decoration: none; font-size: 12px; font-weight: bold;">Termos de Uso</a>
+                <a href="https://x.com/tunedks" style="color: #555; text-decoration: none; font-size: 12px; font-weight: bold;">Suporte</a>
+            </div>
+
+           
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden'; // Impede o scroll ao fundo
+    
+    // Opcional: Recarregar automaticamente quando o tempo acabar
+    setTimeout(() => window.location.reload(), (minutosRestantes * 60000));
+}
 
 // -------------------------------
 // ☁️ Cloudinary (UPLOAD FRONT)
@@ -242,18 +311,18 @@ function rebindHomeUI() {
 
 // Adicione estas definições para evitar o erro de ReferenceError
 function setupReleasesPage() {
-    console.log("Iniciando setup da página de lançamentos...");
+    
     listarMusicasArtista();
     listarAlbunsArtista();
 }
 
 function setupAddMusicPage() {
-    console.log("Iniciando setup da página de nova música...");
+    
     carregarAlbunsNoSelect();
 }
 
 function setupAddAlbumPage() {
-    console.log("Iniciando setup de novo álbum...");
+   
 }
 
 
@@ -324,49 +393,6 @@ function hideLoadingAndShowContent() {
     }
 }
 
-controlarFluxoManutencaoFirestore();
-
-function controlarFluxoManutencaoFirestore() {
-    console.log("Iniciando monitor de manutenção via Firestore...");
-
-    // Referência para o documento dentro da coleção 'config' e documento 'status'
-    const manutencaoDocRef = doc(db, 'config', 'status');
-
-    onSnapshot(manutencaoDocRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const dados = snapshot.data();
-            const estaEmManutencao = dados.manutencao; // Pega o campo 'manutencao'
-            
-            console.log("Status Manutenção Firestore:", estaEmManutencao);
-
-            const path = window.location.pathname;
-            const paginaAtual = path.substring(path.lastIndexOf('/') + 1);
-            const tela = document.getElementById('maintenance-screen');
-
-            if (estaEmManutencao === true) {
-                if (paginaAtual !== "main" && paginaAtual !== "main") {
-                    window.location.href = "main";
-                    return;
-                }
-                if (tela) {
-                    tela.style.display = 'flex';
-                    tela.classList.remove('maintenance-hidden');
-                    document.body.style.overflow = 'hidden';
-                }
-            } else {
-                if (tela) {
-                    tela.style.display = 'none';
-                    tela.classList.add('maintenance-hidden');
-                    document.body.style.overflow = '';
-                }
-            }
-        } else {
-            console.warn("⚠️ Documento 'config/status' não encontrado no Firestore!");
-        }
-    }, (error) => {
-        console.error("Erro ao ouvir Firestore:", error);
-    });
-}
 
 /**
  * 2. Função para preencher a interface com os dados do usuário.
@@ -409,14 +435,14 @@ async function populateUserProfile(user) {
        
         
     } else {
-        console.log("ALERTA: Documento do Firestore NÃO encontrado. Usando fallbacks.");
+      
         // Fallbacks: usa o que está no Auth ou o valor padrão
         nomeArtistico = user.displayName || 'Artista Desconhecido';
         apelido = uid;
         profilePicURL = user.photoURL || DEFAULT_PROFILE_PIC;
     }
 } catch (error) {
-            console.error("ERRO FATAL AO BUSCAR DADOS DO FIRESTORE:", error);
+           
             // Fallbacks em caso de erro de permissão ou conexão
             nomeArtistico = user.displayName || 'Erro ao carregar nome';
             apelido = uid;
@@ -456,7 +482,7 @@ async function populateUserProfile(user) {
 
 
     } else {
-        console.log("STATUS: Usuário não está logado.");
+       
     }
     
 }
@@ -528,7 +554,7 @@ function playFromQueue(index) {
     const track = playbackQueue[index];
     localStorage.setItem("currentTrack", JSON.stringify(track));
     window.dispatchEvent(new Event("storage"));
-    console.log("🎧 Tocando:", track.title);
+   
 }
 
 // --- Controles da Fila ---
@@ -3771,7 +3797,7 @@ async function setupArtistsCarouselPriority() {
         }
 
     } catch (error) {
-        console.error("Erro ao carregar artistas prioritários:", error);
+    
     }
 }
 
@@ -3814,7 +3840,7 @@ async function loadTopArtists() {
         }
 
     } catch (error) {
-        console.error("Erro ao carregar artistas:", error);
+       
     }
 }
 async function setupFanArtistSection() {
@@ -3832,7 +3858,7 @@ async function setupFanArtistSection() {
         const artistsSnap = await getDocs(artistsQuery);
 
         if (artistsSnap.empty) {
-            console.warn("Nenhum artista encontrado com a marcação artista: 'true'");
+          
             sectionWrapper.style.display = 'none';
             return;
         }
@@ -3912,7 +3938,7 @@ async function setupHomePage() {
     if (!contentArea) return;
 
     if (window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
-        console.log("🏠 Restaurando Home do Cache...");
+       
         contentArea.innerHTML = window.__HOME_CACHE__.html;
         rebindHomeUI(); 
         setGreeting();

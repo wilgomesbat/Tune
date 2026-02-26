@@ -16,73 +16,61 @@
         <button id="nextPageButton" class="bg-gray-800 text-white px-4 py-2 rounded disabled:opacity-30">Próxima</button>
     </div>
 
-    <div id="editAlbumModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
-                <h2 id="modalTitle" class="text-2xl font-semibold text-white">Editar Álbum</h2>
-                <button id="closeModalButton" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+<div id="editMusicModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
+            <h2 class="text-2xl font-semibold text-white">Editar Música</h2>
+            <button type="button" onclick="closeMusicModal()" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+        </div>
+
+        <form id="editMusicForm">
+            <input type="hidden" id="musicDocId">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-4">
+                    <label class="block text-xs font-bold text-gray-400 uppercase">Título da Música</label>
+                    <input id="mTitle" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" required />
+                    
+                    <label class="block text-xs font-bold text-gray-400 uppercase">URL da Capa</label>
+                    <input id="mCover" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" required />
+
+                    <label class="block text-xs font-bold text-gray-400 uppercase">URL do Áudio (Link)</label>
+                    <input id="mAudioURL" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" />
+                </div>
+
+                <div class="space-y-4">
+                    <label class="block text-xs font-bold text-gray-400 uppercase">Nome do Artista</label>
+                    <input id="mArtistName" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" required />
+
+                    <label class="block text-xs font-bold text-gray-400 uppercase">Streams Totais</label>
+                    <input id="mStreams" type="number" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" />
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase">Status</label>
+                            <select id="mStatus" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white">
+                                <option value="publico">Público</option>
+                                <option value="pendente">Pendente</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase">Explícito</label>
+                            <select id="mExplicit" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white">
+                                <option value="false">Não</option>
+                                <option value="true">Sim</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <form id="editAlbumForm">
-                <input type="hidden" id="albumDocId" value="">
-                
-                <div id="importBanner" class="mb-6 p-4 bg-red-900/20 border border-red-600/30 rounded-lg flex justify-between items-center">
-                    <div>
-                        <p class="text-red-500 font-bold text-sm uppercase">Gerenciamento de Faixas</p>
-                        <p class="text-gray-400 text-xs">Importe as músicas deste álbum via YouTube Playlist.</p>
-                    </div>
-                    <button type="button" onclick="document.getElementById('importPlaylistModal').classList.remove('hidden')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-xs font-bold transition">
-                        IMPORTAR PLAYLIST
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="space-y-4">
-                        <label class="block text-xs font-bold text-gray-400 uppercase">Nome do Álbum</label>
-                        <input id="modalItemName" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" required />
-                        
-                        <label class="block text-xs font-bold text-gray-400 uppercase">URL da Capa</label>
-                        <input id="modalItemCover" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" required />
-                        
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-400 uppercase">Data</label>
-                                <input type="date" id="modalReleaseDate" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-400 uppercase">Duração</label>
-                                <input type="text" id="modalDuration" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="space-y-4">
-                        <label class="block text-xs font-bold text-gray-400 uppercase">Nome do Artista</label>
-                        <input id="modalArtistName" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" required />
-
-                        <label class="block text-xs font-bold text-gray-400 uppercase">UID do Artista</label>
-                        <input id="modalArtistUid" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" />
-
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-400 uppercase">País</label>
-                                <input id="modalCountry" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-400 uppercase">Gravadora</label>
-                                <input id="modalLabel" type="text" class="w-full bg-gray-900 border border-gray-700 p-2 rounded text-white" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-8 flex justify-end space-x-3">
-                    <button type="button" id="modalCancelButton" class="px-6 py-2 text-gray-400">Cancelar</button>
-                    <button type="submit" class="bg-white text-black font-bold px-8 py-2 rounded hover:bg-gray-200 transition">Salvar Alterações</button>
-                </div>
-            </form>
-        </div>
+            <div class="mt-8 flex justify-end space-x-3">
+                <button type="button" onclick="closeMusicModal()" class="px-6 py-2 text-gray-400">Cancelar</button>
+                <button type="submit" class="bg-white text-black font-bold px-8 py-2 rounded hover:bg-gray-200 transition">Salvar Alterações</button>
+            </div>
+        </form>
     </div>
+</div>
 
     <div id="importPlaylistModal" class="fixed inset-0 bg-black bg-opacity-90 z-[60] hidden items-center justify-center p-4">
         <div class="bg-gray-900 border border-gray-700 p-6 rounded-xl w-full max-w-2xl">
