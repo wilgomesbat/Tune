@@ -851,41 +851,45 @@ function agendarProximoCiclo() {
     }, 20000);
 }
 
+// Variável global para contar abusos na sessão atual
+window.spamCounter = window.spamCounter || 0;
+
 async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
-    console.log(`🎵 TUNE CHECK: Verificando "${track.title}"...`);
-
     const agora = Date.now();
-    const tempoMinimoReplay = 120000; // 2 minutos
+    const tempoMinimoReplay = 120000; // 2 minutos entre plays da mesma música
     const user = typeof auth !== 'undefined' ? auth.currentUser : null;
     
-    // Identificação do usuário para o log
+    // Identificação para o log
     const uidLog = user ? user.uid : 'deslogado';
     const nomeLog = user ? (user.displayName || user.email || "Usuário Tune") : "Visitante";
 
-    // --- LOGICA DE SUSPENSÃO (ANTISPAM) ---
+    // --- 1. LÓGICA DE SUSPENSÃO (ANTISPAM) ---
     if (window.ultimaMusicaValidada === track.id) {
         const tempoPassado = agora - window.ultimoTimestampValidado;
         
         if (tempoPassado < tempoMinimoReplay) {
+            window.spamCounter++; // Aumenta o nível de suspeita
             const faltam = Math.round((tempoMinimoReplay - tempoPassado) / 1000);
             
-            // GRAVA O LOG DE SPAM (IGUAL AO SEU PRINT DO FIRESTORE)
+            // Define a gravidade do log
+            const statusSpam = window.spamCounter >= 12 ? "🔥 BLOQUEIO POR REINCIDÊNCIA" : "DETECÇÃO DE AUTOCLICK";
+
             try {
                 await addDoc(collection(db, "logs_atividades"), {
-                    type: 'play_spam_ban', // Tipo exato que seu banco usa
-                    itemTitle: "DETECÇÃO DE AUTOCLICK",
+                    type: 'play_spam_ban',
+                    itemTitle: statusSpam,
                     itemId: track.id,
                     userId: uidLog,
                     userName: nomeLog,
                     timestamp: serverTimestamp(),
                     device: navigator.userAgent.includes("iPhone") ? "iPhone" : "Desktop",
-                    motivo: `Tentativa em ${faltam}s`
+                    motivo: `Tentativa nº ${window.spamCounter} (Faltam ${faltam}s)`
                 });
             } catch (e) { console.error("Erro ao logar spam:", e); }
 
-            console.warn(`🚫 [SUSPENSO] Bloqueado. Aguarde ${faltam}s.`);
+            console.warn(`🚫 [SUSPENSO] ${statusSpam}. Tentativa ${window.spamCounter}.`);
             return false; 
         }
     }
@@ -893,6 +897,8 @@ async function validarStreamOficial(track) {
     try {
         window.isProcessingStream = true;
         const musicRef = doc(db, "musicas", track.id);
+        
+        // Sorteio de valor Tune DKS
         const valorSorteado = Math.floor(Math.random() * 180001) + 20000;
 
         let updates = {
@@ -901,10 +907,13 @@ async function validarStreamOficial(track) {
             lastMonthlyStreamDate: serverTimestamp()
         };
 
-        // Registro de Ouvinte Mensal Único
+        // --- 2. REGISTRO DE OUVINTE ÚNICO (MENSAL) ---
         if (user) {
-            const mesAno = `${new Date().getMonth() + 1}_${new Date().getFullYear()}`;
-            const registroRef = doc(db, "registro_ouvintes", `${mesAno}_${user.uid}_${track.id}`);
+            const dataAtual = new Date();
+            const mesAno = `${dataAtual.getMonth() + 1}_${dataAtual.getFullYear()}`;
+            const registroId = `${mesAno}_${user.uid}_${track.id}`;
+            const registroRef = doc(db, "registro_ouvintes", registroId);
+            
             const registroSnap = await getDoc(registroRef);
 
             if (!registroSnap.exists()) {
@@ -915,12 +924,14 @@ async function validarStreamOficial(track) {
                     periodo: mesAno,
                     timestamp: serverTimestamp()
                 });
+                console.log("👤 +1 Ouvinte Mensal contabilizado.");
             }
         }
 
+        // --- 3. GRAVAÇÃO FINAL ---
         await updateDoc(musicRef, updates);
 
-        // LOG DE SUCESSO
+        // --- 4. LOG DE SUCESSO ---
         await addDoc(collection(db, "logs_atividades"), {
             type: 'play_20s_valid',
             itemTitle: track.title,
@@ -928,18 +939,22 @@ async function validarStreamOficial(track) {
             userId: uidLog,
             userName: nomeLog,
             timestamp: serverTimestamp(),
+            valorGerado: valorSorteado,
             device: navigator.userAgent.includes("iPhone") ? "iPhone" : "Desktop"
         });
 
+        // RESET: Se ele validou uma música com sucesso, limpamos o contador de spam
+        window.spamCounter = 0;
         window.ultimaMusicaValidada = track.id;
         window.ultimoTimestampValidado = Date.now();
         
-        console.log(`✅ [VALIDADO] +${valorSorteado.toLocaleString()} streams.`);
+        console.log(`✅ [VALIDADO] +${valorSorteado.toLocaleString()} para "${track.title}"`);
+        
         window.isProcessingStream = false;
         return true; 
 
     } catch (e) {
-        console.error("❌ Erro:", e);
+        console.error("❌ Erro fatal na validação:", e);
         window.isProcessingStream = false;
         return false;
     }
