@@ -808,83 +808,69 @@ function formatNumber(num) {
 export async function setupArtistPage(artistUid) {
     if (!artistUid) return;
 
-    // 1. Controle de Loading
-    const loadingOverlay = document.getElementById('loading-overlay');
-    const mainContent = document.getElementById('main-content');
-    if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-    if (mainContent) mainContent.classList.remove('loaded');
-
     try {
-        // 2. CARREGAR PERFIL, BIO E IMAGEM DE FUNDO
+        // 1. CARREGAR PERFIL, BIO E FOTOS
         const artistDoc = await getDoc(doc(db, "usuarios", artistUid));
         if (artistDoc.exists()) {
             const data = artistDoc.data();
-            
-            // Atualiza Nome e Header
             document.getElementById('artist-name').innerText = data.nomeArtistico || "Artista";
-            const headerEl = document.getElementById('artist-header');
-            if (headerEl && data.foto) {
-                headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
-            }
-
-            // Atualiza Card "Sobre" (Estilo Spotify/Zara Larsson)
-            const aboutCard = document.getElementById('artist-about-card');
-            const bioTextEl = document.getElementById('artist-bio-text');
             
-            if (aboutCard && data.foto) {
-                aboutCard.style.backgroundImage = `url('${data.foto}')`;
-            }
-            if (bioTextEl) {
-                // Busca a chave 'bio' ou usa fallback
-                bioTextEl.innerText = data.bio || `${data.nomeArtistico} é um destaque no Tune.`;
-            }
+            const headerEl = document.getElementById('artist-header');
+            if (headerEl && data.foto) headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
+
+            const aboutCard = document.getElementById('artist-about-card');
+            if (aboutCard && data.foto) aboutCard.style.backgroundImage = `url('${data.foto}')`;
+            
+            const bioTextEl = document.getElementById('artist-bio-text');
+            if (bioTextEl) bioTextEl.innerText = data.bio || `${data.nomeArtistico} é um destaque no Tune.`;
         }
 
-        // 3. CALCULAR STREAMS (TOTAL E MENSAL)
+        // 2. CÁLCULO DOS NÚMEROS (Streams vs Ouvintes)
         const musicasRef = collection(db, "musicas");
         const qArtistMusics = query(musicasRef, where("artist", "==", artistUid));
         const artistMusicsSnap = await getDocs(qArtistMusics);
         
-        let totalAllTime = 0;
-        let totalMonthly = 0;
+        let totalAllTimeStreams = 0;
+        let totalMonthlyListeners = 0; 
 
         artistMusicsSnap.forEach(d => {
             const mData = d.data();
-            totalAllTime += Number(mData.streams || 0);
-            totalMonthly += Number(mData.streamsMensal || 0);
+            totalAllTimeStreams += Number(mData.streams || 0);
+            totalMonthlyListeners += Number(mData.ouvintesMensais || 0);
         });
 
-        // Exibe no Header e no Card Sobre
-        document.getElementById('total-streams').innerText = formatNumber(totalAllTime);
-        const monthlyEl = document.getElementById('artist-monthly-listeners');
-        if (monthlyEl) monthlyEl.innerText = `${formatNumber(totalMonthly)} ouvintes mensais`;
+        // --- AQUI ESTÁ A INVERSÃO QUE VOCÊ PEDIU ---
 
-        // 4. CÁLCULO DE RANKING GLOBAL
-        // Compara este artista com todos os outros baseando-se em streamsMensal
+        // A) NO TOPO (Header): Colocamos os OUVINTES MENSAIS
+        const listenersHeaderEl = document.getElementById('total-streams'); // O ID no HTML é total-streams, mas agora injetamos ouvintes
+        if (listenersHeaderEl) {
+            listenersHeaderEl.innerText = formatNumber(totalMonthlyListeners);
+            // Se quiser mudar o texto de "streams" para "ouvintes" no HTML, 
+            // você pode selecionar o parágrafo .stats e mudar também.
+            const statsText = document.querySelector('.artist-header .stats');
+            if(statsText) statsText.innerHTML = `<span id="total-streams">${formatNumber(totalMonthlyListeners)}</span> ouvintes mensais`;
+        }
+
+        // B) NO CARD SOBRE (Baixo): Colocamos o TOTAL DE STREAMS
+        const monthlyEl = document.getElementById('artist-monthly-listeners'); // O ID aponta para ouvintes, mas injetamos STREAMS totais
+        if (monthlyEl) {
+            monthlyEl.innerText = `${formatNumber(totalAllTimeStreams)} streams no total`;
+        }
+
+        // 3. RANKING GLOBAL (Mantido por Ouvintes Mensais)
         await calculateGlobalRanking(artistUid);
 
-        // 5. EXECUTAR CONTEÚDO EM PARALELO
+        // 4. CARREGAR CONTEÚDO RESTANTE
         await Promise.all([
             loadTopSongs(artistUid),
             loadArtistAlbums(artistUid),
             loadArtistSingles(artistUid),
+            loadArtistStations(artistUid),
             checkFollowStatus(artistUid)
         ]);
 
-        const followBtn = document.querySelector('.btn-seguir-pill');
-        if (followBtn) {
-            console.log("Botão de seguir encontrado! Vinculando clique...");
-            followBtn.onclick = async () => {
-                console.log("Botão pressionado!");
-                await toggleFollow(artistUid);
-            };
-        } else {
-            console.error("ERRO: Botão .btn-seguir-pill não existe no HTML!");
-        }
-
     } catch (error) {
         console.error("Erro no setup da página:", error);
-        if (typeof hideLoadingAndShowContent === 'function') hideLoadingAndShowContent();
     }
 }
 
@@ -923,7 +909,51 @@ async function calculateGlobalRanking(artistUid) {
     }
 }
 
+async function loadArtistStations(artistUid) {
+    const container = document.getElementById('artist-stations-list');
+    if (!container) return;
 
+    try {
+        const q = query(collection(db, "playlists"), where("uidars", "==", artistUid), limit(10));
+        const snap = await getDocs(q);
+        container.innerHTML = '';
+        
+        if (snap.empty) {
+            const section = container.closest('.section');
+            if (section) section.style.display = 'none';
+            return;
+        }
+
+        snap.forEach((doc) => {
+            const data = doc.data();
+            const stationCard = document.createElement('div');
+            stationCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4 group';
+            
+            // CARREGAMENTO SPA USANDO SUA FUNÇÃO loadContent
+            stationCard.onclick = () => {
+                if (typeof loadContent === 'function') {
+                    loadContent('playlist', doc.id);
+                } else {
+                    console.error("Função loadContent não encontrada!");
+                }
+            };
+
+            stationCard.innerHTML = `
+                <div class="relative w-full pb-[100%] rounded-md overflow-hidden">
+                    <img src="${data.cover || '/assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg transition-transform duration-300 group-hover:scale-105">
+                </div>
+                <div class="mt-2 w-full">
+                    <h3 class="text-sm font-semibold text-white truncate group-hover:underline">${data.name || 'Station'}</h3>
+                    <p class="text-gray-400 text-xs truncate">Playlist</p>
+                </div>`;
+            container.appendChild(stationCard);
+        });
+
+        if (typeof setupScrollButtons === 'function') {
+            setupScrollButtons('stations-scroll-left', 'stations-scroll-right', 'artist-stations-list');
+        }
+    } catch (e) { console.error("Erro Stations:", e); }
+}
 
 /**
  * MÚSICAS POPULARES (TOP 5)
@@ -1173,37 +1203,44 @@ async function setupPlaylistPage(playlistId) {
             );
             
             const snap = await getDocs(q);
-            let rawTracks = [];
+let rawTracks = [];
 
-            snap.forEach((d) => {
-                const data = d.data();
-                
-                // FÓRMULA DE SCORE HÍBRIDO TUNE
-                // S = streams (diário/atual) | SM = streamsMensal (histórico)
-                // Score = (S * 0.5) + (SM * 0.5)
-                const sDaily = data.streams || 0;
-                const sMonthly = data.streamsMensal || 0;
-                const tuneScore = (sDaily * 0.5) + (sMonthly * 0.5);
+snap.forEach((d) => {
+    const data = d.data();
 
-                rawTracks.push({ id: d.id, ...data, tuneScore: tuneScore });
-            });
+    const sMensal = data.streamsMensal || 0;
+    const sAtual = data.streams || 0;
+    const fatorRecencia = calcularFatorRecencia(data.lastMonthlyStreamDate);
 
-            // Ordenação Final pelo Score Híbrido (Estabilidade + Viral)
-            rawTracks.sort((a, b) => b.tuneScore - a.tuneScore);
+    const tuneScore =
+        (sMensal * 0.7) +
+        (sAtual * 0.2) +
+        (fatorRecencia * 0.1);
 
-            if (isBrasilChart) {
-                tracks = rawTracks.filter(m => {
-                    return generosBR.includes(m.genre) || isPortuguese(m.title);
-                }).slice(0, 50);
-            } 
-            else if (isWorldChart) {
-                tracks = rawTracks.filter(m => {
-                    return !generosBR.includes(m.genre) && !isPortuguese(m.title);
-                }).slice(0, 50);
-            } 
-            else {
-                tracks = rawTracks.slice(0, 50);
-            }
+    rawTracks.push({
+        id: d.id,
+        ...data,
+        tuneScore
+    });
+});
+
+// 👇 COLOCA AQUI
+rawTracks.sort((a, b) => b.tuneScore - a.tuneScore);
+
+// 👇 SÓ DEPOIS FAZ OS FILTROS
+if (isBrasilChart) {
+    tracks = rawTracks
+        .filter(m => generosBR.includes(m.genre) || isPortuguese(m.title))
+        .slice(0, 50);
+}
+else if (isWorldChart) {
+    tracks = rawTracks
+        .filter(m => !generosBR.includes(m.genre) && !isPortuguese(m.title))
+        .slice(0, 50);
+}
+else {
+    tracks = rawTracks.slice(0, 50);
+}
         } 
         // --- B) Lançamentos Recentes ---
         else if (isRecentReleases) {
@@ -1252,6 +1289,26 @@ async function setupPlaylistPage(playlistId) {
             tracksContainer.innerHTML = `<p class="text-red-500">Ocorreu um erro ao carregar as músicas.</p>`;
         }
     }
+}
+
+function calcularFatorRecencia(lastMonthlyStreamDate) {
+    if (!lastMonthlyStreamDate) return 0;
+
+    const agora = new Date();
+    const ultimaAtualizacao = lastMonthlyStreamDate.toDate 
+        ? lastMonthlyStreamDate.toDate() 
+        : new Date(lastMonthlyStreamDate);
+
+    const diffDias = (agora - ultimaAtualizacao) / (1000 * 60 * 60 * 24);
+
+    // Se foi atualizado nos últimos 7 dias → bônus máximo
+    if (diffDias <= 7) return 1000;
+
+    // Entre 7 e 30 dias → bônus médio
+    if (diffDias <= 30) return 500;
+
+    // Mais antigo → nenhum bônus
+    return 0;
 }
 
 // Helper: Detecção de idioma

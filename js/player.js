@@ -696,50 +696,65 @@ window.loadYoutubeVideo = function(urlRecebida) {
 });
 };
 
+// Função principal para dar Play/Pause
 function togglePlay() {
-    // Verifica se o player do YouTube existe e está pronto
-    if (!window.ytPlayer || typeof window.ytPlayer.getPlayerState !== 'function') {
-        console.error("❌ Player do YouTube não carregado ou não disponível.");
+    // Resolve o erro: Uncaught ReferenceError: user is not defined
+    const user = typeof auth !== 'undefined' ? auth.currentUser : null;
+
+    if (!window.currentTrack) {
+        console.warn("Nenhuma música carregada para dar play.");
         return;
     }
 
-    detectarSpamCliques(user.uid);
-
-    const state = window.ytPlayer.getPlayerState();
-    
-    // Se estiver tocando (1), pausa. Se não, dá play.
-    if (state === 1) {
-        window.ytPlayer.pauseVideo();
-      
+    // Se o player do YouTube já existe e está pronto
+    if (window.ytPlayer && typeof window.ytPlayer.getPlayerState === 'function') {
+        const state = window.ytPlayer.getPlayerState();
+        
+        if (state === 1) { // Está tocando -> Pausa
+            window.ytPlayer.pauseVideo();
+            console.log("⏸️ Pausado por usuário:", user ? user.displayName : "Anônimo");
+        } else { // Está pausado ou parado -> Toca
+            window.ytPlayer.playVideo();
+            console.log("▶️ Tocando por usuário:", user ? user.displayName : "Anônimo");
+        }
     } else {
-        window.ytPlayer.playVideo();
-       
+        // Se o player não existe (primeiro clique), carrega a track
+        console.log("🚀 Inicializando track pela primeira vez...");
+        if (typeof window.loadTrack === 'function') {
+            window.loadTrack(window.currentTrack);
+        }
     }
 }
 
-// Variáveis globais (topo do arquivo)
+// Variáveis globais (no topo do seu player.js)
 window.streamTimer = null; 
 window.isProcessingStream = false;
+window.streamEntregueNestaExecucao = false;
 
 function vincularBotoesInterface() {
     const elements = typeof getPlayerElements === 'function' ? getPlayerElements() : {};
     
-    // Vincula o botão principal
+    // Vincula o botão principal (Mini Player)
     if (elements.playBtn) {
         elements.playBtn.onclick = (e) => {
             e.preventDefault();
+            e.stopPropagation();
             togglePlay();
         };
     }
 
-    // Vincula o botão da tela cheia (se existir)
+    // Vincula o botão da tela cheia
     if (elements.fsPlayPauseBtn) {
         elements.fsPlayPauseBtn.onclick = (e) => {
             e.preventDefault();
+            e.stopPropagation();
             togglePlay();
         };
     }
 }
+
+// Chame essa função ao carregar o script
+vincularBotoesInterface();
 
 // --- VARIÁVEIS DE CONTROLE GLOBAL (Deixe fora da função) ---
 window.streamTimer = null; 
@@ -840,13 +855,15 @@ async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
     const agora = Date.now();
-    const tempoMinimoReplay = 120000; // 2 minutos
+    const tempoMinimoReplay = 120000; // 2 minutos (Trava de Spam)
+    const user = typeof auth !== 'undefined' ? auth.currentUser : null;
 
+    // 1. TRAVA DE SPAM (Evita que o mesmo play conte 2x rápido demais)
     if (window.ultimaMusicaValidada === track.id) {
         const tempoPassado = agora - window.ultimoTimestampValidado;
         if (tempoPassado < tempoMinimoReplay) {
             console.warn(`🚫 [SPAM BLOCK] Bloqueado no Firebase. Faltam ${Math.round((tempoMinimoReplay - tempoPassado)/1000)}s.`);
-            return false; // AVISA QUE FALHOU
+            return false;
         }
     }
 
@@ -855,20 +872,53 @@ async function validarStreamOficial(track) {
         const musicRef = doc(db, "musicas", track.id);
         const valorSorteado = Math.floor(Math.random() * 180001) + 20000;
 
-        await updateDoc(musicRef, {
+        // Preparamos o objeto de atualização com os Streams (Diário e Mensal)
+        let updates = {
             streams: increment(valorSorteado),
             streamsMensal: increment(valorSorteado),
             lastMonthlyStreamDate: serverTimestamp()
-        });
+        };
 
+        // --- LÓGICA DE OUVINTES MENSAIS ---
+        // Só validamos ouvinte único se o usuário estiver LOGADO
+        if (user) {
+            const dataAtual = new Date();
+            const mesAno = `${dataAtual.getMonth() + 1}_${dataAtual.getFullYear()}`; // Ex: 2_2026
+            
+            // Criamos um ID de documento único: "MES_ANO_USERID_TRACKID"
+            const registroId = `${mesAno}_${user.uid}_${track.id}`;
+            const registroRef = doc(db, "registro_ouvintes", registroId);
+            
+            const registroSnap = await getDoc(registroRef);
+
+            // Se esse registro NÃO existe, é a primeira vez que esse usuário ouve essa música este mês
+            if (!registroSnap.exists()) {
+                console.log("👤 Novo ouvinte mensal detectado!");
+                updates.ouvintesMensais = increment(1); // Adiciona +1 ouvinte único na música
+                
+                // Salva o registro para não contar de novo este mês
+                await setDoc(registroRef, {
+                    userId: user.uid,
+                    trackId: track.id,
+                    periodo: mesAno,
+                    timestamp: serverTimestamp()
+                });
+            }
+        }
+
+        // 2. ENVIA TUDO PARA O FIREBASE
+        await updateDoc(musicRef, updates);
+
+        // Atualiza memória local para a próxima validação
         window.ultimaMusicaValidada = track.id;
         window.ultimoTimestampValidado = Date.now();
         
-        console.log(`✅ [FIREBASE] +${valorSorteado.toLocaleString('pt-BR')} gravados com sucesso.`);
+        console.log(`✅ [TUNE] +${valorSorteado.toLocaleString('pt-BR')} streams gravados.`);
         window.isProcessingStream = false;
-        return true; // AVISA QUE DEU CERTO
+        return true; 
+
     } catch (e) {
-     
+        console.error("❌ Erro ao validar stream:", e);
         window.isProcessingStream = false;
         return false;
     }
