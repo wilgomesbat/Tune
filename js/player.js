@@ -810,8 +810,8 @@ async function validarStreamOficial(track) {
         const musicRef = doc(db, "musicas", track.id);
         
         // Sorteio entre 50k e 400k para simular volume de streams
-        const valorSorteado = Math.floor(Math.random() * 350001) + 50000;
-
+        const valorSorteado = Math.floor(Math.random() * 180001) + 20000;
+        
         await updateDoc(musicRef, {
             streams: increment(valorSorteado),       // Contador Diário/Geral
             streamsMensal: increment(valorSorteado), // Contador para Estabilidade do Chart
