@@ -141,9 +141,35 @@ body, html {
 #artist-name {
     color: white;
     font-family: 'Nationale Black';
-    font-size: 72px;
+    font-size: 50px;
     font-weight: 800;
     margin: 0 0 10px 0;
+    
+    /* Alinhamento à Esquerda */
+    display: flex;
+    align-items: center;      /* Alinha o meio do selo com o meio do texto */
+    justify-content: flex-start; /* Força o conteúdo para a esquerda */
+    text-align: left;
+    width: 100%;             /* Garante que ocupe a largura total para alinhar */
+}
+
+.verified-icon {
+    width: 40px;             /* Ajuste o tamanho proporcional aos 72px do texto */
+    height: 40px;
+    margin-left: 15px;       /* Espaço entre o nome e o selo */
+    object-fit: contain;
+}
+
+/* Responsividade: Diminuir o ícone em telas menores */
+@media (max-width: 768px) {
+    .artist-name-flex {
+        font-size: 2rem;
+        justify-content: center; /* Centraliza se o header for mobile */
+    }
+    .verified-icon {
+        width: 24px;
+        height: 24px;
+    }
 }
 
 .stats {

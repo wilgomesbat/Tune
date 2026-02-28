@@ -804,7 +804,6 @@ function formatNumber(num) {
     if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     return num.toString();
 }
-
 export async function setupArtistPage(artistUid) {
     if (!artistUid) return;
 
@@ -812,8 +811,27 @@ export async function setupArtistPage(artistUid) {
         // 1. CARREGAR PERFIL, BIO E FOTOS
         const artistDoc = await getDoc(doc(db, "usuarios", artistUid));
         if (artistDoc.exists()) {
-            const data = artistDoc.data();
-            document.getElementById('artist-name').innerText = data.nomeArtistico || "Artista";
+            // DENTRO DE: if (artistDoc.exists()) { ... }
+
+const data = artistDoc.data();
+const artistNameEl = document.getElementById('artist-name');
+const nomeBase = data.nomeArtistico || "Artista";
+
+// Compara se é o booleano true OU se é a string "true"
+const isVerified = data.verificado === true || data.verificado === "true";
+
+if (artistNameEl) {
+    if (isVerified) {
+        // Injeta o nome + a imagem do seu asset
+        artistNameEl.innerHTML = `
+            ${nomeBase} 
+            <img src="/assets/verificado.png" class="verified-icon" title="Artista Verificado">
+        `;
+    } else {
+        // Se não for verificado, garante que só apareça o texto
+        artistNameEl.innerText = nomeBase;
+    }
+}
             
             const headerEl = document.getElementById('artist-header');
             if (headerEl && data.foto) headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
@@ -825,7 +843,7 @@ export async function setupArtistPage(artistUid) {
             if (bioTextEl) bioTextEl.innerText = data.bio || `${data.nomeArtistico} é um destaque no Tune.`;
         }
 
-        // 2. CÁLCULO DOS NÚMEROS (Streams vs Ouvintes)
+        // 2. CÁLCULO DOS NÚMEROS (Ouvintes no Header)
         const musicasRef = collection(db, "musicas");
         const qArtistMusics = query(musicasRef, where("artist", "==", artistUid));
         const artistMusicsSnap = await getDocs(qArtistMusics);
@@ -839,28 +857,21 @@ export async function setupArtistPage(artistUid) {
             totalMonthlyListeners += Number(mData.ouvintesMensais || 0);
         });
 
-        // --- AQUI ESTÁ A INVERSÃO QUE VOCÊ PEDIU ---
-
-        // A) NO TOPO (Header): Colocamos os OUVINTES MENSAIS
-        const listenersHeaderEl = document.getElementById('total-streams'); // O ID no HTML é total-streams, mas agora injetamos ouvintes
-        if (listenersHeaderEl) {
-            listenersHeaderEl.innerText = formatNumber(totalMonthlyListeners);
-            // Se quiser mudar o texto de "streams" para "ouvintes" no HTML, 
-            // você pode selecionar o parágrafo .stats e mudar também.
-            const statsText = document.querySelector('.artist-header .stats');
-            if(statsText) statsText.innerHTML = `<span id="total-streams">${formatNumber(totalMonthlyListeners)}</span> ouvintes mensais`;
+        // Atualiza o texto do Header para "Ouvintes Mensais"
+        const statsText = document.querySelector('.artist-header .stats');
+        if(statsText) {
+            statsText.innerHTML = `<span id="total-streams">${formatNumber(totalMonthlyListeners)}</span> ouvintes mensais`;
         }
 
-        // B) NO CARD SOBRE (Baixo): Colocamos o TOTAL DE STREAMS
-        const monthlyEl = document.getElementById('artist-monthly-listeners'); // O ID aponta para ouvintes, mas injetamos STREAMS totais
+        // Atualiza o card de baixo com o Total de Streams
+        const monthlyEl = document.getElementById('artist-monthly-listeners'); 
         if (monthlyEl) {
             monthlyEl.innerText = `${formatNumber(totalAllTimeStreams)} streams no total`;
         }
 
-        // 3. RANKING GLOBAL (Mantido por Ouvintes Mensais)
+        // 3. RESTANTE DO SETUP
         await calculateGlobalRanking(artistUid);
 
-        // 4. CARREGAR CONTEÚDO RESTANTE
         await Promise.all([
             loadTopSongs(artistUid),
             loadArtistAlbums(artistUid),
@@ -1166,9 +1177,10 @@ async function setupPlaylistPage(playlistId) {
             return;
         }
 
+        // Importante: Definir as variáveis da playlist ANTES de usá-las
         const playlist = { id: playlistSnap.id, ...playlistSnap.data() };
-        const coverUrl = playlist.cover || fallbackImage;
         const playlistName = playlist.name || "Sem título";
+        const coverUrl = playlist.cover || fallbackImage;
 
         // 3. Atualização da UI (Textos e Imagens)
         if (playlistTitleDetail) playlistTitleDetail.textContent = playlistName;
@@ -1185,62 +1197,83 @@ async function setupPlaylistPage(playlistId) {
 
         // 4. Definição de Variáveis de Controle
         let tracks = [];
-        const automaticTopNames = ["Top 50", "Daily Top 50", "Top 50 Brasil", "Top 50 World"]; 
+        const automaticTopNames = ["Top 50", "Daily Top 50", "Top 50 Brasil", "Top 50 World", "Today Top Hits"]; 
         const isRecentReleases = ["Novidades da Semana", "Novidades", "Lançamentos da Semana"].includes(playlistName);
         const isAutomaticTop = automaticTopNames.includes(playlistName) && playlist.category === "Charts";
         const generosBR = ["Sertanejo", "Funk", "Pagode", "MPB", "Forró", "Arrocha"]; 
 
-        // --- A) Lógica de Charts Automáticos (Ranking Estável 50/50) ---
+        // --- A) Lógica de Charts Automáticos ---
         if (isAutomaticTop) {
-            const isBrasilChart = playlistName.includes("Brasil");
-            const isWorldChart = playlistName.includes("World");
-
-            // Busca os 200 melhores por mensal para garantir que a base seja de sucessos reais
-            const q = query(
-                collection(db, "musicas"), 
-                orderBy("streamsMensal", "desc"), 
-                limit(200) 
-            );
             
-            const snap = await getDocs(q);
-let rawTracks = [];
+            // CASO ESPECIAL: Today Top Hits (Baseado em Logs de 24h)
+            if (playlistName === "Today Top Hits") {
+                const vinteEQuatroHorasAtras = new Date();
+                vinteEQuatroHorasAtras.setHours(vinteEQuatroHorasAtras.getHours() - 24);
 
-snap.forEach((d) => {
-    const data = d.data();
+                const logsRef = collection(db, "logs_atividades"); 
+                const qLogs = query(
+                    logsRef, 
+                    where("timestamp", ">=", vinteEQuatroHorasAtras),
+                    where("type", "==", "play_spam_ban")
+                );
 
-    const sMensal = data.streamsMensal || 0;
-    const sAtual = data.streams || 0;
-    const fatorRecencia = calcularFatorRecencia(data.lastMonthlyStreamDate);
+                const logsSnap = await getDocs(qLogs);
+                const playCounts = {};
 
-    const tuneScore =
-        (sMensal * 0.7) +
-        (sAtual * 0.2) +
-        (fatorRecencia * 0.1);
+                logsSnap.forEach(doc => {
+                    const log = doc.data();
+                    if (log.itemId) playCounts[log.itemId] = (playCounts[log.itemId] || 0) + 1;
+                });
 
-    rawTracks.push({
-        id: d.id,
-        ...data,
-        tuneScore
-    });
-});
+                const sortedIds = Object.keys(playCounts)
+                    .sort((a, b) => playCounts[b] - playCounts[a])
+                    .slice(0, 30); // Limite de 30 para o operador 'in'
 
-// 👇 COLOCA AQUI
-rawTracks.sort((a, b) => b.tuneScore - a.tuneScore);
+                if (sortedIds.length > 0) {
+                    const qMusicas = query(collection(db, "musicas"), where("__name__", "in", sortedIds));
+                    const musSnap = await getDocs(qMusicas);
+                    let tempTracks = [];
+                    musSnap.forEach(d => tempTracks.push({ id: d.id, ...d.data() }));
+                    
+                    // Reordena para manter o ranking do playCounts
+                    tracks = tempTracks.sort((a, b) => (playCounts[b.id] || 0) - (playCounts[a.id] || 0));
+                }
+            } 
+            // OUTROS CHARTS (Top 50 Brasil, World, etc)
+            else {
+                const isBrasilChart = playlistName.includes("Brasil");
+                const isWorldChart = playlistName.includes("World");
 
-// 👇 SÓ DEPOIS FAZ OS FILTROS
-if (isBrasilChart) {
-    tracks = rawTracks
-        .filter(m => generosBR.includes(m.genre) || isPortuguese(m.title))
-        .slice(0, 50);
-}
-else if (isWorldChart) {
-    tracks = rawTracks
-        .filter(m => !generosBR.includes(m.genre) && !isPortuguese(m.title))
-        .slice(0, 50);
-}
-else {
-    tracks = rawTracks.slice(0, 50);
-}
+                const q = query(
+                    collection(db, "musicas"), 
+                    orderBy("streamsMensal", "desc"), 
+                    limit(200) 
+                );
+                
+                const snap = await getDocs(q);
+                let rawTracks = [];
+
+                snap.forEach((d) => {
+                    const data = d.data();
+                    const sMensal = data.streamsMensal || 0;
+                    const sAtual = data.streams || 0;
+                    const fatorRecencia = typeof calcularFatorRecencia === "function" ? calcularFatorRecencia(data.lastMonthlyStreamDate) : 1;
+
+                    const tuneScore = (sMensal * 0.7) + (sAtual * 0.2) + (fatorRecencia * 0.1);
+
+                    rawTracks.push({ id: d.id, ...data, tuneScore });
+                });
+
+                rawTracks.sort((a, b) => b.tuneScore - a.tuneScore);
+
+                if (isBrasilChart) {
+                    tracks = rawTracks.filter(m => generosBR.includes(m.genre) || (typeof isPortuguese === "function" && isPortuguese(m.title))).slice(0, 50);
+                } else if (isWorldChart) {
+                    tracks = rawTracks.filter(m => !generosBR.includes(m.genre) && !(typeof isPortuguese === "function" && isPortuguese(m.title))).slice(0, 50);
+                } else {
+                    tracks = rawTracks.slice(0, 50);
+                }
+            }
         } 
         // --- B) Lançamentos Recentes ---
         else if (isRecentReleases) {
@@ -1280,7 +1313,11 @@ else {
 
         // 6. Renderização
         if (typeof renderTracksSpotifyStyle === "function") {
-            renderTracksSpotifyStyle(tracks, playlist, isAutomaticTop);
+            // Criamos uma regra: Se for a Today Top Hits, o "modo ranking" (números) fica desativado
+            const mostrarNumeroRanking = playlistName === "Today Top Hits" ? false : isAutomaticTop;
+            
+            // Passamos a nova variável no lugar do antigo isAutomaticTop
+            renderTracksSpotifyStyle(tracks, playlist, mostrarNumeroRanking);
         }
 
     } catch (error) {

@@ -851,6 +851,24 @@ function agendarProximoCiclo() {
     }, 20000);
 }
 
+window.streamTimer = null; // Controla o tempo de 20s
+
+function iniciarCronometroStream(track) {
+    // 1. Limpa qualquer timer anterior (caso o usuário tenha pulado de música rápido)
+    if (window.streamTimer) clearTimeout(window.streamTimer);
+
+    console.log(`⏳ Iniciando contagem de 20s para: ${track.title}`);
+
+    // 2. Define o timer de 20 segundos
+    window.streamTimer = setTimeout(async () => {
+        const sucesso = await validarStreamOficial(track);
+        if (sucesso) {
+            console.log("📈 Stream de 20s confirmado e injetado!");
+        }
+        window.streamTimer = null;
+    }, 20000); // 20000ms = 20 segundos
+}
+
 // Objeto para controlar o tempo individual de cada música (Cache de Sessão)
 window.historicoValidacao = window.historicoValidacao || {};
 window.spamCounter = window.spamCounter || 0;
@@ -859,14 +877,13 @@ async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
     const agora = Date.now();
-    const tempoMinimoReplay = 120000; // 2 minutos para a MESMA música
+    const tempoMinimoReplay = 120000; // 2 min para a mesma música
     const user = typeof auth !== 'undefined' ? auth.currentUser : null;
     
     const uidLog = user ? user.uid : 'deslogado';
     const nomeLog = user ? (user.displayName || user.email || "Usuário Tune") : "Visitante";
 
-    // --- 1. INTELIGÊNCIA DE BLOQUEIO POR ID ---
-    // Verificamos se ESTA música específica foi validada recentemente
+    // --- 1. TRAVA DE REPETIÇÃO (SPAM) ---
     const ultimaValidacaoDestaMusica = window.historicoValidacao[track.id] || 0;
     const tempoPassado = agora - ultimaValidacaoDestaMusica;
 
@@ -874,67 +891,96 @@ async function validarStreamOficial(track) {
         window.spamCounter++;
         const faltam = Math.round((tempoMinimoReplay - tempoPassado) / 1000);
         
-        const statusSpam = window.spamCounter >= 10 ? "🔥 REINCIDÊNCIA" : "DETECÇÃO DE AUTOCLICK";
-
+        // Log de tentativa de spam
         try {
             await addDoc(collection(db, "logs_atividades"), {
                 type: 'play_spam_ban',
-                itemTitle: statusSpam,
+                itemTitle: track.title,
                 itemId: track.id,
                 userId: uidLog,
                 userName: nomeLog,
                 timestamp: serverTimestamp(),
-                device: navigator.platform,
-                motivo: `Repetição de "${track.title}" (Faltam ${faltam}s)`
+                motivo: `Tentativa de validar antes do tempo (${faltam}s restantes)`
             });
         } catch (e) { console.error(e); }
 
-        console.warn(`🚫 [BLOQUEIO INDIVIDUAL] "${track.title}" já validada recentemente.`);
+        console.warn(`🚫 [SPAM] "${track.title}" bloqueada. Faltam ${faltam}s.`);
         return false; 
     }
 
-    // --- 2. SE PASSOU DA TRAVA (OU É UMA MÚSICA NOVA) ---
+    // --- 2. INJEÇÃO DE DADOS (APÓS OS 20s COMPROVADOS) ---
     try {
         window.isProcessingStream = true;
         const musicRef = doc(db, "musicas", track.id);
-        const valorSorteado = Math.floor(Math.random() * 180001) + 20000;
+
+        // Sorteio Streams (20k a 200k)
+        const valorSorteadoStreams = Math.floor(Math.random() * 180001) + 20000;
 
         let updates = {
-            streams: increment(valorSorteado),
-            streamsMensal: increment(valorSorteado),
+            streams: increment(valorSorteadoStreams),
+            streamsMensal: increment(valorSorteadoStreams),
             lastMonthlyStreamDate: serverTimestamp()
         };
 
-        // Ouvinte Mensal
         if (user) {
-            const mesAno = `${new Date().getMonth() + 1}_${new Date().getFullYear()}`;
-            const registroRef = doc(db, "registro_ouvintes", `${mesAno}_${user.uid}_${track.id}`);
-            const registroSnap = await getDoc(registroRef);
-            if (!registroSnap.exists()) {
-                updates.ouvintesMensais = increment(1);
-                await setDoc(registroRef, { userId: user.uid, trackId: track.id, periodo: mesAno, timestamp: serverTimestamp() });
+        const agoraData = new Date();
+        const cincoHorasEmMs = 5 * 60 * 60 * 1000; // 18.000.000 ms
+        
+        // Criamos um ID de referência para o ouvinte
+        const registroId = `ouv_${user.uid}_${track.id}`;
+        const registroRef = doc(db, "registro_ouvintes", registroId);
+        const registroSnap = await getDoc(registroRef);
+
+        let podeAdicionarOuvinte = false;
+
+        if (!registroSnap.exists()) {
+            // Primeira vez que ouve a música
+            podeAdicionarOuvinte = true;
+        } else {
+            // Já ouviu antes, vamos checar se passou 5 horas
+            const ultimaVez = registroSnap.data().timestamp?.toDate().getTime() || 0;
+            if (agoraData.getTime() - ultimaVez >= cincoHorasEmMs) {
+                podeAdicionarOuvinte = true;
             }
         }
 
+        if (podeAdicionarOuvinte) {
+            // ✅ SORTEIO DE 5.000 a 20.000 PARA OUVINTES
+            const valorSorteadoOuvintes = Math.floor(Math.random() * 15001) + 5000;
+            
+            updates.ouvintesMensais = increment(valorSorteadoOuvintes);
+
+            // Atualiza o registro com o novo tempo para resetar as 5 horas
+            await setDoc(registroRef, { 
+                userId: user.uid, 
+                trackId: track.id, 
+                timestamp: serverTimestamp() // Define o novo "ponto de partida" das 5h
+            });
+            
+            console.log(`👤 [OUVINTE RECORRENTE] +${valorSorteadoOuvintes.toLocaleString()} (Janela de 5h liberada)`);
+        } else {
+            console.log("⏳ [OUVINTE] Ainda dentro da janela de 5 horas. Bônus ignorado.");
+        }
+    }
+
         await updateDoc(musicRef, updates);
 
-        // LOG DE SUCESSO
+        // Log de Sucesso
         await addDoc(collection(db, "logs_atividades"), {
             type: 'play_20s_valid',
             itemTitle: track.title,
             itemId: track.id,
             userId: uidLog,
             userName: nomeLog,
-            timestamp: serverTimestamp()
+            timestamp: serverTimestamp(),
+            valorGerado: valorSorteadoStreams
         });
 
-        // SALVA O TEMPO DE VALIDAÇÃO DESTA MÚSICA ESPECÍFICA
         window.historicoValidacao[track.id] = Date.now();
         window.spamCounter = 0; 
-        
-        console.log(`✅ [VALIDADO] +${valorSorteado.toLocaleString()} para "${track.title}"`);
-        
         window.isProcessingStream = false;
+        
+        console.log(`✅ [SUCESSO] 20s ouvidos. +${valorSorteadoStreams.toLocaleString()} streams.`);
         return true; 
 
     } catch (e) {
