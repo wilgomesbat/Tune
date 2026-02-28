@@ -1211,20 +1211,19 @@ async function setupPlaylistPage(playlistId) {
                 vinteEQuatroHorasAtras.setHours(vinteEQuatroHorasAtras.getHours() - 24);
 
                 const logsRef = collection(db, "logs_atividades"); 
-                const qLogs = query(
-                    logsRef, 
-                    where("timestamp", ">=", vinteEQuatroHorasAtras),
-                    where("type", "==", "play_20s_valid")
-                );
+const qLogs = query(
+    logsRef, 
+    where("timestamp", ">=", vinteEQuatroHorasAtras),
+    where("type", "==", "play_20s_valid")
+);
 
-                const logsSnap = await getDocs(qLogs);
-                const playCounts = {};
+const logsSnap = await getDocs(qLogs);
+const playCounts = {};
 
-                logsSnap.forEach(doc => {
-                    const log = doc.data();
-                    if (log.itemId) playCounts[log.itemId] = (playCounts[log.itemId] || 0) + 1;
-                });
-
+logsSnap.forEach(doc => {
+    const log = doc.data();
+    if (log.itemId) playCounts[log.itemId] = (playCounts[log.itemId] || 0) + 1;
+});
                 const sortedIds = Object.keys(playCounts)
                     .sort((a, b) => playCounts[b] - playCounts[a])
                     .slice(0, 30); // Limite de 30 para o operador 'in'
