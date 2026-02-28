@@ -112,86 +112,90 @@ window.loadContent = loadContent;
 
 // --- ROTEAMENTO CORRIGIDO ---
 function initializeRouting() {
-    
     const pathname = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
 
     let page = 'home';
     let id = null;
 
-   const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html");
+    // Remove barras extras e extensões comuns para não bugar o roteamento
+    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "menu.html" && p !== "index.html" && p !== "index");
 
     if (pathParts.length > 0) {
-        page = pathParts[0]; // 'album', 'playlist', etc.
-        id = pathParts[1] || null; // o ID longo
+        page = pathParts[0]; 
+        id = pathParts[1] || null;
     } else if (urlParams.has('page')) {
         page = urlParams.get('page');
         id = urlParams.get('id');
     }
 
-    if (page.includes('.html')) page = page.replace('.html', '');
-    if (!page || page === 'undefined' || page === 'null') page = 'home';
+    // --- LOGICA DE SEGURANÇA CONTRA RECARREGAMENTO BUGADO ---
+    // Se a página for inválida ou o usuário acabou de abrir o site "seco", força Home
+    if (!page || page === 'undefined' || page === 'null' || page === 'index') {
+        page = 'home';
+    }
 
     console.log(`🚀 Roteamento inicial: [${page}] com ID [${id}]`);
     
     // Pequeno delay para garantir que o Firebase e o DOM estejam prontos
     setTimeout(() => {
         if (typeof window.loadContent === 'function') {
+            // Se houver erro no carregamento da subpágina, o catch do loadContent tratará
             window.loadContent(page, id, false);
         }
-    }, 100);
+    }, 150);
 }
 
+// --- MONITOR DE AUTENTICAÇÃO ---
 onAuthStateChanged(auth, async (user) => {
     const path = window.location.pathname;
+    // Simplificando a checagem de estar na tela de login
     const isAtLogin = path === "/" || path.includes("index.html") || path === "/index";
 
     if (!user) {
         console.warn("Usuário não logado.");
         if (!isAtLogin) {
-            console.log("Proteção: Redirecionando para raiz");
             window.location.href = "/"; 
         }
         return;
     }
 
-    // --- VERIFICAÇÃO DE STATUS (BLOQUEIO POR SPAM) ---
+    // Verificação de suspensão (Mantido sua lógica original)
     try {
         const userRef = doc(db, "usuarios", user.uid);
         const userSnap = await getDoc(userRef);
-
         if (userSnap.exists()) {
             const userData = userSnap.data();
-
             if (userData.status === "suspenso") {
                 const agora = new Date();
                 const expira = userData.suspensaoAte?.toDate();
-
                 if (expira && agora < expira) {
-                    // SE AINDA ESTIVER SUSPENSO: Trava a navegação global
-                    renderizarTelaBloqueioTune(expira);
-                    return; // Interrompe a execução para não carregar o site
+                    if (typeof renderizarTelaBloqueioTune === 'function') renderizarTelaBloqueioTune(expira);
+                    return;
                 } else {
-                    // SE O TEMPO PASSOU: Reativa a conta automaticamente
                     await updateDoc(userRef, { status: "ativo" });
                 }
             }
         }
     } catch (error) {
-        console.error("Erro ao verificar status de suspensão:", error);
+        console.error("Erro ao verificar status:", error);
     }
 
-    // --- USUÁRIO LOGADO E ATIVO ---
-    console.log("✅ Usuário autenticado e ativo:", user.uid);
+    console.log("✅ Usuário autenticado:", user.uid);
     window.currentUserUid = user.uid;
 
+    // --- AQUI ESTÁ A CHAVE: ---
+    // Se ele recarregou a página (F5) ou voltou ao navegador:
+    // Se estiver no login, manda pra home. Se já tiver um caminho na URL, inicializa o roteiro.
     if (isAtLogin) {
         window.loadContent('home', null, false);
     } else {
+        // Isso garante que se ele der F5 em /album/123, o sistema tente carregar o álbum
+        // Se falhar, o loadContent redireciona ou mostra erro.
         initializeRouting();
     }
 
-    verificarStatusArtista(user.uid);
+    if (typeof verificarStatusArtista === 'function') verificarStatusArtista(user.uid);
 });
 
 function renderizarTelaBloqueioTune(dataExpira) {
@@ -804,84 +808,136 @@ function formatNumber(num) {
     if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     return num.toString();
 }
+
 export async function setupArtistPage(artistUid) {
     if (!artistUid) return;
 
     try {
         // 1. CARREGAR PERFIL, BIO E FOTOS
         const artistDoc = await getDoc(doc(db, "usuarios", artistUid));
+        
         if (artistDoc.exists()) {
-            // DENTRO DE: if (artistDoc.exists()) { ... }
+            const data = artistDoc.data();
+            const nomeBase = data.nomeArtistico || "Artista";
 
-const data = artistDoc.data();
-const artistNameEl = document.getElementById('artist-name');
-const nomeBase = data.nomeArtistico || "Artista";
+            // --- NOME E VERIFICAÇÃO ---
+            const artistNameEl = document.getElementById('artist-name');
+            const isVerified = data.verificado === true || data.verificado === "true";
 
-// Compara se é o booleano true OU se é a string "true"
-const isVerified = data.verificado === true || data.verificado === "true";
+            if (artistNameEl) {
+                if (isVerified) {
+                    artistNameEl.innerHTML = `
+                        ${nomeBase} 
+                        <img src="/assets/verificado.png" class="verified-icon" title="Artista Verificado">
+                    `;
+                } else {
+                    artistNameEl.innerText = nomeBase;
+                }
+            }
 
-if (artistNameEl) {
-    if (isVerified) {
-        // Injeta o nome + a imagem do seu asset
-        artistNameEl.innerHTML = `
-            ${nomeBase} 
-            <img src="/assets/verificado.png" class="verified-icon" title="Artista Verificado">
-        `;
-    } else {
-        // Se não for verificado, garante que só apareça o texto
-        artistNameEl.innerText = nomeBase;
-    }
-}
+            // --- ESCOLHA DO ARTISTA (ARTIST PICK) ---
+            const pickContainer = document.getElementById('artist-pick-container');
+            const pickSection = document.querySelector('.artist-pick-section');
+
+            if (pickContainer && data.pinnedItem) {
+                const pinned = data.pinnedItem;
+                
+                // Exibe a seção caso ela esteja escondida
+                if (pickSection) pickSection.style.display = 'block';
+
+                pickContainer.innerHTML = `
+                    <div class="artist-pick-card" id="active-artist-pick">
+                        <img src="${pinned.capa}" class="pick-cover">
+                        <div class="pick-info">
+                            <div class="artist-badge-pill">
+                                <img src="${data.foto || '/assets/default-artist.png'}" class="pill-artist-photo">
+                                <span class="pill-text">De ${nomeBase}</span>
+                            </div>
+                            <h3 class="pick-title">${pinned.titulo}</h3>
+                            <p class="pick-type">${pinned.subtitulo}</p>
+                        </div>
+                    </div>
+                `;
+
+                // Lógica de clique: Redireciona para álbum ou toca música
+                const card = document.getElementById('active-artist-pick');
+                if (card) {
+                    card.onclick = () => {
+                        if (pinned.tipo === 'album') {
+                            if (typeof loadContent === 'function') {
+                                loadContent('album', pinned.id);
+                            }
+                        } else {
+                            if (typeof playMusic === 'function') {
+                                playMusic(pinned.id);
+                            }
+                        }
+                    };
+                }
+            } else {
+                // Se não houver destaque, esconde a seção
+                if (pickSection) pickSection.style.display = 'none';
+            }
             
+            // --- ATUALIZAÇÃO DE BACKGROUNDS E BIO ---
             const headerEl = document.getElementById('artist-header');
-            if (headerEl && data.foto) headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
+            if (headerEl && data.foto) {
+                headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
+            }
 
             const aboutCard = document.getElementById('artist-about-card');
-            if (aboutCard && data.foto) aboutCard.style.backgroundImage = `url('${data.foto}')`;
+            if (aboutCard && data.foto) {
+                aboutCard.style.backgroundImage = `url('${data.foto}')`;
+            }
             
             const bioTextEl = document.getElementById('artist-bio-text');
-            if (bioTextEl) bioTextEl.innerText = data.bio || `${data.nomeArtistico} é um destaque no Tune.`;
+            if (bioTextEl) {
+                bioTextEl.innerText = data.bio || `${nomeBase} é um destaque no Tune.`;
+            }
+
+            // --- 2. CÁLCULO DOS NÚMEROS (Ouvintes e Streams) ---
+            const musicasRef = collection(db, "musicas");
+            const qArtistMusics = query(musicasRef, where("artist", "==", artistUid));
+            const artistMusicsSnap = await getDocs(qArtistMusics);
+            
+            let totalAllTimeStreams = 0;
+            let totalMonthlyListeners = 0; 
+
+            artistMusicsSnap.forEach(d => {
+                const mData = d.data();
+                totalAllTimeStreams += Number(mData.streams || 0);
+                totalMonthlyListeners += Number(mData.ouvintesMensais || 0);
+            });
+
+            // Atualiza Header (Ouvintes Mensais)
+            const statsText = document.querySelector('.artist-header .stats');
+            if(statsText) {
+                statsText.innerHTML = `<span id="total-streams">${formatNumber(totalMonthlyListeners)}</span> ouvintes mensais`;
+            }
+
+            // Atualiza Card Sobre (Total Streams)
+            const monthlyEl = document.getElementById('artist-monthly-listeners'); 
+            if (monthlyEl) {
+                monthlyEl.innerText = `${formatNumber(totalAllTimeStreams)} streams no total`;
+            }
+
+            // --- 3. RESTANTE DO SETUP ---
+            await calculateGlobalRanking(artistUid);
+
+            await Promise.all([
+                loadTopSongs(artistUid),
+                loadArtistAlbums(artistUid),
+                loadArtistSingles(artistUid),
+                loadArtistStations(artistUid),
+                checkFollowStatus(artistUid)
+            ]);
+
+        } else {
+            console.error("Documento do artista não encontrado.");
         }
-
-        // 2. CÁLCULO DOS NÚMEROS (Ouvintes no Header)
-        const musicasRef = collection(db, "musicas");
-        const qArtistMusics = query(musicasRef, where("artist", "==", artistUid));
-        const artistMusicsSnap = await getDocs(qArtistMusics);
-        
-        let totalAllTimeStreams = 0;
-        let totalMonthlyListeners = 0; 
-
-        artistMusicsSnap.forEach(d => {
-            const mData = d.data();
-            totalAllTimeStreams += Number(mData.streams || 0);
-            totalMonthlyListeners += Number(mData.ouvintesMensais || 0);
-        });
-
-        // Atualiza o texto do Header para "Ouvintes Mensais"
-        const statsText = document.querySelector('.artist-header .stats');
-        if(statsText) {
-            statsText.innerHTML = `<span id="total-streams">${formatNumber(totalMonthlyListeners)}</span> ouvintes mensais`;
-        }
-
-        // Atualiza o card de baixo com o Total de Streams
-        const monthlyEl = document.getElementById('artist-monthly-listeners'); 
-        if (monthlyEl) {
-            monthlyEl.innerText = `${formatNumber(totalAllTimeStreams)} streams no total`;
-        }
-
-        // 3. RESTANTE DO SETUP
-        await calculateGlobalRanking(artistUid);
-
-        await Promise.all([
-            loadTopSongs(artistUid),
-            loadArtistAlbums(artistUid),
-            loadArtistSingles(artistUid),
-            loadArtistStations(artistUid),
-            checkFollowStatus(artistUid)
-        ]);
 
     } catch (error) {
-        console.error("Erro no setup da página:", error);
+        console.error("Erro no setup da página do artista:", error);
     }
 }
 
@@ -1211,19 +1267,20 @@ async function setupPlaylistPage(playlistId) {
                 vinteEQuatroHorasAtras.setHours(vinteEQuatroHorasAtras.getHours() - 24);
 
                 const logsRef = collection(db, "logs_atividades"); 
-const qLogs = query(
-    logsRef, 
-    where("timestamp", ">=", vinteEQuatroHorasAtras),
-    where("type", "==", "play_20s_valid")
-);
+                const qLogs = query(
+                    logsRef, 
+                    where("timestamp", ">=", vinteEQuatroHorasAtras),
+                    where("type", "==", "play_20s_valid")
+                );
 
-const logsSnap = await getDocs(qLogs);
-const playCounts = {};
+                const logsSnap = await getDocs(qLogs);
+                const playCounts = {};
 
-logsSnap.forEach(doc => {
-    const log = doc.data();
-    if (log.itemId) playCounts[log.itemId] = (playCounts[log.itemId] || 0) + 1;
-});
+                logsSnap.forEach(doc => {
+                    const log = doc.data();
+                    if (log.itemId) playCounts[log.itemId] = (playCounts[log.itemId] || 0) + 1;
+                });
+
                 const sortedIds = Object.keys(playCounts)
                     .sort((a, b) => playCounts[b] - playCounts[a])
                     .slice(0, 30); // Limite de 30 para o operador 'in'
