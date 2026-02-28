@@ -215,22 +215,35 @@ async function setupEditProfilePage() {
     }
 }
 
-// 2. FUNÇÃO PARA ATUALIZAR O PREVIEW DENTRO DO SELETOR
-function atualizarPreviewSorteio(pinned) {
-    const container = document.getElementById('edit-pinned-preview');
-    if (!container) return;
+function atualizarPreviewSorteio(pinned, artistPhoto, artistName) {
+    const empty = document.getElementById('pinned-empty');
+    const active = document.getElementById('pinned-active');
 
-    // Muda o visual do seletor cinza para mostrar a obra escolhida
-    container.innerHTML = `
-        <div class="flex items-center gap-4 w-full">
-            <img src="${pinned.capa}" class="w-12 h-12 rounded object-cover shadow-md">
-            <div class="flex-1 text-left">
-                <p class="text-white font-bold text-sm m-0">${pinned.titulo}</p>
-                <p class="text-gray-500 text-xs m-0">${pinned.subtitulo} • ${pinned.tipo.toUpperCase()}</p>
-            </div>
-            <i class="fas fa-sync-alt text-gray-600 text-xs"></i>
-        </div>
-    `;
+    if (!empty || !active) {
+        console.warn("Containers de destaque não encontrados na Dashboard.");
+        return;
+    }
+
+    // Troca os estados
+    empty.classList.add('hidden');
+    active.classList.remove('hidden');
+    active.style.display = 'flex'; // Garante que apareça caso o 'hidden' use display:none
+
+    // Preenche os dados da música/álbum
+    const img = document.getElementById('pinned-img');
+    const title = document.getElementById('pinned-title');
+    const subtitle = document.getElementById('pinned-subtitle');
+
+    if (img) img.src = pinned.capa;
+    if (title) title.textContent = pinned.titulo;
+    if (subtitle) subtitle.textContent = `${pinned.subtitulo} • ${pinned.tipo.toUpperCase()}`;
+    
+    // Preenche a Pílula Branca (Igual Imagem 1)
+    const pillImg = document.getElementById('pill-artist-photo');
+    const pillName = document.getElementById('pill-artist-name');
+    
+    if (pillImg) pillImg.src = artistPhoto || './assets/artistpfp.png';
+    if (pillName) pillName.textContent = `De ${artistName || 'Artista'}`;
 }
 
 // 3. SALVAR TUDO (NOME E BIO)
@@ -304,7 +317,7 @@ window.abrirSeletorDestaque = async function() {
                 <img src="${obra.cover || obra.capa || './assets/default-album.png'}" class="w-10 h-10 rounded object-cover">
                 <div class="text-left">
                     <p class="text-sm font-bold text-white">${obra.displayTitle}</p>
-                    <p class="text-xs text-gray-400">${obra.tipo.toUpperCase()}</p>
+
                 </div>
             `;
             // Ao clicar em uma obra da lista, chama o aplicarDestaque
@@ -343,7 +356,26 @@ async function aplicarDestaque(dados) {
     }
 }
 
+function exibirDestaqueAtivo(pinned, artistPhoto, artistName) {
+    const empty = document.getElementById('pinned-empty');
+    const active = document.getElementById('pinned-active');
 
+    if (empty && active) {
+        empty.classList.add('hidden');
+        active.classList.remove('hidden');
+
+        document.getElementById('pinned-img').src = pinned.capa;
+        document.getElementById('pinned-title').textContent = pinned.titulo;
+        document.getElementById('pinned-subtitle').textContent = `${pinned.subtitulo} • ${pinned.tipo.toUpperCase()}`;
+        
+        // Elementos da Pílula Branca
+        const pillImg = document.getElementById('pill-artist-photo');
+        const pillName = document.getElementById('pill-artist-name');
+        
+        if (pillImg) pillImg.src = artistPhoto || './assets/artistpfp.png';
+        if (pillName) pillName.textContent = `De ${artistName}`;
+    }
+}
 
 // 2. EXIBIR ITEM (Com verificações de NULL)
 function exibirItemFixado(data) {
@@ -1407,22 +1439,39 @@ async function gerarPlaylistThisIs() {
 }
 
 
-function setupDashboardPage() {
+async function setupDashboardPage() {
     const uid = currentUser?.uid;
     if (!uid) return;
 
-    // Streams Totais
-    const q = query(collection(db, "musicas"), where("artist", "==", uid));
-    getDocs(q).then(snap => {
+   try {
+        // Carrega dados do artista
+        const artistDoc = await getDoc(doc(db, "usuarios", uid));
+        if (artistDoc.exists()) {
+            const data = artistDoc.data();
+            
+            // Se já tiver algo fixado, mostra o card ativo
+            if (data.pinnedItem) {
+                atualizarPreviewSorteio(data.pinnedItem, data.foto, data.nomeArtistico || data.nome);
+            }
+        }
+
+        // 2. STREAMS TOTAIS
+        const q = query(collection(db, "musicas"), where("artist", "==", uid));
+        const snap = await getDocs(q);
+        
         let total = 0;
         snap.forEach(d => total += (d.data().streams || 0));
+        
         const el = document.getElementById('weekly-streams');
         if (el) el.textContent = new Intl.NumberFormat('pt-BR').format(total);
-    });
 
-    loadTopTracks(uid);
-    
-    verificarERenderizarBotaoThisIs();
+        // 3. RESTANTE DO SETUP
+        loadTopTracks(uid);
+        verificarERenderizarBotaoThisIs();
+
+    } catch (error) {
+        console.error("Erro no setup da dashboard:", error);
+    }
 }
 
 async function loadTopTracks(uid) {

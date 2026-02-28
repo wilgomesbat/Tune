@@ -10,7 +10,7 @@
     <div class="edit-profile-wrapper reveal">
         <div class="edit-header">
             <h2 class="reveal" style="animation-delay: 0.1s;">Editar Perfil</h2>
-            <p class="edit-subtitle reveal" style="animation-delay: 0.2s;">Personalize sua identidade e destaque suas melhores obras.</p>
+            <p class="edit-subtitle reveal" style="animation-delay: 0.2s;">Personalize sua identidade.</p>
         </div>
 
         <div class="edit-section photo-section reveal" style="animation-delay: 0.3s;">
@@ -38,20 +38,7 @@
             <textarea id="input-bio-v3" class="input-v3" rows="4" placeholder="Sua história..."></textarea>
         </div>
 
-        <div class="input-group reveal" style="animation-delay: 0.7s;">
-            <label class="input-label">Escolha do Artista (Destaque)</label>
-            <div class="artist-pick-selector" onclick="abrirSeletorDestaque()">
-                <div id="edit-pinned-preview">
-                    <div class="empty-pick-view flex items-center gap-5">
-                        <div class="plus-icon"><i class="fas fa-plus"></i></div>
-                        <div class="text-left">
-                            <p class="m-0 font-bold text-white">Promover música ou álbum</p>
-                            <p class="m-0 text-sm text-gray-500">Fixe seu lançamento favorito no topo.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+       
 
         <div class="edit-actions reveal" style="animation-delay: 0.8s;">
             <button onclick="salvarPerfilCompleto()" class="btn-save-main">Salvar Alterações</button>
@@ -80,6 +67,30 @@
     </div>
 </div>
 <style>
+    @font-face {
+    font-family: 'Nationale Regular';
+    /* Removido o '.' para buscar da raiz */
+    src: url('/fonts/Nationale-Regular.woff2') format('woff2'),
+         url('/fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('/fonts/Nationale-Bold.woff2') format('woff2'),
+         url('/fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('/fonts/Nationale-Black.woff2') format('woff2'),
+         url('/fonts/Nationale-Black.woff') format('woff');
+    font-weight: 900; /* Black geralmente usa 900 para diferenciar do Bold */
+    font-style: normal;
+}
 /* --- TUNE MODERN DESIGN SYSTEM --- */
 :root {
     --tune-green: #1DB954;
