@@ -1214,7 +1214,7 @@ async function setupPlaylistPage(playlistId) {
                 const qLogs = query(
                     logsRef, 
                     where("timestamp", ">=", vinteEQuatroHorasAtras),
-                    where("type", "==", "play_spam_ban")
+                    where("type", "==", "play_20s_valid")
                 );
 
                 const logsSnap = await getDocs(qLogs);
