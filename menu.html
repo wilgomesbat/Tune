@@ -9,9 +9,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css"
         crossorigin="anonymous">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./style.css">
-    <link rel="stylesheet" href="./glass.css">
-    <link rel="stylesheet" href="./player.css">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/glass.css">
+    <link rel="stylesheet" href="/player.css">
     <link rel="icon" href="./assets/favicon.png">
     <script src="https://www.youtube.com/iframe_api"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
@@ -397,13 +397,13 @@
 
         <!-- Substituído o .spinner pelo logo customizado -->
         <div class="logo-loading-content">
-            <img src="./assets/logotunenew.png" alt="Logo TUNE">
+            <img src="/assets/logotunenew.png" alt="Logo TUNE">
         </div>
     </div>
 
    <div id="latNav">
     <div class="sidebar-header">
-        <img src="./assets/logotunenew.png" alt="TUNE" class="logo-img">
+        <img src="/assets/logotunenew.png" alt="TUNE" class="logo-img">
         
         <button class="menu-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()">
     <svg id="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -428,7 +428,7 @@
             </li>
             <li class="nav-item">
                 <a href="#" class="nav-link" data-page="library">
-                    <img src="assets/user-round (1).svg" alt="">
+                    <img src="/assets/user-round (1).svg" alt="">
                     <span>Coleção</span>
                 </a>
             </li>
@@ -512,15 +512,15 @@
     
     <div class="nav-content">
         <a href="#" class="nav-link active" data-page="home" data-base-src="Home Icon">
-            <img src="./assets/Home Icon.svg" alt="Início">
+            <img src="/assets/Home Icon.svg" alt="Início">
         </a>
 
         <a href="#" class="nav-link" data-page="search" data-base-src="Search Icon">
-            <img src="./assets/Search Icon.svg" alt="Buscar">
+            <img src="/assets/Search Icon.svg" alt="Buscar">
         </a>
 
         <a href="#" class="nav-link" data-page="library" data-base-src="Your Playlisy Icon">
-            <img src="./assets/user-round.svg" alt="Sua Biblioteca">
+            <img src="/assets/user-round.svg" alt="Sua Biblioteca">
         </a>
     </div>
 </div>
@@ -595,11 +595,11 @@ function initializeRouting() {
     const pathname = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
 
-    let page = 'home'; // Padrão
+    let page = 'home';
     let id = null;
 
-    // Remove a barra inicial e divide o caminho
-    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "index.html" && p !== "menu.html");
+    // Remove barras e nomes de arquivos físicos da análise
+    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "index.html" && p !== "menu.html" && p !== "index");
 
     if (pathParts.length > 0) {
         page = pathParts[0]; 
@@ -609,13 +609,14 @@ function initializeRouting() {
         id = urlParams.get('id');
     }
 
-    // Limpeza de extensões e valores nulos
-    if (page.includes('.html')) page = page.replace('.html', '');
-    if (!page || page === 'null' || page === 'undefined') page = 'home';
+    // Validação extra: se a página detectada for inválida, força Home
+    const validPages = ['home', 'search', 'library', 'album', 'playlist', 'artist', 'music', 'liked'];
+    if (!validPages.includes(page)) {
+        page = 'home';
+    }
 
-    console.log(`🚀 Roteamento inicial fixado: [${page}]`);
+    console.log(`🚀 Roteamento: Carregando [${page}]`);
     
-    // Use window.loadContent para garantir acesso ao escopo global
     if (typeof window.loadContent === 'function') {
         window.loadContent(page, id, false); 
     }
@@ -623,22 +624,20 @@ function initializeRouting() {
 }
 
 window.addEventListener('popstate', (e) => {
-    // Se houver um estado salvo (navegação interna)
     if (e.state && e.state.page) {
-        console.log("⬅️ Voltando para:", e.state.page);
+        // Navega para a página salva no histórico
         window.loadContent(e.state.page, e.state.id, false);
         updateActiveNavLink(e.state.page);
-    } 
-    // Se não houver estado (voltou para a URL limpa /)
-    else {
-        console.log("🏠 Voltando para a raiz");
-        initializeRouting();
+    } else {
+        // Se e.state for nulo, significa que voltamos ao início de tudo (/)
+        window.loadContent('home', null, false);
+        updateActiveNavLink('home');
     }
 });
 
 function updateBrowserHistory(page, id) {
-    const url = id ? `/${page}/${id}` : `/${page}`;
-    // Adiciona a barra inicial "/" para que o histórico seja absoluto
+    // Se for home, a URL deve ser apenas "/", caso contrário /pagina ou /pagina/id
+    const url = (page === 'home') ? '/' : (id ? `/${page}/${id}` : `/${page}`);
     window.history.pushState({ page, id }, '', url);
 }
 

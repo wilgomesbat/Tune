@@ -33,22 +33,22 @@ body {
     }
 @font-face {
     font-family: 'Nationale Regular';
-    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
-         url('./fonts/Nationale-Regular.woff') format('woff');
+    src: url('/fonts/Nationale-Regular.woff2') format('woff2'),
+         url('/fonts/Nationale-Regular.woff') format('woff');
     font-weight: normal;
     font-style: normal;
 }
 @font-face {
     font-family: 'Nationale Bold';
-    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
-         url('./fonts/Nationale-Bold.woff') format('woff');
+    src: url('/fonts/Nationale-Bold.woff2') format('woff2'),
+         url('/fonts/Nationale-Bold.woff') format('woff');
     font-weight: bold;
     font-style: normal;
 }
 @font-face {
     font-family: 'Nationale Black';
-    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
-         url('./fonts/Nationale-Black.woff') format('woff');
+    src: url('/fonts/Nationale-Black.woff2') format('woff2'),
+         url('/fonts/Nationale-Black.woff') format('woff');
     font-weight: bold;
     font-style: normal;
 }

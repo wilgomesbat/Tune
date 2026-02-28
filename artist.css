@@ -561,3 +561,67 @@ body, html {
 .btn-seguir-pill.following .icon-asset {
     filter: invert(1); /* Inverte o ícone para ficar preto no fundo branco */
 }
+
+.artist-pick-section {
+    padding: 20px 20px;
+}
+
+.artist-pick-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 10px;
+}
+
+.pick-cover {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+.pick-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* A pílula branca com a foto do artista */
+.artist-badge-pill {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 2px 12px 2px 2px;
+    border-radius: 20px;
+    width: fit-content;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.pill-artist-photo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.pill-text {
+    color: black;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.pick-title {
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 21px;
+    font-weight: bold;
+    color: white;
+    margin: 0;
+}
+
+.pick-type {
+    font-size: 14px;
+    color: #b3b3b3;
+    margin: 0;
+}

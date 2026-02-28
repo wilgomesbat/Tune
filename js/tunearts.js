@@ -180,54 +180,204 @@ async function loadContent(pageName) {
     } catch (error) {
         console.error(error);
     }
-}
+}/**
+ * TUNE - EDITPROFILE.JS
+ * Lógica para gerenciar Nome, Bio, Foto e Artist Pick (Destaque)
+ */
 
+
+// 1. CARREGAMENTO INICIAL DOS CAMPOS
 async function setupEditProfilePage() {
     if (!currentUser) return;
 
     try {
         const snap = await getDoc(doc(db, "usuarios", currentUser.uid));
-
         if (!snap.exists()) return;
 
         const data = snap.data();
-        const nome =
-            data.nomeArtistico ||
-            data.nome ||
-            "Artista sem nome";
+        
+        // Preencher Nome e Bio nos inputs
+        const inputNome = document.getElementById('input-nome-v3');
+        const inputBio = document.getElementById('input-bio-v3');
+        const imgPreview = document.getElementById('artist-cover-bg');
 
-        const nameEl = document.getElementById('display-nome-artistico');
-        if (nameEl) {
-            nameEl.textContent = nome;
+        if (inputNome) inputNome.value = data.nomeArtistico || data.nome || "";
+        if (inputBio) inputBio.value = data.bio || "";
+        if (imgPreview) imgPreview.src = data.foto || './assets/artistpfp.png';
+
+        // Carregar o Preview do Artist Pick no seletor
+        if (data.pinnedItem) {
+            atualizarPreviewSorteio(data.pinnedItem);
         }
-
-        const photoEl = document.getElementById('artist-cover-bg');
-        if (photoEl) {
-            photoEl.src = data.foto || './assets/artistpfp.png';
-        }
-
-        console.log("✅ Nome exibido:", nome);
 
     } catch (e) {
-        console.error("Erro ao carregar perfil:", e);
+        console.error("Erro ao carregar dados de edição:", e);
     }
 }
 
+// 2. FUNÇÃO PARA ATUALIZAR O PREVIEW DENTRO DO SELETOR
+function atualizarPreviewSorteio(pinned) {
+    const container = document.getElementById('edit-pinned-preview');
+    if (!container) return;
+
+    // Muda o visual do seletor cinza para mostrar a obra escolhida
+    container.innerHTML = `
+        <div class="flex items-center gap-4 w-full">
+            <img src="${pinned.capa}" class="w-12 h-12 rounded object-cover shadow-md">
+            <div class="flex-1 text-left">
+                <p class="text-white font-bold text-sm m-0">${pinned.titulo}</p>
+                <p class="text-gray-500 text-xs m-0">${pinned.subtitulo} • ${pinned.tipo.toUpperCase()}</p>
+            </div>
+            <i class="fas fa-sync-alt text-gray-600 text-xs"></i>
+        </div>
+    `;
+}
+
+// 3. SALVAR TUDO (NOME E BIO)
+window.salvarPerfilCompleto = async function() {
+    const inputNome = document.getElementById('input-nome-v3');
+    const inputBio = document.getElementById('input-bio-v3');
+
+    if (!currentUser || !inputNome) return;
+
+    const novoNome = inputNome.value.trim();
+    const novaBio = inputBio.value.trim();
+
+    if (novoNome.length < 2) {
+        if (window.showToast) window.showToast("Nome muito curto!", "error");
+        return;
+    }
+
+    try {
+        await updateDoc(doc(db, "usuarios", currentUser.uid), {
+            nomeArtistico: novoNome,
+            bio: novaBio
+        });
+
+        if (window.showToast) window.showToast("Perfil atualizado com sucesso!");
+        
+        // Opcional: Redirecionar para a visualização do perfil após salvar
+        // loadContent('profile', currentUser.uid); 
+
+    } catch (e) {
+        console.error("Erro ao salvar perfil:", e);
+        alert("Erro ao salvar alterações.");
+    }
+};
+
+
+// 1. Função que busca e abre o seletor (Músicas + Álbuns)
+window.abrirSeletorDestaque = async function() {
+    const lista = document.getElementById('lista-musicas-artista');
+    const modal = document.getElementById('modal-seletor');
+    
+    if (!lista || !modal) {
+        console.error("Elementos do modal de seleção não encontrados!");
+        return;
+    }
+
+    lista.innerHTML = "<p class='text-sm text-gray-500 p-4'>Buscando suas obras...</p>";
+    modal.style.display = 'flex';
+
+    try {
+        const qMusicas = query(collection(db, "musicas"), where("artist", "==", currentUser.uid));
+        const qAlbuns = query(collection(db, "albuns"), where("uidars", "==", currentUser.uid));
+
+        const [musicasSnap, albunsSnap] = await Promise.all([getDocs(qMusicas), getDocs(qAlbuns)]);
+        
+        lista.innerHTML = "";
+
+        if (musicasSnap.empty && albunsSnap.empty) {
+            lista.innerHTML = "<p class='text-sm text-gray-400 p-4'>Nenhuma obra encontrada.</p>";
+            return;
+        }
+
+        // Renderiza os itens na lista do modal
+        const todasObras = [];
+        albunsSnap.forEach(d => todasObras.push({ ...d.data(), id: d.id, tipo: 'album', displayTitle: d.data().album }));
+        musicasSnap.forEach(d => todasObras.push({ ...d.data(), id: d.id, tipo: 'musica', displayTitle: d.data().title }));
+
+        todasObras.forEach(obra => {
+            const item = document.createElement('div');
+            item.className = "song-item-select flex items-center gap-3 p-2 hover:bg-gray-800 rounded cursor-pointer transition";
+            item.innerHTML = `
+                <img src="${obra.cover || obra.capa || './assets/default-album.png'}" class="w-10 h-10 rounded object-cover">
+                <div class="text-left">
+                    <p class="text-sm font-bold text-white">${obra.displayTitle}</p>
+                    <p class="text-xs text-gray-400">${obra.tipo.toUpperCase()}</p>
+                </div>
+            `;
+            // Ao clicar em uma obra da lista, chama o aplicarDestaque
+            item.onclick = () => aplicarDestaque({
+                id: obra.id,
+                tipo: obra.tipo,
+                titulo: obra.displayTitle,
+                capa: obra.cover || obra.capa,
+                subtitulo: obra.genre || 'Lançamento'
+            });
+            lista.appendChild(item);
+        });
+
+    } catch (e) {
+        console.error("Erro no seletor:", e);
+    }
+};
+
+// 2. Aplica a escolha, salva no Firebase e ATUALIZA O PREVIEW NA TELA
+async function aplicarDestaque(dados) {
+    if (!currentUser) return;
+
+    try {
+        await updateDoc(doc(db, "usuarios", currentUser.uid), {
+            pinnedItem: dados
+        });
+
+        // ESSENCIAL: Atualiza o visual da tela de edição sem precisar de refresh
+        atualizarPreviewSorteio(dados);
+        
+        window.fecharSeletor();
+        if (window.showToast) window.showToast("Destaque atualizado!");
+        
+    } catch (e) {
+        console.error("Erro ao salvar destaque:", e);
+    }
+}
+
+
+
+// 2. EXIBIR ITEM (Com verificações de NULL)
+function exibirItemFixado(data) {
+    const emptyState = document.getElementById('pinned-empty');
+    const activeState = document.getElementById('pinned-active');
+    const img = document.getElementById('pinned-img');
+    const title = document.getElementById('pinned-title');
+    const subtitle = document.getElementById('pinned-subtitle');
+
+    // Só executa se os elementos existirem na tela
+    if (emptyState) emptyState.classList.add('hidden');
+    if (activeState) activeState.classList.remove('hidden');
+    
+    if (img) img.src = data.capa;
+    if (title) title.textContent = data.titulo;
+    if (subtitle) subtitle.textContent = data.subtitulo;
+}
+
+window.fecharSeletor = () => {
+    const seletor = document.getElementById('modal-seletor');
+    if (seletor) seletor.style.display = 'none';
+};
+
+// --- FUNÇÃO DE REDIMENSIONAMENTO (CORRIGE O ERRO) ---
 async function resizeImage(file, maxWidth = 500, maxHeight = 500, quality = 0.7) {
     return new Promise((resolve) => {
         const img = new Image();
         const reader = new FileReader();
-
-        reader.onload = (e) => {
-            img.src = e.target.result;
-        };
-
+        reader.onload = (e) => img.src = e.target.result;
         img.onload = () => {
             const canvas = document.createElement("canvas");
             let width = img.width;
             let height = img.height;
 
-            // calcula proporção
             if (width > height) {
                 if (width > maxWidth) {
                     height *= maxWidth / width;
@@ -239,131 +389,122 @@ async function resizeImage(file, maxWidth = 500, maxHeight = 500, quality = 0.7)
                     height = maxHeight;
                 }
             }
-
             canvas.width = width;
             canvas.height = height;
-
             const ctx = canvas.getContext("2d");
             ctx.drawImage(img, 0, 0, width, height);
-
-            canvas.toBlob(
-                (blob) => resolve(blob),
-                "image/jpeg",
-                quality
-            );
+            canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
         };
-
         reader.readAsDataURL(file);
     });
 }
 
-
-
-window.showPhotoEditModal = function () {
-  const modal = document.getElementById("photo-edit-modal");
-  modal.classList.remove("hidden");
+// --- GESTÃO DE FOTO E MODAL ---
+window.showPhotoEditModal = () => {
+    const modal = document.getElementById("photo-edit-modal");
+    if (modal) {
+        modal.classList.remove("hidden");
+    } else {
+        console.warn("Aviso: 'photo-edit-modal' não encontrado no DOM.");
+    }
 };
 
-window.hidePhotoEditModal = function () {
-  const modal = document.getElementById("photo-edit-modal");
-  modal.classList.add("hidden");
+window.hidePhotoEditModal = () => {
+    const modal = document.getElementById("photo-edit-modal");
+    if (modal) modal.classList.add("hidden");
 };
+
 window.updateArtistPhoto = async () => {
     const fileInput = document.getElementById('new-photo-file-input');
     if (!fileInput?.files?.[0] || !currentUser) return;
 
     try {
-        const originalFile = fileInput.files[0];
-
-        // 🔥 Reduz a imagem antes de enviar
-        const resizedFile = await resizeImage(originalFile, 500, 500, 0.7);
-
+        // Agora a função resizeImage está definida!
+        const resizedFile = await resizeImage(fileInput.files[0], 500, 500, 0.7);
+        
         const formData = new FormData();
         formData.append("file", resizedFile);
         formData.append("upload_preset", UPLOAD_PRESET);
-        formData.append("folder", `tune/posts/profile/${currentUser.uid}`);
+        formData.append("folder", `tune/profile/${currentUser.uid}`);
 
         window.hidePhotoEditModal();
 
-        const response = await fetch(
-            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-            {
-                method: "POST",
-                body: formData
-            }
-        );
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: "POST", 
+            body: formData
+        });
 
-       const data = await response.json();
-
-if (!response.ok) {
-    console.error("STATUS:", response.status);
-    console.error("RESPOSTA:", data);
-    alert(data.error?.message || "Erro desconhecido");
-    return;
-}
-
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message);
 
         const url = data.secure_url;
-
-        await updateDoc(doc(db, "usuarios", currentUser.uid), {
-            foto: url
-        });
+        await updateDoc(doc(db, "usuarios", currentUser.uid), { foto: url });
 
         const artistPhoto = document.getElementById('artist-cover-bg');
         if (artistPhoto) artistPhoto.src = url;
+        
+        if (window.showToast) window.showToast("Foto atualizada com sucesso!");
+    } catch (error) {
+        console.error("Erro no upload:", error);
+        alert("Erro ao enviar foto.");
+    }
+};
 
-        alert("Foto atualizada!");
+// 3. GESTÃO DE FOTO (Protegida contra erros de DOM)
+window.updateArtistPhoto = async () => {
+    const fileInput = document.getElementById('new-photo-file-input');
+    if (!fileInput?.files?.[0] || !currentUser) return;
+
+    try {
+        const resizedFile = await resizeImage(fileInput.files[0], 500, 500, 0.7);
+        const formData = new FormData();
+        formData.append("file", resizedFile);
+        formData.append("upload_preset", UPLOAD_PRESET);
+        formData.append("folder", `tune/profile/${currentUser.uid}`);
+
+        window.hidePhotoEditModal();
+
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: "POST", body: formData
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message);
+
+        const url = data.secure_url;
+        await updateDoc(doc(db, "usuarios", currentUser.uid), { foto: url });
+
+        const artistPhoto = document.getElementById('artist-cover-bg');
+        if (artistPhoto) artistPhoto.src = url;
+        
+        if (window.showToast) window.showToast("Foto atualizada!");
     } catch (error) {
         console.error(error);
         alert("Erro ao enviar foto.");
     }
 };
 
-
-
-window.salvarNomeV3 = async function () {
-    const input = document.getElementById('input-sistema-v3');
-    if (!input || !currentUser) return;
-
-    const novoNome = input.value.trim();
-    if (novoNome.length < 2) {
-        window.showToast("Nome muito curto", "error");
-        return;
-    }
-
-    try {
-        await updateDoc(doc(db, "usuarios", currentUser.uid), {
-            nomeArtistico: novoNome
-        });
-
-        document.getElementById('display-nome-artistico').textContent = novoNome;
-        gerenciarModalNome(false);
-
-        window.showToast("Nome atualizado com sucesso!");
-    } catch (e) {
-        console.error(e);
-        window.showToast("Erro ao salvar nome", "error");
+// 4. MODAIS (Verificando existência antes de acessar classList)
+window.showPhotoEditModal = () => {
+    const modal = document.getElementById("photo-edit-modal");
+    if (modal) {
+        modal.classList.remove("hidden");
+    } else {
+        console.warn("Modal 'photo-edit-modal' não encontrado no DOM atual.");
     }
 };
 
-
-window.gerenciarModalNome = function (abrir) {
-    const modal = document.getElementById('modal-sistema-v3');
-    if (!modal) return;
-
-    modal.style.display = abrir ? 'flex' : 'none';
-
-    if (abrir) {
-        const input = document.getElementById('input-sistema-v3');
-        const nomeAtual = document.getElementById('display-nome-artistico');
-
-        if (input && nomeAtual) {
-            input.value = nomeAtual.textContent.trim();
-            input.focus();
-        }
-    }
+window.hidePhotoEditModal = () => {
+    const modal = document.getElementById("photo-edit-modal");
+    if (modal) modal.classList.add("hidden");
 };
 
+// Inicialização segura
+if (document.readyState === 'complete') {
+    setupEditProfilePage();
+} else {
+    window.addEventListener('load', setupEditProfilePage);
+}
 
 // ============================================
 // ⭐ GERENCIAMENTO DE LANÇAMENTOS (CORRIGIDO) ⭐
