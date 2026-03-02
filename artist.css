@@ -180,18 +180,7 @@ body, html {
     margin-bottom: 15px;
 }
 
-.bio {
-    font-family: 'Nationale Regular';
-    max-width: 600px;
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--text-white);
-    margin-bottom: 30px;
-    display: -webkit-box;
 
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
 
 .read-more {
     font-weight: bold;
@@ -625,3 +614,114 @@ body, html {
     color: #b3b3b3;
     margin: 0;
 }
+
+
+/* Botão Ver Tudo */
+.read-more-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: 0.3s;
+}
+.read-more-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* Overlay do Pop-up */
+.bio-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    display: none; /* Controlado via JS */
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+/* Card do Pop-up */
+.bio-modal-card {
+    background: #121212;
+    width: 90%;
+    max-width: 550px;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 30px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-body {
+    overflow-y: auto;
+    line-height: 1.6;
+    color: #ccccccb3;
+    white-space: pre-wrap; /* Mantém as quebras de linha do usuário */
+    font-size: 1rem;
+    padding-right: 10px;
+}
+
+/* Estilo para a Bio Clicável */
+.clickable-bio {
+    cursor: pointer;
+    transition: color 0.2s, opacity 0.2s;
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* Opcional: força 3 linhas se quiser ignorar o limit do JS */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: #b3b3b3;
+}
+
+.clickable-bio:hover {
+    color: #fff;
+    opacity: 0.8;
+}
+
+/* Modal e Botão de Fechar */
+.bio-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(10px);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-modal-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 35px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close-modal-btn:hover {
+    color: #fff;
+}
+
+.close-modal-btn {
+    font-size: 2rem;
+    color: #888;
+    cursor: pointer;
+    line-height: 1;
+}
+.close-modal-btn:hover { color: #fff; }
+
+/* Custom Scrollbar para a Bio */
+.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }

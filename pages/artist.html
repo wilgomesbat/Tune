@@ -108,10 +108,24 @@
         </div>
         <div class="about-content">
             <p id="artist-monthly-listeners" class="monthly-listeners">0 ouvintes mensais</p>
-           
+            
+            <div class="bio-click-wrapper">
+                <p id="artist-bio-text" class="artist-bio-preview clickable-bio" title="Clique para ler mais"></p>
+            </div>
         </div>
     </div>
 </section>
+
+<div id="bio-modal" class="bio-modal-overlay hidden" onclick="fecharModalBioExterno(event)">
+    <div class="bio-modal-card">
+        <div class="modal-header">
+            <h3 id="modal-artist-name-bio">Sobre o Artista</h3>
+            <button class="close-modal-btn" onclick="fecharModalBio()">&times;</button>
+        </div>
+        <div id="full-bio-content" class="modal-body">
+            </div>
+    </div>
+</div>
 
 
 

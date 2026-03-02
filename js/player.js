@@ -869,6 +869,34 @@ function iniciarCronometroStream(track) {
     }, 20000); // 20000ms = 20 segundos
 }
 
+let tempoOuvidoAtual = 0;
+let validacaoJaEnviada = false;
+
+// Função chamada sempre que a música toca (timeupdate)
+function monitorarProgressoAudio(audioElement, trackAtual) {
+    const tempoSegundos = Math.floor(audioElement.currentTime);
+
+    // 1. Verifica se atingiu 20 segundos e se ainda não validamos esta execução
+    if (tempoSegundos >= 20 && !validacaoJaEnviada) {
+        validacaoJaEnviada = true; // Trava para não enviar várias vezes na mesma música
+        
+        console.log("🎯 Marca de 20s atingida! Enviando para validação oficial...");
+        
+        // Chamada para a sua função oficial com a lógica de 1k-100k e queda de 20%
+        validarStreamOficial(trackAtual).then(sucesso => {
+            if (sucesso) {
+                console.log("💎 Stream e Ouvintes processados com sucesso.");
+            }
+        });
+    }
+}
+
+// Quando o usuário trocar de música ou der Play em outra:
+function resetarValidacaoTrack() {
+    tempoOuvidoAtual = 0;
+    validacaoJaEnviada = false;
+}
+
 // Objeto para controlar o tempo individual de cada música (Cache de Sessão)
 window.historicoValidacao = window.historicoValidacao || {};
 window.spamCounter = window.spamCounter || 0;
@@ -891,7 +919,6 @@ async function validarStreamOficial(track) {
         window.spamCounter++;
         const faltam = Math.round((tempoMinimoReplay - tempoPassado) / 1000);
         
-        // Log de tentativa de spam
         try {
             await addDoc(collection(db, "logs_atividades"), {
                 type: 'play_spam_ban',
@@ -913,7 +940,7 @@ async function validarStreamOficial(track) {
         window.isProcessingStream = true;
         const musicRef = doc(db, "musicas", track.id);
 
-        // Sorteio Streams (20k a 200k)
+        // Sorteio Streams (20k a 200k) - Mantido conforme sua lógica original
         const valorSorteadoStreams = Math.floor(Math.random() * 180001) + 20000;
 
         let updates = {
@@ -923,45 +950,50 @@ async function validarStreamOficial(track) {
         };
 
         if (user) {
-        const agoraData = new Date();
-        const cincoHorasEmMs = 5 * 60 * 60 * 1000; // 18.000.000 ms
-        
-        // Criamos um ID de referência para o ouvinte
-        const registroId = `ouv_${user.uid}_${track.id}`;
-        const registroRef = doc(db, "registro_ouvintes", registroId);
-        const registroSnap = await getDoc(registroRef);
+            const agoraData = new Date();
+            const cincoHorasEmMs = 5 * 60 * 60 * 1000;
+            
+            const registroId = `ouv_${user.uid}_${track.id}`;
+            const registroRef = doc(db, "registro_ouvintes", registroId);
+            const registroSnap = await getDoc(registroRef);
 
-        let podeAdicionarOuvinte = false;
+            let podeAdicionarOuvinte = false;
 
-        if (!registroSnap.exists()) {
-            // Primeira vez que ouve a música
-            podeAdicionarOuvinte = true;
-        } else {
-            // Já ouviu antes, vamos checar se passou 5 horas
-            const ultimaVez = registroSnap.data().timestamp?.toDate().getTime() || 0;
-            if (agoraData.getTime() - ultimaVez >= cincoHorasEmMs) {
+            if (!registroSnap.exists()) {
                 podeAdicionarOuvinte = true;
+            } else {
+                const ultimaVez = registroSnap.data().timestamp?.toDate().getTime() || 0;
+                if (agoraData.getTime() - ultimaVez >= cincoHorasEmMs) {
+                    podeAdicionarOuvinte = true;
+                }
+            }
+
+            if (podeAdicionarOuvinte) {
+                // ✅ NOVO SORTEIO: 1.000 a 100.000
+                const valorBase = Math.floor(Math.random() * 99001) + 1000;
+
+                // ✅ FUNÇÃO DE VOLATILIDADE (Simulação Realista)
+                // 20% de chance de diminuir ouvintes para simular evasão/queda real
+                const eQueda = Math.random() < 0.20; 
+                const valorFinalOuvintes = eQueda ? -Math.abs(Math.floor(valorBase * 0.5)) : valorBase;
+                
+                updates.ouvintesMensais = increment(valorFinalOuvintes);
+
+                await setDoc(registroRef, { 
+                    userId: user.uid, 
+                    trackId: track.id, 
+                    timestamp: serverTimestamp() 
+                });
+                
+                if (valorFinalOuvintes > 0) {
+                    console.log(`👤 [OUVINTE] +${valorFinalOuvintes.toLocaleString()} (Alta no IBOPE)`);
+                } else {
+                    console.log(`📉 [OUVINTE] ${valorFinalOuvintes.toLocaleString()} (Evasão simulada)`);
+                }
+            } else {
+                console.log("⏳ [OUVINTE] Janela de 5h ativa. Bônus ignorado.");
             }
         }
-
-        if (podeAdicionarOuvinte) {
-            // ✅ SORTEIO DE 5.000 a 20.000 PARA OUVINTES
-            const valorSorteadoOuvintes = Math.floor(Math.random() * 15001) + 5000;
-            
-            updates.ouvintesMensais = increment(valorSorteadoOuvintes);
-
-            // Atualiza o registro com o novo tempo para resetar as 5 horas
-            await setDoc(registroRef, { 
-                userId: user.uid, 
-                trackId: track.id, 
-                timestamp: serverTimestamp() // Define o novo "ponto de partida" das 5h
-            });
-            
-            console.log(`👤 [OUVINTE RECORRENTE] +${valorSorteadoOuvintes.toLocaleString()} (Janela de 5h liberada)`);
-        } else {
-            console.log("⏳ [OUVINTE] Ainda dentro da janela de 5 horas. Bônus ignorado.");
-        }
-    }
 
         await updateDoc(musicRef, updates);
 
@@ -980,7 +1012,7 @@ async function validarStreamOficial(track) {
         window.spamCounter = 0; 
         window.isProcessingStream = false;
         
-        console.log(`✅ [SUCESSO] 20s ouvidos. +${valorSorteadoStreams.toLocaleString()} streams.`);
+        console.log(`✅ [SUCESSO] +${valorSorteadoStreams.toLocaleString()} streams.`);
         return true; 
 
     } catch (e) {

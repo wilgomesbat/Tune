@@ -1058,7 +1058,7 @@ function setupAddPlaylistPage() {
     if (categorySelect && stationSearchSection) {
         const toggleArtistSearch = () => {
             // APENAS 'Stations' ativa a busca de artista. 
-            // 'Playlist Genres' e outras categorias ocultam a seção.
+            // 'Playlist Genres', 'Charts' e agora 'Collections' ocultam a seção.
             if (categorySelect.value === 'Stations') {
                 stationSearchSection.classList.remove('hidden');
             } else {
@@ -1175,7 +1175,6 @@ function setupAddPlaylistPage() {
             }
             
             // Validação: Somente 'Stations' exige o UID do artista.
-            // 'Playlist Genres' segue o fluxo normal sem essa exigência.
             if (category === 'Stations' && !artistUid) {
                  showToastError("Ao selecionar 'Stations', você deve buscar e selecionar um Artista.");
                  return;
@@ -1185,7 +1184,7 @@ function setupAddPlaylistPage() {
                 const playlistData = {
                     name: playlistName,
                     cover: playlistCover,
-                    category, // Aqui será salvo como 'Playlist Genres' se selecionado
+                    category, // Salva 'Playlist Genres', 'Charts' ou 'Collections'
                     genres,
                     uidars: artistUid || null, 
                     dataCriacao: new Date()
@@ -1200,7 +1199,9 @@ function setupAddPlaylistPage() {
                 if(artistSearchInput) artistSearchInput.value = "";
                 if(selectedArtistUidInput) selectedArtistUidInput.value = "";
                 if(selectedArtistDisplay) selectedArtistDisplay.textContent = 'Artista Selecionado: Nenhum';
-                toggleArtistSearch(); 
+                
+                // Re-executa o toggle para garantir que a seção de busca suma se o reset voltar para uma categoria comum
+                if(typeof toggleArtistSearch === 'function') toggleArtistSearch();
                 
             } catch (error) {
                 console.error("Erro ao salvar a playlist:", error);

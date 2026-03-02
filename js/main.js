@@ -326,7 +326,14 @@ export async function uploadImageToCloudinary(file) {
     return data.secure_url;
 }
 
-
+const CHARTS_ORDER = {
+    "Top 50 World": 5,        // Primeiro
+    "Top 50 Brasil": 1,       // Também em primeiro (ordem alfabética entre elas)
+    "Today Top Hits": 2,      // Segundo
+    "Novidades da Semana": 3,  // Terceiro
+    "Daily Top 50": 4,
+    "Top 50": 1
+};
 
 
 // UID do usuário atual (apenas referência, sem bloqueio)
@@ -813,12 +820,13 @@ export async function setupArtistPage(artistUid) {
     if (!artistUid) return;
 
     try {
-        // 1. CARREGAR PERFIL, BIO E FOTOS
+        // 1. CARREGAR DADOS DO FIREBASE
         const artistDoc = await getDoc(doc(db, "usuarios", artistUid));
         
         if (artistDoc.exists()) {
             const data = artistDoc.data();
             const nomeBase = data.nomeArtistico || "Artista";
+            const bioCompleta = data.bio || `${nomeBase} ainda não definiu uma biografia.`;
 
             // --- NOME E VERIFICAÇÃO ---
             const artistNameEl = document.getElementById('artist-name');
@@ -835,14 +843,29 @@ export async function setupArtistPage(artistUid) {
                 }
             }
 
+            // --- LÓGICA DA BIO CLICÁVEL (SOBRE) ---
+            const bioTextEl = document.getElementById('artist-bio-text');
+            const limit = 170; // Limite de caracteres para a prévia no card
+
+            if (bioTextEl) {
+                // Trunca o texto para a prévia
+                if (bioCompleta.length > limit) {
+                    bioTextEl.innerText = bioCompleta.substring(0, limit) + "...";
+                } else {
+                    bioTextEl.innerText = bioCompleta;
+                }
+
+                // Torna o texto da bio clicável para abrir o Pop-up
+                bioTextEl.style.cursor = "pointer";
+                bioTextEl.onclick = () => window.abrirModalBio(nomeBase, bioCompleta);
+            }
+
             // --- ESCOLHA DO ARTISTA (ARTIST PICK) ---
             const pickContainer = document.getElementById('artist-pick-container');
             const pickSection = document.querySelector('.artist-pick-section');
 
             if (pickContainer && data.pinnedItem) {
                 const pinned = data.pinnedItem;
-                
-                // Exibe a seção caso ela esteja escondida
                 if (pickSection) pickSection.style.display = 'block';
 
                 pickContainer.innerHTML = `
@@ -859,27 +882,21 @@ export async function setupArtistPage(artistUid) {
                     </div>
                 `;
 
-                // Lógica de clique: Redireciona para álbum ou toca música
                 const card = document.getElementById('active-artist-pick');
                 if (card) {
                     card.onclick = () => {
                         if (pinned.tipo === 'album') {
-                            if (typeof loadContent === 'function') {
-                                loadContent('album', pinned.id);
-                            }
+                            if (typeof loadContent === 'function') loadContent('album', pinned.id);
                         } else {
-                            if (typeof playMusic === 'function') {
-                                playMusic(pinned.id);
-                            }
+                            if (typeof playMusic === 'function') playMusic(pinned.id);
                         }
                     };
                 }
-            } else {
-                // Se não houver destaque, esconde a seção
-                if (pickSection) pickSection.style.display = 'none';
+            } else if (pickSection) {
+                pickSection.style.display = 'none';
             }
-            
-            // --- ATUALIZAÇÃO DE BACKGROUNDS E BIO ---
+
+            // --- BACKGROUNDS DO HEADER E CARD SOBRE ---
             const headerEl = document.getElementById('artist-header');
             if (headerEl && data.foto) {
                 headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
@@ -889,13 +906,8 @@ export async function setupArtistPage(artistUid) {
             if (aboutCard && data.foto) {
                 aboutCard.style.backgroundImage = `url('${data.foto}')`;
             }
-            
-            const bioTextEl = document.getElementById('artist-bio-text');
-            if (bioTextEl) {
-                bioTextEl.innerText = data.bio || `${nomeBase} é um destaque no Tune.`;
-            }
 
-            // --- 2. CÁLCULO DOS NÚMEROS (Ouvintes e Streams) ---
+            // --- 2. CÁLCULO DE NÚMEROS (Ouvintes e Streams) ---
             const musicasRef = collection(db, "musicas");
             const qArtistMusics = query(musicasRef, where("artist", "==", artistUid));
             const artistMusicsSnap = await getDocs(qArtistMusics);
@@ -909,19 +921,17 @@ export async function setupArtistPage(artistUid) {
                 totalMonthlyListeners += Number(mData.ouvintesMensais || 0);
             });
 
-            // Atualiza Header (Ouvintes Mensais)
             const statsText = document.querySelector('.artist-header .stats');
             if(statsText) {
-                statsText.innerHTML = `<span id="total-streams">${formatNumber(totalMonthlyListeners)}</span> ouvintes mensais`;
+                statsText.innerHTML = `<span>${formatNumber(totalMonthlyListeners)}</span> ouvintes mensais`;
             }
 
-            // Atualiza Card Sobre (Total Streams)
             const monthlyEl = document.getElementById('artist-monthly-listeners'); 
             if (monthlyEl) {
                 monthlyEl.innerText = `${formatNumber(totalAllTimeStreams)} streams no total`;
             }
 
-            // --- 3. RESTANTE DO SETUP ---
+            // --- 3. RANKING E CARREGAMENTO DE OBRAS ---
             await calculateGlobalRanking(artistUid);
 
             await Promise.all([
@@ -931,15 +941,96 @@ export async function setupArtistPage(artistUid) {
                 loadArtistStations(artistUid),
                 checkFollowStatus(artistUid)
             ]);
-
-        } else {
-            console.error("Documento do artista não encontrado.");
         }
-
     } catch (error) {
         console.error("Erro no setup da página do artista:", error);
     }
 }
+
+/**
+ * FUNÇÕES GLOBAIS DE CONTROLE DO POP-UP (Anexadas ao window para acesso via HTML)
+ */
+window.abrirModalBio = (nome, bioCompleta) => {
+    const modal = document.getElementById('bio-modal');
+    const modalText = document.getElementById('full-bio-content');
+    const modalTitle = document.getElementById('modal-artist-name-bio');
+
+    if (modal && modalText) {
+        modalText.innerText = bioCompleta;
+        if (modalTitle) modalTitle.innerText = `Sobre ${nome}`;
+        
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden'; // Trava o scroll da página
+    }
+};
+
+window.fecharModalBio = () => {
+    const modal = document.getElementById('bio-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto'; // Libera o scroll
+    }
+};
+
+// Fecha o modal ao clicar fora do card (no fundo escuro)
+window.fecharModalBioExterno = (event) => {
+    if (event.target.id === 'bio-modal') {
+        window.fecharModalBio();
+    }
+};
+/**
+ * Lógica do Pop-up de Bio
+ */
+function abrirModalBio(nome, bioCompleta) {
+    const modal = document.getElementById('bio-modal');
+    const modalText = document.getElementById('full-bio-content');
+    const modalTitle = document.getElementById('modal-artist-name-bio');
+
+    if (modal && modalText) {
+        modalText.innerText = bioCompleta;
+        if (modalTitle) modalTitle.innerText = `Sobre ${nome}`;
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Função para FECHAR o modal
+window.fecharModalBio = () => {
+    const modal = document.getElementById('bio-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto'; // Devolve o scroll da página
+    }
+};
+
+// Função para fechar ao clicar no fundo escuro (fora do card)
+window.fecharModalBioExterno = (event) => {
+    const modal = document.getElementById('bio-modal');
+    // Verifica se o clique foi no fundo (overlay) e não dentro do card branco
+    if (event.target.id === 'bio-modal') {
+        window.fecharModalBio();
+    }
+};
+
+// Certifique-se de que a função de ABRIR também está correta:
+window.abrirModalBio = (nome, bioCompleta) => {
+    const modal = document.getElementById('bio-modal');
+    const modalText = document.getElementById('full-bio-content');
+    const modalTitle = document.getElementById('modal-artist-name-bio');
+
+    if (modal && modalText) {
+        modalText.innerText = bioCompleta;
+        if (modalTitle) modalTitle.innerText = `Sobre ${nome}`;
+        
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden'; // Trava o scroll do fundo
+    }
+};
 
 /**
  * FUNÇÃO DE RANKING: Calcula a posição do artista no mundo
@@ -1258,79 +1349,88 @@ async function setupPlaylistPage(playlistId) {
         const isAutomaticTop = automaticTopNames.includes(playlistName) && playlist.category === "Charts";
         const generosBR = ["Sertanejo", "Funk", "Pagode", "MPB", "Forró", "Arrocha"]; 
 
-        // --- A) Lógica de Charts Automáticos ---
-        if (isAutomaticTop) {
-            
-            // CASO ESPECIAL: Today Top Hits (Baseado em Logs de 24h)
-            if (playlistName === "Today Top Hits") {
-                const vinteEQuatroHorasAtras = new Date();
-                vinteEQuatroHorasAtras.setHours(vinteEQuatroHorasAtras.getHours() - 24);
+       // --- DENTRO DA FUNÇÃO setupPlaylistPage, NO BLOCO if (isAutomaticTop) ---
 
-                const logsRef = collection(db, "logs_atividades"); 
-                const qLogs = query(
-                    logsRef, 
-                    where("timestamp", ">=", vinteEQuatroHorasAtras),
-                    where("type", "==", "play_20s_valid")
-                );
+if (isAutomaticTop) {
+    const isBrasilChart = playlistName.includes("Brasil");
+    const isWorldChart = playlistName.includes("World");
 
-                const logsSnap = await getDocs(qLogs);
-                const playCounts = {};
+    // 1. CAPTURA DOS LOGS (Engajamento das últimas 24h)
+    const vinteEQuatroHorasAtras = new Date();
+    vinteEQuatroHorasAtras.setHours(vinteEQuatroHorasAtras.getHours() - 24);
 
-                logsSnap.forEach(doc => {
-                    const log = doc.data();
-                    if (log.itemId) playCounts[log.itemId] = (playCounts[log.itemId] || 0) + 1;
-                });
+    const logsRef = collection(db, "logs_atividades");
+    const qLogs = query(
+        logsRef,
+        where("timestamp", ">=", vinteEQuatroHorasAtras),
+        where("type", "==", "play_20s_valid")
+    );
 
-                const sortedIds = Object.keys(playCounts)
-                    .sort((a, b) => playCounts[b] - playCounts[a])
-                    .slice(0, 30); // Limite de 30 para o operador 'in'
+    const logsSnap = await getDocs(qLogs);
+    const logCounts = {};
+    logsSnap.forEach(doc => {
+        const log = doc.data();
+        if (log.itemId) logCounts[log.itemId] = (logCounts[log.itemId] || 0) + 1;
+    });
 
-                if (sortedIds.length > 0) {
-                    const qMusicas = query(collection(db, "musicas"), where("__name__", "in", sortedIds));
-                    const musSnap = await getDocs(qMusicas);
-                    let tempTracks = [];
-                    musSnap.forEach(d => tempTracks.push({ id: d.id, ...d.data() }));
-                    
-                    // Reordena para manter o ranking do playCounts
-                    tracks = tempTracks.sort((a, b) => (playCounts[b.id] || 0) - (playCounts[a.id] || 0));
-                }
-            } 
-            // OUTROS CHARTS (Top 50 Brasil, World, etc)
-            else {
-                const isBrasilChart = playlistName.includes("Brasil");
-                const isWorldChart = playlistName.includes("World");
+    // 2. BUSCA DAS MÚSICAS (Top 200 para filtrar depois)
+    const qMusicas = query(
+        collection(db, "musicas"),
+        orderBy("streamsMensal", "desc"),
+        limit(200)
+    );
 
-                const q = query(
-                    collection(db, "musicas"), 
-                    orderBy("streamsMensal", "desc"), 
-                    limit(200) 
-                );
-                
-                const snap = await getDocs(q);
-                let rawTracks = [];
+    const musSnap = await getDocs(qMusicas);
+    let rawTracks = [];
 
-                snap.forEach((d) => {
-                    const data = d.data();
-                    const sMensal = data.streamsMensal || 0;
-                    const sAtual = data.streams || 0;
-                    const fatorRecencia = typeof calcularFatorRecencia === "function" ? calcularFatorRecencia(data.lastMonthlyStreamDate) : 1;
+    // Encontra o valor máximo de logs para normalizar o peso (0 a 1)
+    const maxLogs = Math.max(...Object.values(logCounts), 1);
 
-                    const tuneScore = (sMensal * 0.7) + (sAtual * 0.2) + (fatorRecencia * 0.1);
+    musSnap.forEach((d) => {
+        const data = d.data();
+        const sMensal = data.streamsMensal || 0;
+        
+        // CÁLCULO DO SCORE HÍBRIDO (50% Logs / 50% Mensal)
+        // Normalizamos os logs para que uma música com muitos logs não "mate" as outras
+        const logScore = (logCounts[d.id] || 0) / maxLogs;
+        
+        // Aqui equilibramos os pesos
+        const hybridScore = (logScore * 0.5) + ((sMensal / 100000) * 0.5); 
 
-                    rawTracks.push({ id: d.id, ...data, tuneScore });
-                });
+        rawTracks.push({
+            id: d.id,
+            ...data,
+            hybridScore
+        });
+    });
 
-                rawTracks.sort((a, b) => b.tuneScore - a.tuneScore);
+    // 3. ORDENAÇÃO PELO SCORE HÍBRIDO
+    rawTracks.sort((a, b) => b.hybridScore - a.hybridScore);
 
-                if (isBrasilChart) {
-                    tracks = rawTracks.filter(m => generosBR.includes(m.genre) || (typeof isPortuguese === "function" && isPortuguese(m.title))).slice(0, 50);
-                } else if (isWorldChart) {
-                    tracks = rawTracks.filter(m => !generosBR.includes(m.genre) && !(typeof isPortuguese === "function" && isPortuguese(m.title))).slice(0, 50);
-                } else {
-                    tracks = rawTracks.slice(0, 50);
-                }
-            }
-        } 
+    // 4. FILTROS POR TIPO DE PLAYLIST
+    if (playlistName === "Today Top Hits") {
+        // Apenas o que teve log nas últimas 24h, ordenado por quantidade
+        tracks = rawTracks
+            .filter(m => logCounts[m.id] > 0)
+            .sort((a, b) => (logCounts[b.id] || 0) - (logCounts[a.id] || 0))
+            .slice(0, 50);
+    } 
+    else if (isBrasilChart) {
+        tracks = rawTracks
+            .filter(m => generosBR.includes(m.genre) || (typeof isPortuguese === "function" && isPortuguese(m.title)))
+            .slice(0, 50);
+    } 
+    else if (isWorldChart) {
+        // O Filtro World remove os gêneros BR
+        tracks = rawTracks
+            .filter(m => !generosBR.includes(m.genre) && !(typeof isPortuguese === "function" && isPortuguese(m.title)))
+            .slice(0, 50);
+    } 
+    else {
+        // Geral (Top 50 / Daily Top 50)
+        tracks = rawTracks.slice(0, 50);
+    }
+}
         // --- B) Lançamentos Recentes ---
         else if (isRecentReleases) {
             const dataLimite = new Date();
@@ -2485,7 +2585,8 @@ async function setupContentCarousel(
   loadingMsgId,
   collectionName,
   queryConfig,
-  contentCallback
+  contentCallback,
+  sortFn = null // ⭐ NOVO PARÂMETRO ADICIONADO
 ) {
   const listContainer = document.getElementById(listId);
   const listWrapper = listContainer?.parentElement;
@@ -2495,8 +2596,7 @@ async function setupContentCarousel(
 
   if (!listContainer || !listWrapper || !btnLeft || !btnRight) return;
 
-  // --- CORREÇÃO 1: REMOVER EVENTOS ANTIGOS (Clone do Botão) ---
-  // Isso mata qualquer listener acumulado de visitas anteriores à página
+  // Clone dos botões para limpar eventos antigos
   const newBtnLeft = btnLeft.cloneNode(true);
   const newBtnRight = btnRight.cloneNode(true);
   btnLeft.parentNode.replaceChild(newBtnLeft, btnLeft);
@@ -2515,10 +2615,20 @@ async function setupContentCarousel(
     if (querySnapshot.empty) {
       listContainer.innerHTML = `<p class="flex-shrink-0 text-gray-400">Nenhum item encontrado.</p>`;
     } else {
+      // 1. Em vez de dar append direto, salvamos num array
+      let items = [];
       querySnapshot.forEach((doc) => {
-        const itemData = doc.data();
-        const itemId = doc.id;
-        const card = contentCallback(itemData, itemId);
+        items.push({ id: doc.id, ...doc.data() });
+      });
+
+      // 2. ⭐ APLICA A ORDENAÇÃO SE ELA EXISTIR
+      if (sortFn && typeof sortFn === 'function') {
+        items = sortFn(items);
+      }
+
+      // 3. Renderiza os cards já ordenados
+      items.forEach((itemData) => {
+        const card = contentCallback(itemData, itemData.id);
         listContainer.appendChild(card);
       });
     }
@@ -2526,52 +2636,43 @@ async function setupContentCarousel(
     console.error('Erro ao carregar carrossel:', err);
   }
 
-  // --- LÓGICA DE VISIBILIDADE ---
+  // --- LÓGICA DE VISIBILIDADE E SCROLL (Mantida igual ao seu original) ---
   function updateArrowVisibility() {
     const scrollLeft = listContainer.scrollLeft;
     const maxScrollLeft = listContainer.scrollWidth - listContainer.clientWidth;
-    // Usamos um pequeno offset de 5px para evitar bugs de arredondamento
     newBtnLeft.classList.toggle('hidden', scrollLeft <= 5);
     newBtnRight.classList.toggle('hidden', scrollLeft >= maxScrollLeft - 5);
   }
 
-  // MouseEnter no Wrapper para mostrar setas
   listWrapper.onmouseenter = updateArrowVisibility; 
   listWrapper.onmouseleave = () => {
     newBtnLeft.classList.add('hidden');
     newBtnRight.classList.add('hidden');
   };
 
-  // Scroll e Resize
   listContainer.onscroll = updateArrowVisibility;
   window.onresize = updateArrowVisibility;
 
-  // Clique nos NOVOS botões (Clonados)
   newBtnLeft.onclick = () => listContainer.scrollBy({ left: -400, behavior: 'smooth' });
   newBtnRight.onclick = () => listContainer.scrollBy({ left: 400, behavior: 'smooth' });
 
-  // --- LÓGICA DE DRAG (MOUSE) ---
+  // Lógica de Drag
   let isDown = false;
   let startX;
   let scrollLeftStart;
-
   listContainer.onmousedown = (e) => {
     isDown = true;
-    listContainer.classList.add('active'); // Opcional: mudar cursor
     startX = e.pageX - listContainer.offsetLeft;
     scrollLeftStart = listContainer.scrollLeft;
   };
-
-  window.onmouseup = () => { isDown = false; }; // Window garante que solte mesmo fora do carrossel
-  listContainer.onmouseleave = () => { isDown = false; };
-
+  window.onmouseup = () => { isDown = false; };
   listContainer.onmousemove = (e) => {
     if (!isDown) return;
     e.preventDefault();
     const x = e.pageX - listContainer.offsetLeft;
-    const walk = (x - startX) * 2; // Velocidade do arraste
+    const walk = (x - startX) * 2;
     listContainer.scrollLeft = scrollLeftStart - walk;
-    updateArrowVisibility(); // Atualiza setas enquanto arrasta
+    updateArrowVisibility();
   };
 }
 
@@ -4131,8 +4232,8 @@ async function setupHomePage() {
     const contentArea = document.getElementById('content-area');
     if (!contentArea) return;
 
+    // Lógica de Cache
     if (window.__HOME_CACHE__.loaded && window.__HOME_CACHE__.html) {
-       
         contentArea.innerHTML = window.__HOME_CACHE__.html;
         rebindHomeUI(); 
         setGreeting();
@@ -4142,11 +4243,11 @@ async function setupHomePage() {
 
     try {
         setGreeting();
-       
-        // 4. BLOCO 1: Aqui a ordem está correta
+        
+        // BLOCO 1: Carregamento prioritário
         await Promise.all([
             fetchAndRenderNewSingles(), 
-            setupArtistsCarouselPriority(), // Prioridade Cloudinary carregada aqui
+            setupArtistsCarouselPriority(),
             setupContentCarousel(
                 'albums-list', 'albums-scroll-left', 'albums-scroll-right', 
                 'albums-loading-message', 'albuns', 
@@ -4160,35 +4261,41 @@ async function setupHomePage() {
             loadTopArtists()
         ]);
 
-        // 5. BLOCO 2: REMOVIDA A DUPLICATA DE ARTISTAS DAQUI
-        Promise.all([
+        // BLOCO 2: Carregamento secundário
+        // Removi o 'await' de dentro da lista e usei um único 'await Promise.all'
+        await Promise.all([
             loadTopStreamedPlaylists(),
             loadTrapSection(),
             loadSertanejoSection(),
             setupLatinSection(),
+            // AQUI ESTÁ A VERSÃO COM ORDENAÇÃO
             setupContentCarousel(
-                'charts-list', 'charts-scroll-left', 'charts-scroll-right', 
-                'charts-loading-message', 'playlists', 
-                [where('category', '==', 'Charts'), limit(12)], createPlaylistCard
-            ),
-            // REPETIÇÃO REMOVIDA: setupContentCarousel de 'artists-list' não deve estar aqui!
+    'charts-list', 
+    'charts-scroll-left', 
+    'charts-scroll-right', 
+    'charts-loading-message', 
+    'playlists', 
+    [where('category', '==', 'Charts'), limit(12)], 
+    createPlaylistCard,
+    (data) => {
+        // Aplica a ordem baseada nos pesos definidos acima
+        return data.sort((a, b) => {
+            const pesoA = CHARTS_ORDER[a.name] || 99;
+            const pesoB = CHARTS_ORDER[b.name] || 99;
+            return pesoA - pesoB;
+        });
+    }
+),
             setupContentCarousel(
                 'stations-list', 'stations-scroll-left', 'stations-scroll-right', 
                 'stations-loading-message', 'playlists', 
                 [where('category', '==', 'Stations'), limit(12)], createPlaylistCard
             ),
-
-            // Dentro de setupHomePage -> Bloco 2
-setupContentCarousel(
-    'top-albums-day-list', 
-    'top-albums-day-left', 
-    'top-albums-day-right', 
-    'top-albums-day-loading', 
-    'albuns', 
-    [orderBy('streamsDay', 'desc'), limit(12)], 
-    createAlbumCard
-),
-            
+            setupContentCarousel(
+                'top-albums-day-list', 'top-albums-day-left', 'top-albums-day-right', 
+                'top-albums-day-loading', 'albuns', 
+                [orderBy('streamsDay', 'desc'), limit(12)], createAlbumCard
+            ),
             setupContentCarousel(
                 'playlist-genres-list', 'playlist-genres-scroll-left', 'playlist-genres-scroll-right', 
                 'playlist-genres-loading-message', 'playlists', 
@@ -4199,6 +4306,7 @@ setupContentCarousel(
         checkAuthAndLoadLikedItems();
         loadMyLikedItems();
 
+        // Gerar Cache após renderização
         setTimeout(() => {
             if (contentArea.innerHTML.length > 500) {
                 window.__HOME_CACHE__.html = contentArea.innerHTML;
