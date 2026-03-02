@@ -1351,84 +1351,107 @@ async function setupPlaylistPage(playlistId) {
 
        // --- DENTRO DA FUNÇÃO setupPlaylistPage, NO BLOCO if (isAutomaticTop) ---
 
+// --- A) Lógica de Charts Automáticos (Completa e Unificada) ---
 if (isAutomaticTop) {
     const isBrasilChart = playlistName.includes("Brasil");
     const isWorldChart = playlistName.includes("World");
+    const isRecentReleases = ["Novidades da Semana", "Novidades", "Lançamentos da Semana"].includes(playlistName);
 
-    // 1. CAPTURA DOS LOGS (Engajamento das últimas 24h)
-    const vinteEQuatroHorasAtras = new Date();
-    vinteEQuatroHorasAtras.setHours(vinteEQuatroHorasAtras.getHours() - 24);
+    try {
+        // --- 1. LÓGICA PARA PLAYLISTS DE LANÇAMENTOS (Novidades da Semana) ---
+        if (isRecentReleases) {
+            const dataLimite = new Date();
+            dataLimite.setDate(dataLimite.getDate() - 7); // Últimos 7 dias para "da semana"
 
-    const logsRef = collection(db, "logs_atividades");
-    const qLogs = query(
-        logsRef,
-        where("timestamp", ">=", vinteEQuatroHorasAtras),
-        where("type", "==", "play_20s_valid")
-    );
-
-    const logsSnap = await getDocs(qLogs);
-    const logCounts = {};
-    logsSnap.forEach(doc => {
-        const log = doc.data();
-        if (log.itemId) logCounts[log.itemId] = (logCounts[log.itemId] || 0) + 1;
-    });
-
-    // 2. BUSCA DAS MÚSICAS (Top 200 para filtrar depois)
-    const qMusicas = query(
-        collection(db, "musicas"),
-        orderBy("streamsMensal", "desc"),
-        limit(200)
-    );
-
-    const musSnap = await getDocs(qMusicas);
-    let rawTracks = [];
-
-    // Encontra o valor máximo de logs para normalizar o peso (0 a 1)
-    const maxLogs = Math.max(...Object.values(logCounts), 1);
-
-    musSnap.forEach((d) => {
-        const data = d.data();
-        const sMensal = data.streamsMensal || 0;
+            const qNovidades = query(
+                collection(db, "musicas"), 
+                where("timestamp", ">=", dataLimite), 
+                limit(50)
+            );
+            
+            const snapNovidades = await getDocs(qNovidades);
+            snapNovidades.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
+            
+            // Ordena pelas mais recentes primeiro
+            tracks.sort((a, b) => (b.timestamp?.toDate?.() || 0) - (a.timestamp?.toDate?.() || 0));
+        } 
         
-        // CÁLCULO DO SCORE HÍBRIDO (50% Logs / 50% Mensal)
-        // Normalizamos os logs para que uma música com muitos logs não "mate" as outras
-        const logScore = (logCounts[d.id] || 0) / maxLogs;
-        
-        // Aqui equilibramos os pesos
-        const hybridScore = (logScore * 0.5) + ((sMensal / 100000) * 0.5); 
+        // --- 2. LÓGICA PARA OS CHARTS (Top 50 World, Brasil, Today, etc) ---
+        else {
+            // JANELA DE TEMPO: 82 Horas para os Logs
+            const oitentaEDuasHorasAtras = new Date();
+            oitentaEDuasHorasAtras.setHours(oitentaEDuasHorasAtras.getHours() - 82);
 
-        rawTracks.push({
-            id: d.id,
-            ...data,
-            hybridScore
-        });
-    });
+            // Busca de Logs: Obter IDs das músicas ouvidas recentemente
+            const logsRef = collection(db, "logs_atividades");
+            const qLogs = query(
+                logsRef,
+                where("timestamp", ">=", oitentaEDuasHorasAtras),
+                where("type", "==", "play_20s_valid")
+            );
 
-    // 3. ORDENAÇÃO PELO SCORE HÍBRIDO
-    rawTracks.sort((a, b) => b.hybridScore - a.hybridScore);
+            const logsSnap = await getDocs(qLogs);
+            const logCounts = {};
+            logsSnap.forEach(doc => {
+                const log = doc.data();
+                if (log.itemId) logCounts[log.itemId] = (logCounts[log.itemId] || 0) + 1;
+            });
 
-    // 4. FILTROS POR TIPO DE PLAYLIST
-    if (playlistName === "Today Top Hits") {
-        // Apenas o que teve log nas últimas 24h, ordenado por quantidade
-        tracks = rawTracks
-            .filter(m => logCounts[m.id] > 0)
-            .sort((a, b) => (logCounts[b.id] || 0) - (logCounts[a.id] || 0))
-            .slice(0, 50);
-    } 
-    else if (isBrasilChart) {
-        tracks = rawTracks
-            .filter(m => generosBR.includes(m.genre) || (typeof isPortuguese === "function" && isPortuguese(m.title)))
-            .slice(0, 50);
-    } 
-    else if (isWorldChart) {
-        // O Filtro World remove os gêneros BR
-        tracks = rawTracks
-            .filter(m => !generosBR.includes(m.genre) && !(typeof isPortuguese === "function" && isPortuguese(m.title)))
-            .slice(0, 50);
-    } 
-    else {
-        // Geral (Top 50 / Daily Top 50)
-        tracks = rawTracks.slice(0, 50);
+            // Busca de Músicas: Base para o ranking
+            const qMusicas = query(collection(db, "musicas"), orderBy("streamsMensal", "desc"), limit(250));
+            const musSnap = await getDocs(qMusicas);
+            let rawTracks = [];
+
+            const maxLogs = Math.max(...Object.values(logCounts), 1);
+            let maxStreamsMensal = 1;
+            if (!musSnap.empty) maxStreamsMensal = musSnap.docs[0].data().streamsMensal || 1;
+
+            musSnap.forEach((d) => {
+                const data = d.data();
+                const clicks = logCounts[d.id] || 0;
+                const sMensal = data.streamsMensal || 0;
+
+                // CÁLCULO 50/50
+                const logScore = clicks / maxLogs;
+                const monthlyScore = sMensal / maxStreamsMensal;
+                const hybridScore = (logScore * 0.5) + (monthlyScore * 0.7);
+
+                rawTracks.push({ id: d.id, ...data, hybridScore, clicks82h: clicks });
+            });
+
+            // Ordenação pelo Score Híbrido
+            rawTracks.sort((a, b) => b.hybridScore - a.hybridScore);
+
+            // Filtros específicos para cada página de Chart
+            if (playlistName === "Today Top Hits") {
+                tracks = rawTracks.filter(m => m.clicks82h > 0).slice(0, 50);
+            } 
+            else if (isBrasilChart) {
+                tracks = rawTracks.filter(m => generosBR.includes(m.genre) || (typeof isPortuguese === "function" && isPortuguese(m.title))).slice(0, 50);
+            } 
+            if (playlistName === "Today Top Hits") {
+                // ✅ DIFERENCIAL: Na Today, ignoramos o score híbrido para a ORDENAÇÃO
+                // Queremos as que tiveram MAIS CLIQUES RECENTES no topo absoluto.
+                tracks = rawTracks
+                    .filter(m => m.clicks82h > 0)
+                    .sort((a, b) => b.clicks82h - a.clicks82h) // Re-ordena puramente por logs
+                    .slice(0, 50);
+            } 
+            else if (isBrasilChart) {
+                // Aqui mantemos o HybridScore (50/50) filtrado por gênero BR
+                tracks = rawTracks
+                    .filter(m => generosBR.includes(m.genre) || (typeof isPortuguese === "function" && isPortuguese(m.title)))
+                    .slice(0, 50);
+            }
+            else if (isWorldChart) {
+                tracks = rawTracks.filter(m => !generosBR.includes(m.genre) && !(typeof isPortuguese === "function" && isPortuguese(m.title))).slice(0, 50);
+            } 
+            else {
+                tracks = rawTracks.slice(0, 50);
+            }
+        }
+    } catch (err) {
+        console.error("Erro no processamento automático:", err);
     }
 }
         // --- B) Lançamentos Recentes ---
