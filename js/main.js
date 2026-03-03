@@ -1113,31 +1113,83 @@ async function loadArtistStations(artistUid) {
     } catch (e) { console.error("Erro Stations:", e); }
 }
 
-/**
- * MÚSICAS POPULARES (TOP 5)
- */
+let lastExecutionId = 0; // Variável global para controle de concorrência
+
 async function loadTopSongs(artistUid) {
     const container = document.getElementById('popular-songs-list');
     if (!container) return;
 
+    // 1. Cria um ID único para esta chamada específica
+    const executionId = ++lastExecutionId;
+    
+
+
     try {
-        const q = query(collection(db, "musicas"), where("artist", "==", artistUid), orderBy("streams", "desc"), limit(5));
+        const now = new Date();
+        const q = query(
+            collection(db, "musicas"), 
+            where("artist", "==", artistUid), 
+            orderBy("streams", "desc"), 
+            limit(20) 
+        );
+        
         const snap = await getDocs(q);
         
-        container.innerHTML = '';
-        snap.forEach((doc) => {
-            const song = doc.data();
-            container.innerHTML += `
-                <div class="song-item" onclick="playMusic('${doc.id}')">
+        // Se uma nova execução começou enquanto esperávamos o Firebase, paramos esta aqui.
+        if (executionId !== lastExecutionId) return;
+
+        // Criamos uma array temporária para armazenar o HTML antes de injetar
+        let htmlBuffer = "";
+        let validSongsCount = 0;
+
+        for (const d of snap.docs) {
+            // Se mudou de artista no meio do loop, para tudo
+            if (executionId !== lastExecutionId) return;
+
+            if (validSongsCount >= 5) break; 
+
+            const song = d.data();
+            let isLocked = false;
+
+            // Verificação de data (Música ou Álbum)
+            if (song.scheduledTime && song.scheduledTime !== "Imediato") {
+                isLocked = new Date(song.scheduledTime) > now;
+            } 
+            else if (song.album && song.album !== "Single") {
+                const albRef = await getDoc(doc(db, "albuns", song.album));
+                if (albRef.exists()) {
+                    const albData = albRef.data();
+                    if (albData.date) {
+                        isLocked = new Date(albData.date) > now;
+                    }
+                }
+            }
+
+            if (isLocked) continue;
+
+            validSongsCount++;
+            
+            htmlBuffer += `
+                <div class="song-item" onclick="playMusic('${d.id}')">
+                    <div class="song-index">${validSongsCount}</div>
                     <img src="${song.cover}" class="song-cover">
                     <div class="song-info-main">
                         <span class="song-title">${song.title}</span>
-                        ${song.explicit ? '<span class="explicit-badge">E</span>' : ''}
+                        ${(song.explicit === true || song.explicit === "true") ? '<span class="explicit-badge">E</span>' : ''}
                     </div>
                     <div class="song-streams-count">${formatNumber(song.streams)}</div>
                 </div>`;
-        });
-    } catch (e) { console.error("Erro Populares:", e); }
+        }
+
+        // 3. Injeção ÚNICA: Só mexe no DOM uma vez ao final do loop
+        if (executionId === lastExecutionId) {
+            container.innerHTML = validSongsCount > 0 ? htmlBuffer : '<p class="text-gray-500 p-4">Nenhum sucesso disponível.</p>';
+        }
+
+    } catch (e) { 
+        console.error("Erro ao carregar populares:", e); 
+        if (executionId === lastExecutionId) container.innerHTML = "";
+    }
 }
 
 async function loadArtistAlbums(artistUid) {
@@ -1181,12 +1233,12 @@ async function loadArtistAlbums(artistUid) {
     } catch (e) { console.error("Erro Álbuns:", e); }
 }
 
+// Exemplo para Singles na Página do Artista
 async function loadArtistSingles(artistUid) {
     const container = document.getElementById('artist-singles-list');
     if (!container) return;
 
     try {
-        // Ordenação adicionada: timestamp (desc) para os lançamentos mais recentes
         const q = query(
             collection(db, "musicas"), 
             where("artist", "==", artistUid),
@@ -1198,32 +1250,35 @@ async function loadArtistSingles(artistUid) {
         container.innerHTML = '';
         snap.forEach((doc) => {
             const data = doc.data();
-            if (data.album === "Single") {
-                const singleCard = document.createElement('div');
-                singleCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
-                singleCard.onclick = () => playMusic(doc.id);
+            
+            // Aqui você decide: 
+            // Se quer que o CARD do single também pareça bloqueado na Home do Artista:
+            const now = new Date();
+            const scheduledDate = data.scheduledTime && data.scheduledTime !== "Imediato" 
+                                  ? new Date(data.scheduledTime) : null;
+            const isLocked = scheduledDate && scheduledDate > now;
 
-                singleCard.innerHTML = `
-                    <div class="relative w-full pb-[100%] rounded-md">
-                        <img src="${data.cover || '/assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
-                    </div>
-                    <div class="mt-2 w-full">
-                        <div class="flex items-center gap-1">
-                            <h3 class="text-sm font-semibold text-white truncate">${data.title}</h3>
-                            ${(data.explicit === true || data.explicit === "true") ? '<span class="explicit-badge-small">E</span>' : ''}
-                        </div>
-                        <p class="text-gray-400 text-xs truncate">Single</p>
-                    </div>
-                `;
-                container.appendChild(singleCard);
-            }
+            const singleCard = document.createElement('div');
+            // Se estiver bloqueado, adicionamos classes de visual 'locked' no card
+            singleCard.className = `cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4 ${isLocked ? 'opacity-50' : ''}`;
+            
+            singleCard.onclick = () => {
+                if(!isLocked) playMusic(doc.id);
+            };
+
+            singleCard.innerHTML = `
+                <div class="relative w-full pb-[100%] rounded-md overflow-hidden">
+                    <img src="${data.cover}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg ${isLocked ? 'grayscale' : ''}">
+                    ${isLocked ? '<div class="absolute inset-0 flex items-center justify-center bg-black/40"><i class="bx bxs-lock-alt text-2xl text-white"></i></div>' : ''}
+                </div>
+                <div class="mt-2 w-full">
+                    <h3 class="text-sm font-semibold text-white truncate">${data.title}</h3>
+                    <p class="text-gray-400 text-xs">${isLocked ? 'Disponível em breve' : 'Single'}</p>
+                </div>
+            `;
+            container.appendChild(singleCard);
         });
-
-        if (typeof setupScrollButtons === 'function') {
-            setupScrollButtons('singles-scroll-left', 'singles-scroll-right', 'artist-singles-list');
-        }
-
-    } catch (e) { console.error("Erro Singles:", e); }
+    } catch (e) { console.error(e); }
 }
 
 async function checkFollowStatus(artistUid) {
@@ -1534,12 +1589,39 @@ if (isAutomaticTop) {
             snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
             tracks.sort((a, b) => (b.timestamp?.toDate?.() || 0) - (a.timestamp?.toDate?.() || 0));
         }
-        // --- C) Artist Stations ---
-        else if (playlist.uidars) {
-            const q = query(collection(db, "musicas"), where("artist", "==", playlist.uidars), limit(30));
-            const snap = await getDocs(q);
-            snap.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
-        } 
+
+// --- C) Artist Stations (Herança de data do Álbum) ---
+// --- C) Artist Stations (MUITO MAIS BARATO E RÁPIDO) ---
+else if (playlist.uidars) {
+    const q = query(collection(db, "musicas"), where("artist", "==", playlist.uidars), limit(30));
+    const snap = await getDocs(q);
+    
+    // Não precisa de loop com await! O dado já está no snap.
+    tracks = snap.docs.map(d => ({ id: d.id, ...d.data() })); 
+
+    
+    // Usamos for...of para permitir o await getDoc do álbum
+    for (const d of snap.docs) {
+        let trackData = { id: d.id, ...d.data() };
+
+        // Se a música NÃO tem data própria, mas tem um álbum vinculado
+        if (!trackData.scheduledTime && trackData.album && trackData.album !== "Single") {
+            try {
+                const albSnap = await getDoc(doc(db, "albuns", trackData.album));
+                if (albSnap.exists()) {
+                    const albData = albSnap.data();
+                    // Injeta a data do álbum na música para o renderTracksSpotifyStyle ler
+                    trackData.scheduledTime = albData.date || null; 
+                }
+            } catch (err) {
+                console.error("Erro ao buscar data do álbum pai:", err);
+            }
+        }
+        
+        tracks.push(trackData);
+    }
+}
+
         // --- D) Playlists Manuais ---
         else {
             const subColRef = query(collection(db, `playlists/${playlistId}/musicas`), limit(50));
