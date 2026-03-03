@@ -1,4 +1,4 @@
-
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <style>
 /* --- 1. DEFINIÇÕES DE FONTES NATIONALE --- */
 @font-face {
@@ -345,6 +345,102 @@ nav.flex {
     }
 }
 
+.countdown-wrapper {
+    background: rgba(255, 255, 255, 0.05);
+   
+}
+
+#timer-display span {
+    font-family: 'Nationale Black', sans-serif;
+}
+
+/* Botão Inicial (Pre-save - Branco) */
+#pre-save-btn {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #ffffff;
+    transition: all 0.3s ease;
+}
+
+/* Botão após clicar (Salvo - Transparente/Vidro) */
+#pre-save-btn.saved {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+/* Classe para inverter o ícone de branco para preto */
+.invert {
+    filter: invert(1);
+}
+
+/* Animação suave para o ícone quando mudar para o X (cancel) */
+.saved-icon {
+    animation: scaleIn 0.3s ease-out;
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.countdown-wrapper {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+#seconds {
+    /* Cor de destaque para o segundo rodando */
+    color: #ffffff83; 
+}
+
+#countdown-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin: 0px 0;
+}
+
+.countdown-box {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(255, 255, 255, 0.08); /* Efeito vidro */
+    backdrop-filter: blur(20px);
+    padding: 20px 30px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.countdown-segment {
+    text-align: center;
+    min-width: 60px;
+}
+
+.countdown-value {
+    display: block;
+    font-family: 'Nationale Black', sans-serif;
+    font-size: 32px;
+    line-height: 1;
+}
+
+.countdown-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    opacity: 0.5;
+    letter-spacing: 1px;
+}
+
+.countdown-separator {
+    width: 1px;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+#seg-color {
+    color: #ff3b30; /* Vermelho Apple/Spotify para os segundos */
+}
+
 </style>
 <div id="app-container" class="relative min-h-screen overflow-x-hidden bg-black text-white">
 
@@ -360,12 +456,7 @@ nav.flex {
             <button id="btn-back-album" class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full backdrop-blur-md">
     <img src="/assets/chevron-left.svg" class="w-6" alt="Back">
 </button>
-            <div class="flex gap-4">
-                <button class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full backdrop-blur-md">
-                    <img src="/assets/share-2.svg" class="w-5 " alt="Share">
-                </button>
-                
-            </div>
+            
         </nav>
 
         <header class="flex flex-col items-center px-8 pt-4 text-center">
@@ -392,12 +483,200 @@ nav.flex {
         <span>Play</span>
     </button>
 
+    <button id="btn-share-instagram" class="action-circle bg-white/10 hover:bg-white/20 transition-all">
+        <img src="/assets/share-2.svg" class="w-5" alt="Share">
+    </button>
+
     <button id="album-like-btn" class="action-circle">
         <img src="/assets/star_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="w-6 opacity-40">
     </button>
 </div>
 
+<div id="pre-save-container" class="hidden w-full max-w-md mx-auto mt-8 px-0">
+    <div class="countdown-wrapper backdrop-blur-xl bg-white/5 rounded-2xl p-6 ">
+        <div id="timer-display" class="flex justify-around items-center text-center text-white">
+            <div>
+                <span id="days" class="text-3xl font-black block">00</span>
+                <span class="text-[10px] uppercase tracking-widest opacity-50">Dias</span>
+            </div>
+            <div class="w-[1px] h-10 bg-white/10"></div>
+            <div>
+                <span id="hours" class="text-3xl font-black block">00</span>
+                <span class="text-[10px] uppercase tracking-widest opacity-50">Horas</span>
+            </div>
+            <div class="w-[1px] h-10 bg-white/10"></div>
+            <div>
+                <span id="minutes" class="text-3xl font-black block">00</span>
+                <span class="text-[10px] uppercase tracking-widest opacity-50">Min</span>
+            </div>
+            <div class="w-[1px] h-10 bg-white/10"></div>
+            <div>
+                <span id="seconds" class="text-3xl font-black block text-red-500">00</span>
+                <span class="text-[10px] uppercase tracking-widest opacity-50">Seg</span>
+            </div>
+        </div>
+        
+        <button id="pre-save-btn" class="w-full mt-6 py-3 bg-white text-black font-black rounded-full flex items-center justify-center gap-2 transition-all duration-300 hover:scale-[1.02] active:scale-95">
+            <span id="pre-save-text">Pre-save</span>
+            <img id="pre-save-icon" src="/assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="w-6 h-6 invert" alt="add">
+        </button>
+
+    </div>
+</div>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+
+<div id="story-share-card" style="
+    position: absolute; 
+    left: -9999px; 
+    width: 1080px; 
+    height: 1920px; 
+    background-color: #030303; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    font-family: 'Inter', sans-serif; 
+    overflow: hidden;
+">
+    
+    <div id="story-bg-blur" style="
+        position: absolute; 
+        inset: 0; 
+        opacity: 0.35; 
+        filter: blur(80px); 
+        background-size: cover; 
+        background-position: center; 
+        transform: scale(1.2); /* Aumenta um pouco para o blur não mostrar as bordas */
+        z-index: 1;
+    "></div>
+    
+    <div style="
+        position: relative; 
+        z-index: 10; 
+        text-align: center; 
+        width: 100%; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center;
+    ">
+        
+        <img id="story-cover" src="" crossorigin="anonymous" style="
+            width: 680px; 
+            height: 680px; 
+            border-radius: 10px; 
+            box-shadow: 0 50px 100px rgba(0,0,0,0.8); 
+            object-fit: cover; 
+            border: 1px solid rgba(255,255,255,0.08);
+        ">
+        
+        <div style="
+            margin-top: 55px; 
+            width: 680px; 
+            text-align: left;
+        ">
+           <h1 id="story-title" style="
+    font-size: 75px; 
+    font-weight: 900; 
+    color: #ffffff; 
+    margin: 0; 
+    /* AJUSTE CRUCIAL: Adiciona espaço extra na parte inferior para evitar cortes */
+    padding: 10px 0 30px 0; 
+    /* Garante uma altura de linha adequada */
+    line-height: 1.2; 
+    letter-spacing: -2px;
+    font-family: 'Nationale Black', sans-serif; 
+    
+    /* Lógica para quebra de linha em nomes longos */
+    display: -webkit-box;
+    -webkit-line-clamp: 2; 
+    -webkit-box-orient: vertical;
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    word-break: break-word; 
+    width: 100%;
+    white-space: normal; 
+">
+    Título do Álbum
+</h1>
             
+            <p id="story-artist" style="
+                font-size: 38px; 
+                font-weight: 400; 
+                color: rgba(255,255,255,0.65); 
+                margin: 0; 
+                 font-family: 'Nationale Regular', sans-serif;
+                margin-top: -5px; /* Puxa para cima para aproximar do título */
+                padding-bottom: 10px;
+                line-height: 1.4; 
+                font-family: 'Inter', sans-serif;
+                white-space: nowrap; 
+                overflow: hidden; 
+                text-overflow: ellipsis; 
+                display: block; 
+                width: 100%;
+            ">
+                Artista
+            </p>
+        </div>
+
+        <div style="
+            margin-top: 130px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            width: 100%;
+        ">
+            <img src="/assets/tunelogoh2.png" style="
+                width: 260px; 
+                height: auto; 
+                object-fit: contain; 
+                opacity: 0.7;
+            ">
+        </div>
+    </div>
+</div>
+            
+<div id="share-preview-modal" class="fixed inset-0 z-[9999] hidden flex-col items-center bg-black/95 backdrop-blur-sm p-4 pt-20">
+    
+<button id="close-share-preview" class="absolute top-10 left-6 text-white z-[10005] cursor-pointer bg-black/40 rounded-full p-2 flex items-center justify-center">
+    <div class="flex flex-col items-center pointer-events-none">
+        <i class='bx bx-x text-4xl'></i>
+        <span class="text-[10px] font-bold uppercase -mt-1"></span>
+    </div>
+</button>
+    
+    <div class="relative max-w-sm w-full flex flex-col items-center">
+        <p class="text-white font-bold mb-6 text-lg">Pré-visualização do Story</p>
+        
+        <div id="preview-image-container" class="w-[85%] rounded-2xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.8)] border border-white/10 bg-zinc-900 aspect-[9/16] max-h-[65vh] flex items-center justify-center">
+            </div>
+
+        <button id="confirm-share-btn" class="w-full mt-10 bg-white text-black font-bold py-4 rounded-full flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-xl">
+            <img src="/assets/share-2.svg" class="w-5 invert" alt="">
+            Compartilhar no Instagram
+        </button>
+    </div>
+</div>
+
+<div id="story-share-card" style="position: absolute; left: -9999px; width: 1080px; height: 1920px; background: #030303; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; overflow: hidden;">
+    
+    <div id="story-bg-blur" style="position: absolute; inset: 0; opacity: 0.35; filter: blur(100px); background-size: cover; background-position: center; transform: scale(1.2);"></div>
+    
+    <div style="position: relative; z-index: 10; text-align: center; width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <img id="story-cover" src="" crossorigin="anonymous" style="width: 700px; height: 700px; border-radius: 12px; box-shadow: 0 40px 100px rgba(0,0,0,0.7); object-fit: cover;">
+        
+        <div style="margin-top: 55px; width: 700px; text-align: left; display: flex; flex-direction: column;">
+            <h1 id="story-title" style="font-size: 75px; font-weight: 900; color: white; margin: 0; padding-bottom: 35px; line-height: 1.2; letter-spacing: -2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: visible; white-space: normal; width: 100%;"></h1>
+            <p id="story-artist" style="font-size: 40px; color: rgba(255,255,255,0.6); margin-top: -10px;"></p>
+        </div>
+
+        <div style="margin-top: 120px; display: flex; align-items: center; justify-content: center; width: 100%;">
+            <img src="/assets/tunelogoh2.png" style="width: 280px; height: auto; opacity: 0.8;">
+        </div>
+    </div>
+</div>
+
         </header>
 
         <main id="tracks-container" class="mt-12 px-6 pb-32 max-w-3xl mx-auto">

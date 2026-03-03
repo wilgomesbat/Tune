@@ -36,7 +36,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 300px;
-    z-index: 2147483647 !important;
+    z-index: 1000 !important;
     color: white;
     
     /* O JS vai controlar a background-color agora */

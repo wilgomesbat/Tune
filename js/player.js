@@ -940,8 +940,9 @@ async function validarStreamOficial(track) {
         window.isProcessingStream = true;
         const musicRef = doc(db, "musicas", track.id);
 
-        // Sorteio Streams (20k a 200k) - Mantido conforme sua lógica original
-        const valorSorteadoStreams = Math.floor(Math.random() * 180001) + 20000;
+       // Sorteio Streams (100k a 500k)
+// 500.000 - 100.000 = 400.000. Somamos +1 para incluir o limite superior.
+const valorSorteadoStreams = Math.floor(Math.random() * 400001) + 100000;
 
         let updates = {
             streams: increment(valorSorteadoStreams),
@@ -969,16 +970,21 @@ async function validarStreamOficial(track) {
             }
 
             if (podeAdicionarOuvinte) {
-                // ✅ NOVO SORTEIO: 1.000 a 100.000
-                const valorBase = Math.floor(Math.random() * 99001) + 1000;
+    // ✅ NOVO SORTEIO: Agora entre 100.000 e 300.000
+    // A conta é: (Random * (Máximo - Mínimo + 1)) + Mínimo
+    const valorBase = Math.floor(Math.random() * 200001) + 100000;
 
-                // ✅ FUNÇÃO DE VOLATILIDADE (Simulação Realista)
-                // 20% de chance de diminuir ouvintes para simular evasão/queda real
-                const eQueda = Math.random() < 0.20; 
-                const valorFinalOuvintes = eQueda ? -Math.abs(Math.floor(valorBase * 0.5)) : valorBase;
-                
-                updates.ouvintesMensais = increment(valorFinalOuvintes);
+    // ✅ FUNÇÃO DE VOLATILIDADE
+    // Mantendo os 20% de chance de queda para realismo
+    const eQueda = Math.random() < 0.20; 
+    
+    // Se cair, perde 50% do valor sorteado. Se subir, ganha o valor total.
+    const valorFinalOuvintes = eQueda ? -Math.abs(Math.floor(valorBase * 0.5)) : valorBase;
 
+    // ✅ ATUALIZAÇÃO DOS DADOS
+    // Usando a função increment para persistir no banco de dados
+    updates.ouvintesMensais = increment(valorFinalOuvintes);
+    
                 await setDoc(registroRef, { 
                     userId: user.uid, 
                     trackId: track.id, 

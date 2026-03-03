@@ -1342,6 +1342,75 @@ async function setupPlaylistPage(playlistId) {
             bgBlur.style.backgroundImage = `url('${coverUrl}')`;
         }
 
+        
+    if (playlistId === "ID6LAwniJIEy3Z2topIg") {
+        const userUid = window.currentUserUid;
+        if (!userUid) return;
+
+        try {
+            // 1. UI: Cabeçalho
+            document.getElementById("playlist-title-detail").textContent = "Músicas curtidas";
+            document.getElementById("playlist-cover-detail").src = "https://i.ibb.co/dJXkPgvx/liked-songs-300-1.jpg";
+
+            // 2. BUSCA IDS:usuarios / UID / likedmusics + UID
+            const likedCollectionName = `likedmusics${userUid}`;
+            const curtidasRef = collection(db, "usuarios", userUid, likedCollectionName);
+            const q = query(curtidasRef, orderBy("timestamp", "desc"));
+            const querySnap = await getDocs(q);
+
+            // Pegamos apenas os IDs das músicas que o usuário curtiu
+            let likedIds = [];
+            querySnap.forEach(docSnap => {
+                // Usamos o ID do documento da subcoleção (ex: 1t5Esy...)
+                likedIds.push(docSnap.id);
+            });
+
+            if (likedIds.length === 0) {
+                tracksContainer.innerHTML = `<p class="text-gray-400 p-4">Você ainda não curtiu nenhuma música.</p>`;
+                return;
+            }
+
+            // 3. BUSCA DADOS REAIS: Buscar na coleção 'musicas' onde o ID está na nossa lista
+            // O Firestore permite buscar até 30 IDs por vez com o operador 'in'
+            let allTracks = [];
+            const chunks = [];
+            for (let i = 0; i < likedIds.length; i += 30) {
+                chunks.push(likedIds.slice(i, i + 30));
+            }
+
+            for (const chunk of chunks) {
+                const musicasQuery = query(collection(db, "musicas"), where("__name__", "in", chunk));
+                const musicasSnap = await getDocs(musicasQuery);
+                
+                musicasSnap.forEach(docMusic => {
+                    const data = docMusic.data();
+                    allTracks.push({
+                        id: docMusic.id,
+                        title: data.title,
+                        artist: data.artist,
+                        artistName: data.artistName, // "Ariana grande"
+                        audioURL: data.audioURL,     // "9Sldg-8dVGU" (ID do YouTube/Arquivo)
+                        cover: data.cover,
+                        ...data
+                    });
+                });
+            }
+
+            // Reordenar conforme a ordem de curtida (pois o 'in' não garante ordem)
+            allTracks.sort((a, b) => likedIds.indexOf(a.id) - likedIds.indexOf(b.id));
+
+            // 4. RENDERIZAÇÃO
+            if (typeof renderTracksSpotifyStyle === "function") {
+                renderTracksSpotifyStyle(allTracks, { name: "Músicas curtidas" }, false);
+            }
+            
+            return;
+        } catch (e) {
+            console.error("Erro ao buscar áudios da coleção musicas:", e);
+        }
+    }
+
+
         // 4. Definição de Variáveis de Controle
         let tracks = [];
         const automaticTopNames = ["Top 50", "Daily Top 50", "Top 50 Brasil", "Top 50 World", "Today Top Hits"]; 
@@ -1422,6 +1491,8 @@ if (isAutomaticTop) {
             // Ordenação pelo Score Híbrido
             rawTracks.sort((a, b) => b.hybridScore - a.hybridScore);
 
+
+            
             // Filtros específicos para cada página de Chart
             if (playlistName === "Today Top Hits") {
                 tracks = rawTracks.filter(m => m.clicks82h > 0).slice(0, 50);
@@ -1536,6 +1607,8 @@ function isPortuguese(title) {
     const palavrasNoTitulo = title.toLowerCase().split(/\s+/);
     return palavrasNoTitulo.some(p => palavrasBR.includes(p));
 }
+
+
 
 async function toggleLike(type, itemId, buttonElement) {
     if (!currentUserUid || !itemId) {
@@ -1710,8 +1783,8 @@ async function renderTracksSpotifyStyle(tracks, playlist, isChart = false) {
                         ${isLocked ? '<span class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-gray-400 font-normal">EM BREVE</span>' : ''}
                     </span>
                     <div class="text-gray-400 text-sm artist-name-field truncate" style="font-family: 'Nationale Regular';">
-                        ${track.artistName || 'Carregando...'}
-                    </div>
+    ${track.artistName || (typeof track.artist === 'string' ? track.artist : 'Carregando...')}
+</div>
                 </div>
 
                 <div class="flex items-center gap-3 ml-auto">
@@ -1748,9 +1821,10 @@ async function renderTracksSpotifyStyle(tracks, playlist, isChart = false) {
             if (!isLocked) {
                 trackRow.addEventListener("click", (e) => {
                     if (e.target.closest('.track-like-button')) return;
-
+                      
                     if (typeof window.checkAndResetMonthlyStreams === 'function') {
                         window.checkAndResetMonthlyStreams(track); 
+                        
                     }
                     
                     if (window.playTrackGlobal) {
@@ -1768,18 +1842,15 @@ async function renderTracksSpotifyStyle(tracks, playlist, isChart = false) {
     tracksContainer.appendChild(listWrapper);
 }
 
-// Função para iniciar a contagem regressiva
-function startCountdown(releaseDateString, coverUrl) {
+// Removemos a palavra 'function' do início para evitar conflitos de hoisting
+window.startCountdown = (releaseDateString) => {
     const countdownContainer = document.getElementById('countdown-container');
+    if (!countdownContainer) return;
+
     const releaseDate = new Date(releaseDateString).getTime();
     
-    // Se não encontrou o container, sai.
-    if (!countdownContainer) return;
-    
-    // Limpa qualquer timer anterior
-    if (window.countdownInterval) {
-        clearInterval(window.countdownInterval);
-    }
+    // Limpa qualquer timer anterior para não sobrecarregar a memória
+    if (window.countdownInterval) clearInterval(window.countdownInterval);
 
     const updateCountdown = () => {
         const now = new Date().getTime();
@@ -1789,50 +1860,44 @@ function startCountdown(releaseDateString, coverUrl) {
             clearInterval(window.countdownInterval);
             countdownContainer.innerHTML = '';
             countdownContainer.classList.add('hidden');
-            // Você pode adicionar uma mensagem de "Álbum Lançado!" aqui se quiser
             return;
         }
         
-        // Cálculos de tempo
         const days = Math.floor(distance / (1000 * 60 * 60 * 24));
         const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-// Estrutura HTML do contador (Corrigida com Separadores)
-countdownContainer.innerHTML = `
-    <div class="countdown-box">
-
-        <div class="countdown-segment">
-            <span class="countdown-value">${days}</span>
-            <span class="countdown-label">Dias</span>
-        </div>
+        countdownContainer.innerHTML = `
+            <div class="countdown-box">
+                <div class="countdown-segment">
+                    <span class="countdown-value">${days}</span>
+                    <span class="countdown-label">Dias</span>
+                </div>
+                <div class="countdown-separator"></div>
+                <div class="countdown-segment">
+                    <span class="countdown-value">${hours}</span>
+                    <span class="countdown-label">Horas</span>
+                </div>
+                <div class="countdown-separator"></div>
+                <div class="countdown-segment">
+                    <span class="countdown-value">${minutes}</span>
+                    <span class="countdown-label">Minutos</span>
+                </div>
+                <div class="countdown-separator"></div>
+                <div class="countdown-segment">
+                    <span id="seg-color" class="countdown-value">${seconds}</span>
+                    <span class="countdown-label">Segundos</span>
+                </div>
+            </div>
+        `;
         
-        <div class="countdown-separator"></div> <div class="countdown-segment">
-            <span class="countdown-value">${hours}</span>
-            <span class="countdown-label">Horas</span>
-        </div>
-        
-        <div class="countdown-separator"></div> <div class="countdown-segment">
-            <span class="countdown-value">${minutes}</span>
-            <span class="countdown-label">Min</span>
-        </div>
-        
-        <div class="countdown-separator"></div> <div class="countdown-segment">
-            <span class="countdown-value">${seconds}</span>
-            <span class="countdown-label">Seg</span>
-        </div>
-    </div>
-`;
-        
-        // Remove 'hidden' para exibir
         countdownContainer.classList.remove('hidden');
     };
 
-    // Atualiza imediatamente e depois a cada segundo
     updateCountdown();
-    window.countdownInterval = setInterval(updateCountdown, 1600);
-}
+    window.countdownInterval = setInterval(updateCountdown, 1000); // 1 segundo exato
+};
 
 // Função para carregar e exibir as playlists com mais streams
 async function loadTopStreamedPlaylists() {
@@ -2101,7 +2166,7 @@ function updateLikeIcon(button, isLiked) {
 
 
 /**
- * Configura a página do álbum com fidelidade visual extrema (Apple Music Style)
+ * Configura a página do álbum com fidelidade visual extrema e lógica de Pre-save
  * @param {string} albumId - ID do álbum no Firebase
  */
 async function setupAlbumPage(albumId) {
@@ -2114,25 +2179,24 @@ async function setupAlbumPage(albumId) {
         animated: document.getElementById('album-animated-detail'),
         title: document.getElementById('album-title-detail'),
         artistName: document.getElementById('artist-name-detail'),
-        artistImg: document.getElementById('artist-image-detail'),
         year: document.getElementById('album-year-detail'),
         playBtn: document.getElementById('main-play-btn'),
-        genre: document.getElementById('album-genre')
+        shareBtn: document.getElementById('btn-share-instagram'), // Botão ao lado do play
+        genre: document.getElementById('album-genre'),
+        preSaveContainer: document.getElementById('pre-save-container'),
+        preSaveBtn: document.getElementById('pre-save-btn')
     };
+
+    // Lógica do botão de Like (Estrela)
     const albumLikeBtn = document.querySelector('.action-circle img[src*="star"]')?.parentElement;
-
     if (albumLikeBtn && albumId) {
-        // Sincroniza estado do álbum (likedalbunsUID)
         checkAndSetLikeState('album', albumId, albumLikeBtn);
-
         albumLikeBtn.onclick = (e) => {
             e.preventDefault();
-            // Note: Você deve ter uma função toggleLike similar a toggleLikeMusic para álbuns
             if (typeof toggleLike === 'function') toggleLike('album', albumId, albumLikeBtn);
         };
     }
 
-    // Sai da função se os elementos essenciais não existirem
     if (!elements.cover || !elements.title || !albumId) {
         console.warn("⚠️ Abortando setupAlbumPage: Elementos essenciais não encontrados.");
         return;
@@ -2142,16 +2206,41 @@ async function setupAlbumPage(albumId) {
         // 2. Busca de dados no Firestore
         const albumRef = doc(db, 'albuns', albumId);
         const albumSnap = await getDoc(albumRef);
-
         if (!albumSnap.exists()) return;
 
         const albumData = albumSnap.data();
         const album = { id: albumSnap.id, ...albumData };
 
-        // 3. Lógica de Agendamento e Bloqueio (isLocked)
-        const scheduledDate = albumData.date ? new Date(albumData.date + "T00:00:00") : null;
+        // 3. Lógica de Agendamento e Pre-save
+        const albumDateStr = albumData.date; 
+        const scheduledDate = albumDateStr ? new Date(albumDateStr + "T00:00:00") : null;
         const now = new Date();
-        const isLocked = scheduledDate && scheduledDate > now; // Definição da variável de bloqueio
+        const isLocked = scheduledDate && scheduledDate > now;
+
+        if (isLocked) {
+            if (elements.preSaveContainer) {
+                elements.preSaveContainer.classList.remove('hidden');
+                window.startCountdown(albumDateStr);
+            }
+            if (elements.playBtn) elements.playBtn.parentElement.classList.add('hidden');
+
+            elements.preSaveBtn.onclick = async (e) => {
+                e.preventDefault();
+                if (!window.currentUserUid) return alert("Faça login para salvar!");
+                const saveRef = doc(db, 'users', window.currentUserUid, 'likedalbunsUID', albumId);
+                const docSnap = await getDoc(saveRef);
+                if (!docSnap.exists()) {
+                    await setDoc(saveRef, { albumId, savedAt: serverTimestamp(), preSaved: true });
+                    updatePreSaveUI(true);
+                } else {
+                    await deleteDoc(saveRef);
+                    updatePreSaveUI(false);
+                }
+            };
+        } else {
+            if (elements.preSaveContainer) elements.preSaveContainer.classList.add('hidden');
+            if (elements.playBtn) elements.playBtn.parentElement.classList.remove('hidden');
+        }
 
         // 4. Configuração de Imagens e Fundo
         elements.cover.src = album.cover || './assets/default-cover.png';
@@ -2161,85 +2250,145 @@ async function setupAlbumPage(albumId) {
             elements.bgImageLayer.style.backgroundImage = `url(${album.cover})`;
         }
 
-        // Lógica de Capa Animada
-        const animUrl = album.animatedCover;
-        if (elements.animated && animUrl && animUrl !== "N/A") {
-            elements.animated.src = animUrl;
+        // Capa Animada
+        if (elements.animated && album.animatedCover && album.animatedCover !== "N/A") {
+            elements.animated.src = album.animatedCover;
             elements.animated.onload = () => {
                 elements.animated.classList.remove('hidden');
                 setTimeout(() => elements.animated.classList.replace('opacity-0', 'opacity-100'), 50);
             };
         }
 
-        const backBtn = document.getElementById('btn-back-album');
-    if (backBtn) {
-        backBtn.onclick = () => window.history.back();
-    }
-
         // 5. Cores Dinâmicas (Color Thief)
         elements.cover.onload = () => {
             try {
                 const colorThief = new ColorThief();
                 const color = colorThief.getColor(elements.cover);
-                
-                // Cor pura para o blur e cor escura (20%) para o overlay e furo do play
-                const r = Math.floor(color[0] * 0.2);
-                const g = Math.floor(color[1] * 0.2);
-                const b = Math.floor(color[2] * 0.2);
+                const r = Math.floor(color[0] * 0.2), g = Math.floor(color[1] * 0.2), b = Math.floor(color[2] * 0.2);
                 const darkColor = `rgb(${r}, ${g}, ${b})`;
-
-                if (elements.bgOverlay) {
-                    elements.bgOverlay.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.85)`;
-                }
-
-                // Sincroniza a variável CSS do triângulo vazado (Play Hole)
+                if (elements.bgOverlay) elements.bgOverlay.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.85)`;
                 document.documentElement.style.setProperty('--dynamic-bg', darkColor);
-                
-                if (elements.mainWrapper) {
-                    elements.mainWrapper.style.backgroundColor = 'transparent';
-                }
-            } catch (e) {
-                console.warn("Erro ao extrair cores:", e);
-            }
+            } catch (e) { console.warn("Erro ao extrair cores:", e); }
         };
 
         // 6. Preenchimento de Textos
         elements.title.textContent = album.album || "Sem título";
         if (elements.artistName) elements.artistName.textContent = album.artist || "Artista";
         if (elements.genre) elements.genre.textContent = album.genre || "Pop";
-        if (elements.year) {
-            elements.year.textContent = album.releaseYear || (scheduledDate ? scheduledDate.getFullYear() : '2026');
-        }
+        if (elements.year) elements.year.textContent = album.releaseYear || (scheduledDate ? scheduledDate.getFullYear() : '2026');
 
         // 7. Busca e Renderização das Músicas
-        const musicQuery = query(
-            collection(db, 'musicas'),
-            where('album', '==', albumId),
-            orderBy('trackNumber')
-        );
-
+        const musicQuery = query(collection(db, 'musicas'), where('album', '==', albumId), orderBy('trackNumber'));
         const musicSnap = await getDocs(musicQuery);
         const tracks = [];
         musicSnap.forEach(docSnap => tracks.push({ id: docSnap.id, ...docSnap.data() }));
-
-        // Renderiza passando isLocked para evitar o erro de referência
         renderAlbumTracksAppleStyle(tracks, isLocked);
 
-        // 8. Configuração do Botão Play
-// 8. Configuração do Botão Play
-if (!isLocked && elements.playBtn && tracks.length) {
-    elements.playBtn.onclick = () => {
-        console.log("🚀 TUNE: Iniciando Álbum via rota confirmada");
-        
-        // Se a playlist funciona com playTrackGlobal, vamos usar ela aqui também
-        // Ou carregarFila se você quiser que o player saiba as próximas músicas
-        if (window.carregarFila) {
-            window.carregarFila(tracks, 0);
-        } else if (window.playTrackGlobal) {
-            window.playTrackGlobal(tracks[0]);
+        // 8. Botão Play
+        if (!isLocked && elements.playBtn && tracks.length) {
+            elements.playBtn.onclick = () => {
+                if (window.carregarFila) window.carregarFila(tracks, 0);
+                else if (window.playTrackGlobal) window.playTrackGlobal(tracks[0]);
+            };
         }
-    };
-}
+
+        // ... dentro da sua função setupMusicPage ...
+
+document.addEventListener('click', async (e) => {
+    
+    // --- 1. LÓGICA PARA FECHAR (O X NA ESQUERDA) ---
+    // Usamos 'closest' para capturar o clique mesmo que seja no ícone pequeno
+    const closeBtn = e.target.closest('#close-share-preview');
+    const modal = document.getElementById('share-preview-modal');
+
+    if (closeBtn || (modal && e.target === modal)) {
+        if (modal && !modal.classList.contains('hidden')) {
+            modal.classList.replace('flex', 'hidden');
+            // Limpa o preview para não dar erro na próxima vez
+            const previewContainer = document.getElementById('preview-image-container');
+            if (previewContainer) previewContainer.innerHTML = ''; 
+            return;
+        }
+    }
+
+    // --- 2. LÓGICA PARA ABRIR O SHARE (SEM LOADING) ---
+    const shareBtn = e.target.closest('#btn-share-instagram');
+    if (shareBtn) {
+        e.preventDefault();
+        
+        // Removemos o loading. O ícone permanece o mesmo.
+        shareBtn.style.opacity = "0.7"; // Apenas um feedback visual sutil de clique
+        shareBtn.style.pointerEvents = 'none';
+
+        try {
+            const currentData = {
+                title: document.getElementById('album-title-detail')?.innerText || "Tune",
+                artist: document.getElementById('artist-name-detail')?.innerText || "Artista",
+                cover: document.getElementById('album-cover-detail')?.src
+            };
+
+            if (!window.html2canvas) {
+                const script = document.createElement('script');
+                script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+                document.head.appendChild(script);
+                await new Promise(r => script.onload = r);
+            }
+
+            const storyCover = document.getElementById('story-cover');
+            const storyTitle = document.getElementById('story-title');
+            const storyArtist = document.getElementById('story-artist');
+            const storyBg = document.getElementById('story-bg-blur');
+
+            if (storyTitle) {
+                storyTitle.innerText = currentData.title;
+                storyTitle.style.paddingBottom = "45px"; // Resolve corte de g, j, p
+                storyTitle.style.overflow = "visible";
+            }
+            if (storyArtist) storyArtist.innerText = currentData.artist;
+            
+            if (storyCover) {
+                storyCover.crossOrigin = "anonymous";
+                storyCover.src = currentData.cover + (currentData.cover.includes('?') ? '&' : '?') + "t=" + Date.now();
+            }
+            if (storyBg) storyBg.style.backgroundImage = `url(${storyCover.src})`;
+
+            await new Promise(resolve => {
+                if (storyCover.complete) resolve();
+                else { 
+                    storyCover.onload = resolve; 
+                    storyCover.onerror = resolve; 
+                    setTimeout(resolve, 3000); 
+                }
+            });
+
+            const card = document.getElementById('story-share-card');
+            const canvas = await html2canvas(card, { 
+                useCORS: true, 
+                scale: 1.5, 
+                backgroundColor: "#030303",
+                onclone: (cloned) => {
+                    cloned.getElementById('story-title').style.overflow = "visible";
+                }
+            });
+
+            const imgData = canvas.toDataURL("image/png");
+            const previewContainer = document.getElementById('preview-image-container');
+
+            if (modal && previewContainer) {
+                previewContainer.innerHTML = `<img src="${imgData}" class="w-full h-full object-contain">`;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+        } catch (err) {
+            console.error("Erro no Share:", err);
+        } finally {
+            // Restaura o botão ao estado normal
+            shareBtn.style.opacity = "1";
+            shareBtn.style.pointerEvents = 'auto';
+        }
+    }
+});
 
     } catch (err) {
         console.error("Erro crítico no setupAlbumPage:", err);
@@ -2247,21 +2396,45 @@ if (!isLocked && elements.playBtn && tracks.length) {
 }
 
 /**
- * Renderiza as faixas com fidelidade Apple Music (PC e Mobile)
- * @param {Array} tracks - Lista de objetos de música
- * @param {Boolean} isLocked - Estado de bloqueio do álbum
+ * Atualiza o visual do botão de Pre-save (Branco vs Transparente)
+ */
+function updatePreSaveUI(isSaved) {
+    const btn = document.getElementById('pre-save-btn');
+    const txt = document.getElementById('pre-save-text');
+    const icon = document.getElementById('pre-save-icon');
+
+    if (!btn || !txt || !icon) return;
+
+    if (isSaved) {
+        // Estado: SALVO (Botão Transparente, Texto Branco)
+        btn.classList.add('saved');
+        txt.textContent = "Salvo";
+        icon.src = "/assets/cancel_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg"; 
+        
+        icon.classList.add('saved-icon');
+    } else {
+        // Estado: NÃO SALVO (Botão Branco, Texto Preto)
+        btn.classList.remove('saved');
+        txt.textContent = "Pre-save";
+        icon.src = "/assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
+        icon.classList.add('invert'); // Inverte o ícone branco para preto para contrastar com o fundo branco
+        icon.classList.remove('saved-icon');
+    }
+}
+
+/**
+ * Renderiza as faixas com fidelidade Apple Music
  */
 async function renderAlbumTracksAppleStyle(tracks, isLocked) {
     const container = document.getElementById('tracks-container');
     if (!container) return;
-    container.innerHTML = ""; // Limpa antes de renderizar
+    container.innerHTML = "";
 
     tracks.forEach((track, index) => {
         const trackRow = document.createElement("div");
         const stateClass = isLocked ? "opacity-30 cursor-default" : "hover:bg-white/10 cursor-pointer group";
         
         trackRow.className = `track-row flex items-center p-3 rounded-lg transition ${stateClass}`;
-        
         trackRow.innerHTML = `
             <span class="track-number w-10 text-gray-500">${index + 1}</span>
             <div class="flex-1 min-w-0">
@@ -2275,26 +2448,14 @@ async function renderAlbumTracksAppleStyle(tracks, isLocked) {
             </div>
         `;
 
-        // Lógica de clique para tocar (Igual à Playlist)
         if (!isLocked) {
-            // Dentro do renderAlbumTracksAppleStyle...
-// Dentro do renderAlbumTracksAppleStyle no main.js
-trackRow.onclick = (e) => {
-    // 1. Ignora se clicar no botão de like
-    if (e.target.closest('.track-like-btn')) return;
-    
-    // 2. PARA o evento aqui para não subir para o pai (importantíssimo!)
-    e.preventDefault();
-    e.stopPropagation();
+            trackRow.onclick = (e) => {
+                if (e.target.closest('.track-like-btn')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.playTrackGlobal) window.playTrackGlobal(track);
+            };
 
-    console.log("🎵 Preparando reprodução estável:", track.title);
-    
-    if (window.playTrackGlobal) {
-        window.playTrackGlobal(track);
-    }
-};
-
-            // Evento do Like
             const likeBtn = trackRow.querySelector('.track-like-btn');
             if (likeBtn && window.currentUserUid) {
                 checkAndSetLikeState('music', track.id, likeBtn);
@@ -2304,20 +2465,85 @@ trackRow.onclick = (e) => {
                 };
             }
         }
-
         container.appendChild(trackRow);
     });
 }
 
+async function loadLikedSongsCard(userUid) {
+    const favoritesGrid = document.getElementById('favorites-grid');
+    const favoritesContainer = document.getElementById('favorites-grid-container');
 
+    if (!userUid || !favoritesGrid) return;
+
+    try {
+        // Busca o documento de metadados da coleção "Músicas curtidas"
+        const likedMetaRef = doc(db, "users", userUid, "likedmusicsUID", "Collections");
+        const docSnap = await getDoc(likedMetaRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            const card = document.createElement('div');
+            card.className = 'favorite-item-card'; // Use suas classes de estilo
+            card.innerHTML = `
+                <div class="fav-card-content" onclick="loadContent('playlist', 'liked-songs-id')">
+                    <img src="${data.cover}" class="fav-cover">
+                    <span class="fav-title">${data.name}</span>
+                    <button class="fav-play-btn"><i class='bx bx-play'></i></button>
+                </div>
+            `;
+            favoritesGrid.appendChild(card);
+            favoritesContainer.style.display = 'block';
+        }
+    } catch (e) {
+        console.error("Erro ao carregar card de curtidas:", e);
+    }
+}
+
+/**
+ * Função Global de Countdown
+ */
+window.startCountdown = (releaseDateString) => {
+    const daysEl = document.getElementById('days');
+    const hoursEl = document.getElementById('hours');
+    const minsEl = document.getElementById('minutes');
+    const secsEl = document.getElementById('seconds');
+    
+    if (!daysEl) return;
+
+    const releaseDate = new Date(releaseDateString + "T00:00:00").getTime();
+    if (window.countdownInterval) clearInterval(window.countdownInterval);
+
+    const update = () => {
+        const now = new Date().getTime();
+        const distance = releaseDate - now;
+
+        if (distance <= 0) {
+            clearInterval(window.countdownInterval);
+            document.getElementById('pre-save-container')?.classList.add('hidden');
+            location.reload(); 
+            return;
+        }
+
+        const d = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((distance % (1000 * 60)) / 1000);
+
+        daysEl.textContent = d.toString().padStart(2, '0');
+        hoursEl.textContent = h.toString().padStart(2, '0');
+        minsEl.textContent = m.toString().padStart(2, '0');
+        secsEl.textContent = s.toString().padStart(2, '0');
+    };
+
+    update();
+    window.countdownInterval = setInterval(update, 1000);
+};
+
+// --- Sistema de Navegação ---
 function navigateTo(pageName, id = null, updateHistory = true) {
-    // 1. Renderiza o conteúdo
     loadContent(pageName, id);
-
-    // 2. URL limpa (SEM .html)
     const newUrl = `/${pageName}${id ? `?id=${id}` : ''}`;
-
-    // 3. Histórico
     if (updateHistory) {
         history.pushState({ page: pageName, id }, '', newUrl);
     } else {
@@ -2325,8 +2551,14 @@ function navigateTo(pageName, id = null, updateHistory = true) {
     }
 }
 
-
-
+window.addEventListener('popstate', (event) => {
+    if (event.state && event.state.page) {
+        loadContent(event.state.page, event.state.id);
+    } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        loadContent(urlParams.get('page') || 'home', urlParams.get('id'));
+    }
+});
 /**
  * 2. Listener essencial para o botão Voltar/Avançar do navegador (popstate).
  * Dispara a navegação quando o URL muda via botões do navegador.
@@ -3806,6 +4038,68 @@ async function setupForroGenreSection() {
     }
 }
 
+async function loadLikedSongsSection() {
+    const listContainer = document.getElementById('liked-songs-list');
+    const sectionWrapper = document.getElementById('liked-songs-section');
+    const likedPlaylistId = "ID6LAwniJIEy3Z2topIg"; // ID da coleção de curtidas
+
+    if (!listContainer) return;
+
+    try {
+        // 1. Busca os metadados no Firestore
+        const playlistRef = doc(db, "playlists", likedPlaylistId);
+        const docSnap = await getDoc(playlistRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data(); // Esta é a variável correta
+            sectionWrapper.style.display = 'block';
+
+            // 2. USA A SUA FUNÇÃO createPlaylistCard (Garantindo que data não seja undefined)
+            const card = createPlaylistCard(data, likedPlaylistId);
+            
+            // 3. Adiciona o evento de clique para navegar como PLAYLIST
+            card.onclick = () => {
+                const type = card.getAttribute('data-navigate'); // Retornará 'playlist'
+                const id = card.getAttribute('data-id');
+                loadContent(type, id); 
+            };
+
+            listContainer.innerHTML = '';
+            listContainer.appendChild(card);
+
+            // 4. Lógica de visibilidade de setas e scroll (Igual ao Sertanejo)
+            const btnLeft = document.getElementById('liked-scroll-left');
+            const btnRight = document.getElementById('liked-scroll-right');
+            const listWrapper = listContainer.parentElement;
+
+            if (listWrapper && btnLeft && btnRight) {
+                const updateArrows = () => {
+                    const scrollLeft = listContainer.scrollLeft;
+                    const maxScrollLeft = listContainer.scrollWidth - listContainer.clientWidth;
+                    btnLeft.classList.toggle('hidden', scrollLeft <= 0);
+                    btnRight.classList.toggle('hidden', scrollLeft >= maxScrollLeft - 1);
+                };
+
+                listWrapper.addEventListener('mouseenter', updateArrows);
+                listWrapper.addEventListener('mouseleave', () => {
+                    btnLeft.classList.add('hidden');
+                    btnRight.classList.add('hidden');
+                });
+
+                listContainer.addEventListener('scroll', updateArrows);
+                btnLeft.onclick = () => listContainer.scrollBy({ left: -300, behavior: 'smooth' });
+                btnRight.onclick = () => listContainer.scrollBy({ left: 300, behavior: 'smooth' });
+                
+                updateArrows();
+            }
+        } else {
+            console.warn("Documento de músicas curtidas não encontrado no Firestore.");
+        }
+    } catch (error) {
+        console.error("Erro ao carregar seção de curtidas:", error);
+    }
+}
+
 // Função de fallback para criar card caso as globais falhem
 function createDefaultCard(item) {
     const div = document.createElement('div');
@@ -4278,6 +4572,7 @@ async function setupHomePage() {
             ),
             setupForroGenreSection(),   
             setupPopSection(),
+            loadLikedSongsSection(),
             setupFanArtistSection(),
             carregarPaginaCurtidas(),
             loadHomeFavorites(),
