@@ -3711,6 +3711,84 @@ async function validarCardArtista() {
     }
 }
 
+// Substitua pelo ID do ÁLBUM que você quer destacar
+const ALBUM_DESTAQUE_ID = "ciI5qLpKcZKHGSCUCYRf"; 
+
+async function loadBannerAlbum() {
+    const banner = document.getElementById('new-release-banner');
+    const coverImg = document.getElementById('banner-cover');
+    
+    if (!banner || !coverImg) return;
+
+    try {
+        // 1. Busca na coleção de ALBUNS
+        const albumRef = doc(db, "albuns", ALBUM_DESTAQUE_ID);
+        const albumSnap = await getDoc(albumRef);
+
+        if (albumSnap.exists()) {
+            const albumData = { id: albumSnap.id, ...albumSnap.data() };
+            
+            // 2. Preenchimento de textos
+            document.getElementById('banner-title').textContent = albumData.album || "Álbum sem título";
+            document.getElementById('banner-artist-name').textContent = albumData.artist || "Artista";
+
+            // 3. Extração de Cor e Capa
+            coverImg.crossOrigin = "Anonymous";
+            
+            const extrairCor = () => {
+                try {
+                    const colorThief = new ColorThief();
+                    const color = colorThief.getColor(coverImg);
+                    const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                    // Cria um degradê luxuoso da cor do álbum para o fundo do site
+                    banner.style.background = `linear-gradient(135deg, ${rgb} 0%, #030303 100%)`;
+                } catch (e) {
+                    banner.style.background = `linear-gradient(135deg, #282828 0%, #030303 100%)`;
+                }
+            };
+
+            coverImg.src = albumData.cover || "./assets/default-cover.png";
+
+            if (coverImg.complete) {
+                extrairCor();
+            } else {
+                coverImg.onload = extrairCor;
+            }
+
+            // 4. Foto do Artista (via uidars do álbum)
+            const artistId = albumData.uidars;
+            if (artistId) {
+                const artistRef = doc(db, "usuarios", artistId);
+                const artistSnap = await getDoc(artistRef);
+                if (artistSnap.exists()) {
+                    const artistImg = document.getElementById('banner-artist-img');
+                    if (artistImg) artistImg.src = artistSnap.data().foto || "/assets/default-artist.png";
+                }
+            }
+
+            // 5. Ação de Clique
+            banner.onclick = (e) => {
+                // Se clicar nos botões, podemos disparar ações diferentes
+                if (e.target.closest('.play-btn-large')) {
+                    // Lógica para dar play na primeira faixa do álbum ou abrir o álbum
+                    navigateTo('album', ALBUM_DESTAQUE_ID);
+                    return;
+                }
+
+                // Clique geral no banner leva para a página do álbum
+                if (typeof navigateTo === 'function') {
+                    navigateTo('album', ALBUM_DESTAQUE_ID);
+                }
+            };
+
+            banner.style.display = 'grid'; // Ou 'flex', dependendo do seu CSS
+            banner.classList.add('loaded');
+        }
+    } catch (error) {
+        console.error("Erro ao carregar banner de álbum:", error);
+    }
+}
+
 // Escuta a mudança de estado de autenticação
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -4646,6 +4724,7 @@ async function setupHomePage() {
         // BLOCO 1: Carregamento prioritário
         await Promise.all([
             fetchAndRenderNewSingles(), 
+            loadBannerAlbum(),
             setupArtistsCarouselPriority(),
             setupContentCarousel(
                 'albums-list', 'albums-scroll-left', 'albums-scroll-right', 
