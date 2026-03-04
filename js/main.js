@@ -3710,9 +3710,14 @@ async function validarCardArtista() {
         console.error("Erro ao validar artista:", e);
     }
 }
-
-// Substitua pelo ID do ÁLBUM que você quer destacar
-const ALBUM_DESTAQUE_ID = "ciI5qLpKcZKHGSCUCYRf"; 
+// Defina aqui os seus 5 IDs de álbuns favoritos
+const MEUS_ALBUNS_DESTAQUE = [
+    "ciI5qLpKcZKHGSCUCYRf", // O que você enviou
+    "waeGiGVNiFsDzMftzbsg",
+    "z3ah8QANFGNxpDDSFb14",
+    "frGGnsZKH3S3GiiMAkyo",
+    "zPnbnUnrC6UVgFZI4hCB"
+];
 
 async function loadBannerAlbum() {
     const banner = document.getElementById('new-release-banner');
@@ -3721,28 +3726,32 @@ async function loadBannerAlbum() {
     if (!banner || !coverImg) return;
 
     try {
-        // 1. Busca na coleção de ALBUNS
-        const albumRef = doc(db, "albuns", ALBUM_DESTAQUE_ID);
+        // 1. Sorteia um dos 5 IDs da lista
+        const idSorteado = MEUS_ALBUNS_DESTAQUE[Math.floor(Math.random() * MEUS_ALBUNS_DESTAQUE.length)];
+
+        // 2. Busca os dados desse álbum sorteado no Firebase
+        const albumRef = doc(db, "albuns", idSorteado);
         const albumSnap = await getDoc(albumRef);
 
         if (albumSnap.exists()) {
             const albumData = { id: albumSnap.id, ...albumSnap.data() };
             
-            // 2. Preenchimento de textos
+            // 3. Preenchimento de textos
             document.getElementById('banner-title').textContent = albumData.album || "Álbum sem título";
             document.getElementById('banner-artist-name').textContent = albumData.artist || "Artista";
 
-            // 3. Extração de Cor e Capa
-            coverImg.crossOrigin = "Anonymous";
+            // 4. Configuração da Capa e Cor Dinâmica
+            coverImg.crossOrigin = "Anonymous"; // Essencial para o ColorThief
             
             const extrairCor = () => {
                 try {
                     const colorThief = new ColorThief();
                     const color = colorThief.getColor(coverImg);
                     const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                    // Cria um degradê luxuoso da cor do álbum para o fundo do site
+                    // Aplica o degradê da cor da capa para o fundo preto do site
                     banner.style.background = `linear-gradient(135deg, ${rgb} 0%, #030303 100%)`;
                 } catch (e) {
+                    console.warn("Erro nas cores:", e);
                     banner.style.background = `linear-gradient(135deg, #282828 0%, #030303 100%)`;
                 }
             };
@@ -3755,8 +3764,8 @@ async function loadBannerAlbum() {
                 coverImg.onload = extrairCor;
             }
 
-            // 4. Foto do Artista (via uidars do álbum)
-            const artistId = albumData.uidars;
+            // 5. Foto do Artista (via uidars/artistId do álbum)
+            const artistId = albumData.uidars || albumData.artistId;
             if (artistId) {
                 const artistRef = doc(db, "usuarios", artistId);
                 const artistSnap = await getDoc(artistRef);
@@ -3766,26 +3775,21 @@ async function loadBannerAlbum() {
                 }
             }
 
-            // 5. Ação de Clique
+            // 6. Ação de Clique
             banner.onclick = (e) => {
-                // Se clicar nos botões, podemos disparar ações diferentes
-                if (e.target.closest('.play-btn-large')) {
-                    // Lógica para dar play na primeira faixa do álbum ou abrir o álbum
-                    navigateTo('album', ALBUM_DESTAQUE_ID);
-                    return;
-                }
-
-                // Clique geral no banner leva para a página do álbum
+                if (e.target.closest('.action-btn')) return;
+                
                 if (typeof navigateTo === 'function') {
-                    navigateTo('album', ALBUM_DESTAQUE_ID);
+                    navigateTo('album', idSorteado);
                 }
             };
 
-            banner.style.display = 'grid'; // Ou 'flex', dependendo do seu CSS
+            // Exibe o banner
+            banner.style.display = 'grid';
             banner.classList.add('loaded');
         }
     } catch (error) {
-        console.error("Erro ao carregar banner de álbum:", error);
+        console.error("Erro ao carregar banner aleatório:", error);
     }
 }
 
