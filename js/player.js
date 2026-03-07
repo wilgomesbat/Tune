@@ -897,52 +897,65 @@ function resetarValidacaoTrack() {
     validacaoJaEnviada = false;
 }
 
-// Objeto para controlar o tempo individual de cada música (Cache de Sessão)
+// --- CONFIGURAÇÕES GLOBAIS DE SEGURANÇA (FORA DA FUNÇÃO) ---
 window.historicoValidacao = window.historicoValidacao || {};
+window.historicoGlobal = window.historicoGlobal || [];
 window.spamCounter = window.spamCounter || 0;
+const JANELA_OBSERVACAO_MS = 30000; // Analisar os últimos 30 segundos
+const LIMITE_PLAYS_RAPIDOS = 5;    // Máximo de 5 músicas "validadas" nesse tempo
 
 async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
     const agora = Date.now();
-    const tempoMinimoReplay = 120000; // 2 min para a mesma música
     const user = typeof auth !== 'undefined' ? auth.currentUser : null;
-    
     const uidLog = user ? user.uid : 'deslogado';
     const nomeLog = user ? (user.displayName || user.email || "Usuário Tune") : "Visitante";
 
-    // --- 1. TRAVA DE REPETIÇÃO (SPAM) ---
-    const ultimaValidacaoDestaMusica = window.historicoValidacao[track.id] || 0;
-    const tempoPassado = agora - ultimaValidacaoDestaMusica;
+    // --- 1. FILTRO ANTI-SPAM (PROTEÇÃO INICIAL) ---
 
-    if (tempoPassado < tempoMinimoReplay) {
+    // A. Bloqueio por repetição da MESMA música (2 minutos)
+    const tempoMinimoReplay = 120000; 
+    const ultimaValidacaoDestaMusica = window.historicoValidacao[track.id] || 0;
+    
+    if (agora - ultimaValidacaoDestaMusica < tempoMinimoReplay) {
+        console.warn(`🚫 [REPLAY] "${track.title}" já validada recentemente. Aguarde.`);
+        return false;
+    }
+
+    // B. Bloqueio por "Flood" Global (Troca frenética de várias músicas)
+    window.historicoGlobal.push(agora);
+    // Limpa registros antigos da memória para manter o array leve
+    window.historicoGlobal = window.historicoGlobal.filter(t => agora - t < JANELA_OBSERVACAO_MS);
+
+    if (window.historicoGlobal.length > LIMITE_PLAYS_RAPIDOS) {
         window.spamCounter++;
-        const faltam = Math.round((tempoMinimoReplay - tempoPassado) / 1000);
-        
+        const statusSpam = window.spamCounter >= 10 ? "🔥 REINCIDÊNCIA CRÍTICA" : "DETECÇÃO DE FLOOD";
+
         try {
             await addDoc(collection(db, "logs_atividades"), {
                 type: 'play_spam_ban',
-                itemTitle: track.title,
+                itemTitle: statusSpam,
                 itemId: track.id,
                 userId: uidLog,
                 userName: nomeLog,
                 timestamp: serverTimestamp(),
-                motivo: `Tentativa de validar antes do tempo (${faltam}s restantes)`
+                device: navigator.platform,
+                motivo: `Flood detectado: ${window.historicoGlobal.length} plays em 30s.`
             });
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Erro log spam:", e); }
 
-        console.warn(`🚫 [SPAM] "${track.title}" bloqueada. Faltam ${faltam}s.`);
-        return false; 
+        console.error("🚫 [BLOQUEIO GLOBAL] Atividade suspeita de spam/bot.");
+        return false;
     }
 
-    // --- 2. INJEÇÃO DE DADOS (APÓS OS 20s COMPROVADOS) ---
+    // --- 2. INJEÇÃO DE DADOS (PÓS-VALIDAÇÃO) ---
     try {
         window.isProcessingStream = true;
         const musicRef = doc(db, "musicas", track.id);
 
-       // Sorteio Streams (100k a 500k)
-// 500.000 - 100.000 = 400.000. Somamos +1 para incluir o limite superior.
-const valorSorteadoStreams = Math.floor(Math.random() * 400001) + 100000;
+        // Sorteio de Streams (500k a 1.3M)
+        const valorSorteadoStreams = Math.floor(Math.random() * 800001) + 500000;
 
         let updates = {
             streams: increment(valorSorteadoStreams),
@@ -970,37 +983,30 @@ const valorSorteadoStreams = Math.floor(Math.random() * 400001) + 100000;
             }
 
             if (podeAdicionarOuvinte) {
-    // ✅ NOVO SORTEIO: Agora entre 100.000 e 300.000
-    // A conta é: (Random * (Máximo - Mínimo + 1)) + Mínimo
-    const valorBase = Math.floor(Math.random() * 200001) + 100000;
+                // Sorteio de Ouvintes (100k a 300k)
+                const valorBase = Math.floor(Math.random() * 200001) + 100000;
 
-    // ✅ FUNÇÃO DE VOLATILIDADE
-    // Mantendo os 20% de chance de queda para realismo
-    const eQueda = Math.random() < 0.20; 
-    
-    // Se cair, perde 50% do valor sorteado. Se subir, ganha o valor total.
-    const valorFinalOuvintes = eQueda ? -Math.abs(Math.floor(valorBase * 0.5)) : valorBase;
+                // Simulação de volatilidade (20% de chance de queda)
+                const eQueda = Math.random() < 0.20; 
+                const valorFinalOuvintes = eQueda ? -Math.abs(Math.floor(valorBase * 0.5)) : valorBase;
 
-    // ✅ ATUALIZAÇÃO DOS DADOS
-    // Usando a função increment para persistir no banco de dados
-    updates.ouvintesMensais = increment(valorFinalOuvintes);
-    
+                updates.ouvintesMensais = increment(valorFinalOuvintes);
+                
                 await setDoc(registroRef, { 
                     userId: user.uid, 
                     trackId: track.id, 
                     timestamp: serverTimestamp() 
                 });
                 
-                if (valorFinalOuvintes > 0) {
-                    console.log(`👤 [OUVINTE] +${valorFinalOuvintes.toLocaleString()} (Alta no IBOPE)`);
-                } else {
-                    console.log(`📉 [OUVINTE] ${valorFinalOuvintes.toLocaleString()} (Evasão simulada)`);
-                }
+                console.log(valorFinalOuvintes > 0 
+                    ? `👤 [OUVINTE] +${valorFinalOuvintes.toLocaleString()} (Alta no IBOPE)`
+                    : `📉 [OUVINTE] ${valorFinalOuvintes.toLocaleString()} (Evasão simulada)`);
             } else {
                 console.log("⏳ [OUVINTE] Janela de 5h ativa. Bônus ignorado.");
             }
         }
 
+        // Executa atualização no Firestore
         await updateDoc(musicRef, updates);
 
         // Log de Sucesso
@@ -1014,15 +1020,15 @@ const valorSorteadoStreams = Math.floor(Math.random() * 400001) + 100000;
             valorGerado: valorSorteadoStreams
         });
 
+        // Atualiza históricos locais de sucesso
         window.historicoValidacao[track.id] = Date.now();
-        window.spamCounter = 0; 
         window.isProcessingStream = false;
         
         console.log(`✅ [SUCESSO] +${valorSorteadoStreams.toLocaleString()} streams.`);
         return true; 
 
     } catch (e) {
-        console.error("❌ Erro:", e);
+        console.error("❌ Erro no processo de validação:", e);
         window.isProcessingStream = false;
         return false;
     }
