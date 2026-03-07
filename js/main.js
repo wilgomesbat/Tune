@@ -187,6 +187,50 @@ onAuthStateChanged(auth, async (user) => {
     if (typeof verificarStatusArtista === 'function') verificarStatusArtista(user.uid);
 });
 
+controlarFluxoManutencaoFirestore();
+
+function controlarFluxoManutencaoFirestore() {
+    console.log("Iniciando monitor de manutenção via Firestore...");
+
+    // Referência para o documento dentro da coleção 'config' e documento 'status'
+    const manutencaoDocRef = doc(db, 'config', 'status');
+
+    onSnapshot(manutencaoDocRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const dados = snapshot.data();
+            const estaEmManutencao = dados.manutencao; // Pega o campo 'manutencao'
+            
+            console.log("Status Manutenção Firestore:", estaEmManutencao);
+
+            const path = window.location.pathname;
+            const paginaAtual = path.substring(path.lastIndexOf('/') + 1);
+            const tela = document.getElementById('maintenance-screen');
+
+            if (estaEmManutencao === true) {
+                if (paginaAtual !== "main" && paginaAtual !== "main") {
+                    window.location.href = "main";
+                    return;
+                }
+                if (tela) {
+                    tela.style.display = 'flex';
+                    tela.classList.remove('maintenance-hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            } else {
+                if (tela) {
+                    tela.style.display = 'none';
+                    tela.classList.add('maintenance-hidden');
+                    document.body.style.overflow = '';
+                }
+            }
+        } else {
+            console.warn("⚠️ Documento 'config/status' não encontrado no Firestore!");
+        }
+    }, (error) => {
+        console.error("Erro ao ouvir Firestore:", error);
+    });
+}
+
 function renderizarTelaBloqueioTune(dataExpira) {
     const minutosRestantes = Math.ceil((dataExpira - new Date()) / 60000);
     
