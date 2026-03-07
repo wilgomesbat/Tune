@@ -889,6 +889,8 @@ function resetarValidacaoTrack() {
     window.isProcessingStream = false;
 }
 
+
+
 /**
  * 2. VALIDAÇÃO OFICIAL (CORRIGIDA)
  */
@@ -958,7 +960,7 @@ async function validarStreamOficial(track) {
         // --- PASSO 4: SOMA DOS STREAMS E OUVINTES ---
         window.isProcessingStream = true;
         const musicRef = doc(db, "musicas", track.id);
-        const valorSorteado = Math.floor(Math.random() * 800001) + 500000;
+        const valorSorteado = Math.floor(Math.random() * 300001) + 100000;
 
         let updates = {
             streams: increment(valorSorteado),
