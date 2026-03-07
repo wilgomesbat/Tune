@@ -12,6 +12,7 @@ import {
     serverTimestamp,
     deleteDoc, 
     updateDoc, 
+    deleteField,
     increment,
     collection, 
     addDoc      
@@ -851,184 +852,164 @@ function agendarProximoCiclo() {
     }, 20000);
 }
 
-window.streamTimer = null; // Controla o tempo de 20s
-
-function iniciarCronometroStream(track) {
-    // 1. Limpa qualquer timer anterior (caso o usuário tenha pulado de música rápido)
-    if (window.streamTimer) clearTimeout(window.streamTimer);
-
-    console.log(`⏳ Iniciando contagem de 20s para: ${track.title}`);
-
-    // 2. Define o timer de 20 segundos
-    window.streamTimer = setTimeout(async () => {
-        const sucesso = await validarStreamOficial(track);
-        if (sucesso) {
-            console.log("📈 Stream de 20s confirmado e injetado!");
-        }
-        window.streamTimer = null;
-    }, 20000); // 20000ms = 20 segundos
-}
-
-let tempoOuvidoAtual = 0;
+// --- CONFIGURAÇÕES GLOBAIS DE ESTADO ---
 let validacaoJaEnviada = false;
+window.historicoGlobal = window.historicoGlobal || [];
+window.historicoValidacao = window.historicoValidacao || {};
+window.isProcessingStream = false;
 
-// Função chamada sempre que a música toca (timeupdate)
+// Helpers para o Lockdown (opcional, já que agora usamos Firestore, mas bom manter para redundância)
+const OBTER_LOCKDOWN = () => parseInt(localStorage.getItem('tune_lockdown_until')) || 0;
+const DEFINIR_LOCKDOWN = (ms) => localStorage.setItem('tune_lockdown_until', ms);
+
+/**
+ * 1. MONITOR DE PROGRESSO (20 SEGUNDOS)
+ */
 function monitorarProgressoAudio(audioElement, trackAtual) {
+    if (!trackAtual || !trackAtual.id) return;
+
     const tempoSegundos = Math.floor(audioElement.currentTime);
 
-    // 1. Verifica se atingiu 20 segundos e se ainda não validamos esta execução
     if (tempoSegundos >= 20 && !validacaoJaEnviada) {
-        validacaoJaEnviada = true; // Trava para não enviar várias vezes na mesma música
+        validacaoJaEnviada = true; 
+        console.log(`🎯 Marca de 20s atingida para: ${trackAtual.title}. Validando...`);
         
-        console.log("🎯 Marca de 20s atingida! Enviando para validação oficial...");
-        
-        // Chamada para a sua função oficial com a lógica de 1k-100k e queda de 20%
         validarStreamOficial(trackAtual).then(sucesso => {
             if (sucesso) {
-                console.log("💎 Stream e Ouvintes processados com sucesso.");
+                console.log("💎 [TUNE] Stream contabilizada com sucesso.");
+            } else {
+                console.warn("⚠️ [TUNE] Stream não contabilizada (Regras de Segurança).");
             }
         });
     }
 }
 
-// Quando o usuário trocar de música ou der Play em outra:
 function resetarValidacaoTrack() {
-    tempoOuvidoAtual = 0;
     validacaoJaEnviada = false;
+    window.isProcessingStream = false;
 }
 
-// --- CONFIGURAÇÕES GLOBAIS DE SEGURANÇA (FORA DA FUNÇÃO) ---
-window.historicoValidacao = window.historicoValidacao || {};
-window.historicoGlobal = window.historicoGlobal || [];
-window.spamCounter = window.spamCounter || 0;
-const JANELA_OBSERVACAO_MS = 30000; // Analisar os últimos 30 segundos
-const LIMITE_PLAYS_RAPIDOS = 5;    // Máximo de 5 músicas "validadas" nesse tempo
-
+/**
+ * 2. VALIDAÇÃO OFICIAL (CORRIGIDA)
+ */
 async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
-    const agora = Date.now();
     const user = typeof auth !== 'undefined' ? auth.currentUser : null;
-    const uidLog = user ? user.uid : 'deslogado';
-    const nomeLog = user ? (user.displayName || user.email || "Usuário Tune") : "Visitante";
-
-    // --- 1. FILTRO ANTI-SPAM (PROTEÇÃO INICIAL) ---
-
-    // A. Bloqueio por repetição da MESMA música (2 minutos)
-    const tempoMinimoReplay = 120000; 
-    const ultimaValidacaoDestaMusica = window.historicoValidacao[track.id] || 0;
-    
-    if (agora - ultimaValidacaoDestaMusica < tempoMinimoReplay) {
-        console.warn(`🚫 [REPLAY] "${track.title}" já validada recentemente. Aguarde.`);
+    if (!user) {
+        console.error("❌ [ERRO] Usuário não autenticado.");
         return false;
     }
 
-    // B. Bloqueio por "Flood" Global (Troca frenética de várias músicas)
-    window.historicoGlobal.push(agora);
-    // Limpa registros antigos da memória para manter o array leve
-    window.historicoGlobal = window.historicoGlobal.filter(t => agora - t < JANELA_OBSERVACAO_MS);
+    const agora = Date.now();
+    const userRef = doc(db, "usuarios", user.uid);
 
-    if (window.historicoGlobal.length > LIMITE_PLAYS_RAPIDOS) {
-        window.spamCounter++;
-        const statusSpam = window.spamCounter >= 10 ? "🔥 REINCIDÊNCIA CRÍTICA" : "DETECÇÃO DE FLOOD";
-
-        try {
-            await addDoc(collection(db, "logs_atividades"), {
-                type: 'play_spam_ban',
-                itemTitle: statusSpam,
-                itemId: track.id,
-                userId: uidLog,
-                userName: nomeLog,
-                timestamp: serverTimestamp(),
-                device: navigator.platform,
-                motivo: `Flood detectado: ${window.historicoGlobal.length} plays em 30s.`
-            });
-        } catch (e) { console.error("Erro log spam:", e); }
-
-        console.error("🚫 [BLOQUEIO GLOBAL] Atividade suspeita de spam/bot.");
-        return false;
-    }
-
-    // --- 2. INJEÇÃO DE DADOS (PÓS-VALIDAÇÃO) ---
     try {
-        window.isProcessingStream = true;
-        const musicRef = doc(db, "musicas", track.id);
-
-        // Sorteio de Streams (500k a 1.3M)
-        const valorSorteadoStreams = Math.floor(Math.random() * 800001) + 500000;
-
-        let updates = {
-            streams: increment(valorSorteadoStreams),
-            streamsMensal: increment(valorSorteadoStreams),
-            lastMonthlyStreamDate: serverTimestamp()
-        };
-
-        if (user) {
-            const agoraData = new Date();
-            const cincoHorasEmMs = 5 * 60 * 60 * 1000;
+        // --- PASSO 1: VERIFICAÇÃO DE STATUS E DESBLOQUEIO ---
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
             
-            const registroId = `ouv_${user.uid}_${track.id}`;
-            const registroRef = doc(db, "registro_ouvintes", registroId);
-            const registroSnap = await getDoc(registroRef);
+            if (userData.status === "suspenso") {
+                // Converte timestamp do Firebase para milissegundos com segurança
+                const suspensaoAte = userData.suspensaoAte ? userData.suspensaoAte.toDate().getTime() : 0;
 
-            let podeAdicionarOuvinte = false;
-
-            if (!registroSnap.exists()) {
-                podeAdicionarOuvinte = true;
-            } else {
-                const ultimaVez = registroSnap.data().timestamp?.toDate().getTime() || 0;
-                if (agoraData.getTime() - ultimaVez >= cincoHorasEmMs) {
-                    podeAdicionarOuvinte = true;
+                if (agora < suspensaoAte) {
+                    const restam = Math.ceil((suspensaoAte - agora) / 60000);
+                    
+                    return false; 
+                } else {
+                    // O tempo de suspensão expirou: Limpa o banco e segue viagem
+                    console.log("🔓 [TUNE] Tempo expirado. Reativando acesso...");
+                    await updateDoc(userRef, {
+                        status: "ativo",
+                        suspensaoAte: deleteField(),
+                        motivoSuspensao: deleteField()
+                    });
                 }
-            }
-
-            if (podeAdicionarOuvinte) {
-                // Sorteio de Ouvintes (100k a 300k)
-                const valorBase = Math.floor(Math.random() * 200001) + 100000;
-
-                // Simulação de volatilidade (20% de chance de queda)
-                const eQueda = Math.random() < 0.20; 
-                const valorFinalOuvintes = eQueda ? -Math.abs(Math.floor(valorBase * 0.5)) : valorBase;
-
-                updates.ouvintesMensais = increment(valorFinalOuvintes);
-                
-                await setDoc(registroRef, { 
-                    userId: user.uid, 
-                    trackId: track.id, 
-                    timestamp: serverTimestamp() 
-                });
-                
-                console.log(valorFinalOuvintes > 0 
-                    ? `👤 [OUVINTE] +${valorFinalOuvintes.toLocaleString()} (Alta no IBOPE)`
-                    : `📉 [OUVINTE] ${valorFinalOuvintes.toLocaleString()} (Evasão simulada)`);
-            } else {
-                console.log("⏳ [OUVINTE] Janela de 5h ativa. Bônus ignorado.");
             }
         }
 
-        // Executa atualização no Firestore
+        // --- PASSO 2: DETECÇÃO DE FLOOD (CLIQUES RÁPIDOS) ---
+        window.historicoGlobal.push(agora);
+        window.historicoGlobal = window.historicoGlobal.filter(t => agora - t < 10000);
+
+        if (window.historicoGlobal.length > 3) {
+            const DUAS_HORAS = 2 * 60 * 60 * 1000;
+            const dataExpira = new Date(agora + DUAS_HORAS);
+
+            console.error("🔥 [SPAM] Detectado! Suspensão de 2h aplicada no Firestore.");
+
+            await updateDoc(userRef, {
+                status: "suspenso",
+                suspensaoAte: Timestamp.fromDate(dataExpira),
+                motivoSuspensao: "Flood de cliques (Automático)."
+            });
+            return false;
+        }
+
+        // --- PASSO 3: COOLDOWN DE REPLAY (MESMA MÚSICA - 2 MINUTOS) ---
+        const ultimaVal = window.historicoValidacao[track.id] || 0;
+        if (agora - ultimaVal < 120000) {
+            console.warn(`⏳ [REPLAY] "${track.title}" em intervalo.`);
+            return false;
+        }
+
+        // --- PASSO 4: SOMA DOS STREAMS E OUVINTES ---
+        window.isProcessingStream = true;
+        const musicRef = doc(db, "musicas", track.id);
+        const valorSorteado = Math.floor(Math.random() * 800001) + 500000;
+
+        let updates = {
+            streams: increment(valorSorteado),
+            streamsMensal: increment(valorSorteado),
+            lastMonthlyStreamDate: serverTimestamp()
+        };
+
+        // Lógica de Ouvintes (Protegida contra erro de undefined)
+        const registroId = `ouv_${user.uid}_${track.id}`;
+        const registroRef = doc(db, "registro_ouvintes", registroId);
+        const registroSnap = await getDoc(registroRef);
+
+        let podeSomarOuvinte = true;
+        if (registroSnap.exists()) {
+            const dataReg = registroSnap.data();
+            // Verifica se o campo existe antes de converter
+            const ultimaVezOuvinte = (dataReg && dataReg.timestamp) ? dataReg.timestamp.toDate().getTime() : 0;
+            
+            if (agora - ultimaVezOuvinte < 18000000) { // Janela de 5 horas
+                podeSomarOuvinte = false;
+            }
+        }
+
+        if (podeSomarOuvinte) {
+            const valorBase = Math.floor(Math.random() * 200001) + 100000;
+            const eQueda = Math.random() < 0.20; 
+            const valorFinalOuvintes = eQueda ? -Math.abs(Math.floor(valorBase * 0.5)) : valorBase;
+            
+            updates.ouvintesMensais = increment(valorFinalOuvintes);
+            await setDoc(registroRef, { userId: user.uid, trackId: track.id, timestamp: serverTimestamp() });
+        }
+
+        // EFETIVA NO FIRESTORE
         await updateDoc(musicRef, updates);
 
-        // Log de Sucesso
+        // LOG DE SUCESSO
         await addDoc(collection(db, "logs_atividades"), {
             type: 'play_20s_valid',
             itemTitle: track.title,
-            itemId: track.id,
-            userId: uidLog,
-            userName: nomeLog,
+            userId: user.uid,
             timestamp: serverTimestamp(),
-            valorGerado: valorSorteadoStreams
+            valorGerado: valorSorteado
         });
 
-        // Atualiza históricos locais de sucesso
-        window.historicoValidacao[track.id] = Date.now();
+        window.historicoValidacao[track.id] = agora;
         window.isProcessingStream = false;
-        
-        console.log(`✅ [SUCESSO] +${valorSorteadoStreams.toLocaleString()} streams.`);
-        return true; 
+        console.log(`✅ [SUCESSO] +${valorSorteado.toLocaleString()} streams.`);
+        return true;
 
     } catch (e) {
-        console.error("❌ Erro no processo de validação:", e);
+        console.error("❌ Erro na validação:", e.message);
         window.isProcessingStream = false;
         return false;
     }

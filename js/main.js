@@ -146,52 +146,41 @@ function initializeRouting() {
     }, 150);
 }
 
-// --- MONITOR DE AUTENTICAÇÃO ---
 onAuthStateChanged(auth, async (user) => {
     const path = window.location.pathname;
-    // Simplificando a checagem de estar na tela de login
     const isAtLogin = path === "/" || path.includes("index.html") || path === "/index";
+    const agora = Date.now();
+
+    // Verifica se há um bloqueio ativo no navegador (apenas loga no console)
+    const lockdownAte = parseInt(localStorage.getItem('tune_lockdown_until')) || 0;
+    if (lockdownAte > agora) {
+        const restam = Math.round((lockdownAte - agora) / 60000);
+        console.warn(`⚠️ [TUNE] O navegador possui uma restrição de streams ativa por mais ${restam} minutos.`);
+    }
 
     if (!user) {
-        console.warn("Usuário não logado.");
-        if (!isAtLogin) {
-            window.location.href = "/"; 
-        }
+        if (!isAtLogin) window.location.href = "/"; 
         return;
     }
 
-    // Verificação de suspensão (Mantido sua lógica original)
+    // Verificação de status no Banco (Original)
     try {
         const userRef = doc(db, "usuarios", user.uid);
         const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-            const userData = userSnap.data();
-            if (userData.status === "suspenso") {
-                const agora = new Date();
-                const expira = userData.suspensaoAte?.toDate();
-                if (expira && agora < expira) {
-                    if (typeof renderizarTelaBloqueioTune === 'function') renderizarTelaBloqueioTune(expira);
-                    return;
-                } else {
-                    await updateDoc(userRef, { status: "ativo" });
-                }
+        if (userSnap.exists() && userSnap.data().status === "suspenso") {
+            const expira = userSnap.data().suspensaoAte?.toDate();
+            if (expira && new Date() < expira) {
+                console.error("❌ [CONTA] Esta conta está suspensa no banco de dados.");
+                // Aqui você decide se quer ou não manter o renderizarTelaBloqueioTune para suspensões REAIS de conta
+                return;
             }
         }
-    } catch (error) {
-        console.error("Erro ao verificar status:", error);
-    }
+    } catch (e) { console.error("Erro status:", e); }
 
-    console.log("✅ Usuário autenticado:", user.uid);
     window.currentUserUid = user.uid;
-
-    // --- AQUI ESTÁ A CHAVE: ---
-    // Se ele recarregou a página (F5) ou voltou ao navegador:
-    // Se estiver no login, manda pra home. Se já tiver um caminho na URL, inicializa o roteiro.
     if (isAtLogin) {
         window.loadContent('home', null, false);
     } else {
-        // Isso garante que se ele der F5 em /album/123, o sistema tente carregar o álbum
-        // Se falhar, o loadContent redireciona ou mostra erro.
         initializeRouting();
     }
 
@@ -248,49 +237,6 @@ function renderizarTelaBloqueioTune(dataExpira) {
     setTimeout(() => window.location.reload(), (minutosRestantes * 60000));
 }
 
-controlarFluxoManutencaoFirestore();
-
-function controlarFluxoManutencaoFirestore() {
-    console.log("Iniciando monitor de manutenção via Firestore...");
-
-    // Referência para o documento dentro da coleção 'config' e documento 'status'
-    const manutencaoDocRef = doc(db, 'config', 'status');
-
-    onSnapshot(manutencaoDocRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const dados = snapshot.data();
-            const estaEmManutencao = dados.manutencao; // Pega o campo 'manutencao'
-            
-            console.log("Status Manutenção Firestore:", estaEmManutencao);
-
-            const path = window.location.pathname;
-            const paginaAtual = path.substring(path.lastIndexOf('/') + 1);
-            const tela = document.getElementById('maintenance-screen');
-
-            if (estaEmManutencao === true) {
-                if (paginaAtual !== "main" && paginaAtual !== "main") {
-                    window.location.href = "main";
-                    return;
-                }
-                if (tela) {
-                    tela.style.display = 'flex';
-                    tela.classList.remove('maintenance-hidden');
-                    document.body.style.overflow = 'hidden';
-                }
-            } else {
-                if (tela) {
-                    tela.style.display = 'none';
-                    tela.classList.add('maintenance-hidden');
-                    document.body.style.overflow = '';
-                }
-            }
-        } else {
-            console.warn("⚠️ Documento 'config/status' não encontrado no Firestore!");
-        }
-    }, (error) => {
-        console.error("Erro ao ouvir Firestore:", error);
-    });
-}
 
 // -------------------------------
 // ☁️ Cloudinary (UPLOAD FRONT)
@@ -3710,86 +3656,88 @@ async function validarCardArtista() {
         console.error("Erro ao validar artista:", e);
     }
 }
-// Defina aqui os seus 5 IDs de álbuns favoritos
-const MEUS_ALBUNS_DESTAQUE = [
-    "ciI5qLpKcZKHGSCUCYRf", // O que você enviou
-    "waeGiGVNiFsDzMftzbsg",
-    "z3ah8QANFGNxpDDSFb14",
-    "frGGnsZKH3S3GiiMAkyo",
-    "zPnbnUnrC6UVgFZI4hCB"
-];
 
-async function loadBannerAlbum() {
+// ID específico da música que você solicitou
+const ID_MUSICA_DESTAQUE = "GG92jgSj8QcAekDn7hjq";
+
+async function loadBannerMusica() {
     const banner = document.getElementById('new-release-banner');
     const coverImg = document.getElementById('banner-cover');
     
     if (!banner || !coverImg) return;
 
     try {
-        // 1. Sorteia um dos 5 IDs da lista
-        const idSorteado = MEUS_ALBUNS_DESTAQUE[Math.floor(Math.random() * MEUS_ALBUNS_DESTAQUE.length)];
+        // 1. Busca os dados da música na coleção "musicas"
+        const musicRef = doc(db, "musicas", ID_MUSICA_DESTAQUE);
+        const musicSnap = await getDoc(musicRef);
 
-        // 2. Busca os dados desse álbum sorteado no Firebase
-        const albumRef = doc(db, "albuns", idSorteado);
-        const albumSnap = await getDoc(albumRef);
-
-        if (albumSnap.exists()) {
-            const albumData = { id: albumSnap.id, ...albumSnap.data() };
+        if (musicSnap.exists()) {
+            const musicData = musicSnap.data();
             
-            // 3. Preenchimento de textos
-            document.getElementById('banner-title').textContent = albumData.album || "Álbum sem título";
-            document.getElementById('banner-artist-name').textContent = albumData.artist || "Artista";
+            // 2. Preenchimento de textos
+            // Usando 'title' para a música e 'artistName' para o nome do artista (conforme seu log)
+            const titleEl = document.getElementById('banner-title');
+            const artistEl = document.getElementById('banner-artist-name');
 
-            // 4. Configuração da Capa e Cor Dinâmica
-            coverImg.crossOrigin = "Anonymous"; // Essencial para o ColorThief
+            if (titleEl) titleEl.textContent = musicData.title || "Música sem título";
+            if (artistEl) artistEl.textContent = musicData.artistName || "Artista Desconhecido";
+
+            // 3. Configuração da Capa e Cor Dinâmica
+            coverImg.crossOrigin = "Anonymous";
             
-            const extrairCor = () => {
+            const aplicarCorDinamica = () => {
                 try {
                     const colorThief = new ColorThief();
                     const color = colorThief.getColor(coverImg);
                     const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-                    // Aplica o degradê da cor da capa para o fundo preto do site
                     banner.style.background = `linear-gradient(135deg, ${rgb} 0%, #030303 100%)`;
                 } catch (e) {
-                    console.warn("Erro nas cores:", e);
-                    banner.style.background = `linear-gradient(135deg, #282828 0%, #030303 100%)`;
+                    banner.style.background = `linear-gradient(135deg, #1a1a1a 0%, #030303 100%)`;
                 }
             };
 
-            coverImg.src = albumData.cover || "./assets/default-cover.png";
+            // Campo 'cover' da música
+            coverImg.src = musicData.cover || "./assets/default-cover.png";
 
             if (coverImg.complete) {
-                extrairCor();
+                aplicarCorDinamica();
             } else {
-                coverImg.onload = extrairCor;
+                coverImg.onload = aplicarCorDinamica;
             }
 
-            // 5. Foto do Artista (via uidars/artistId do álbum)
-            const artistId = albumData.uidars || albumData.artistId;
+            // 4. Foto do Artista (Busca no perfil do artista)
+            // No seu log, o ID do artista está no campo 'artist'
+            const artistId = musicData.artist; 
             if (artistId) {
                 const artistRef = doc(db, "usuarios", artistId);
                 const artistSnap = await getDoc(artistRef);
+                
                 if (artistSnap.exists()) {
                     const artistImg = document.getElementById('banner-artist-img');
-                    if (artistImg) artistImg.src = artistSnap.data().foto || "/assets/default-artist.png";
+                    const artistData = artistSnap.data();
+                    if (artistImg) {
+                        // Tenta 'foto' ou 'photoURL'
+                        artistImg.src = artistData.foto || artistData.photoURL || "/assets/default-artist.png";
+                    }
                 }
             }
 
-            // 6. Ação de Clique
+            // 5. Ação de Clique
             banner.onclick = (e) => {
                 if (e.target.closest('.action-btn')) return;
-                
                 if (typeof navigateTo === 'function') {
-                    navigateTo('album', idSorteado);
+                    navigateTo('music', ID_MUSICA_DESTAQUE);
                 }
             };
 
-            // Exibe o banner
             banner.style.display = 'grid';
             banner.classList.add('loaded');
+            
+        } else {
+            console.warn("⚠️ Música não encontrada.");
         }
     } catch (error) {
-        console.error("Erro ao carregar banner aleatório:", error);
+        console.error("❌ Erro no banner:", error);
     }
 }
 
@@ -4728,7 +4676,7 @@ async function setupHomePage() {
         // BLOCO 1: Carregamento prioritário
         await Promise.all([
             fetchAndRenderNewSingles(), 
-            loadBannerAlbum(),
+            loadBannerMusica(),
             setupArtistsCarouselPriority(),
             setupContentCarousel(
                 'albums-list', 'albums-scroll-left', 'albums-scroll-right', 
