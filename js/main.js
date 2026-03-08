@@ -1528,7 +1528,7 @@ if (isAutomaticTop) {
                 // CÁLCULO 50/50
                 const logScore = clicks / maxLogs;
                 const monthlyScore = sMensal / maxStreamsMensal;
-                const hybridScore = (logScore * 0.5) + (monthlyScore * 0.5);
+                const hybridScore = (logScore * 0.2) + (monthlyScore * 0.5);
 
                 rawTracks.push({ id: d.id, ...data, hybridScore, clicks82h: clicks });
             });
@@ -3702,7 +3702,7 @@ async function validarCardArtista() {
 }
 
 // ID específico da música que você solicitou
-const ID_MUSICA_DESTAQUE = "gN8tV0KqX7MF9ojTtbS6";
+const ID_MUSICA_DESTAQUE = "";
 
 async function loadBannerMusica() {
     const banner = document.getElementById('new-release-banner');
