@@ -1217,6 +1217,92 @@ function setupAddPlaylistPage() {
     }
 }
 
+// 1. DEFINIÇÃO DA LÓGICA (Coloque isso no topo do arquivo ou antes da renderização)
+window.getTop6AlbumsByStreams = async function() {
+    try {
+        const musicasRef = collection(db, "musicas");
+        const musicasSnap = await getDocs(musicasRef);
+        
+        const albumStats = {}; 
+
+        musicasSnap.forEach(doc => {
+            const data = doc.data();
+            const albumId = data.album; 
+            const streams = data.streams || 0;
+
+            if (albumId) {
+                albumStats[albumId] = (albumStats[albumId] || 0) + streams;
+            }
+        });
+
+        const sortedAlbumIds = Object.entries(albumStats)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 6);
+
+        const topAlbums = await Promise.all(
+            sortedAlbumIds.map(async ([id, totalStreams]) => {
+                const albumDoc = await getDoc(doc(db, "albuns", id));
+                if (albumDoc.exists()) {
+                    const albumData = albumDoc.data();
+                    return {
+                        id: id,
+                        albumTitle: albumData.album,
+                        artist: albumData.artist,
+                        cover: albumData.cover,
+                        totalStreams: totalStreams
+                    };
+                }
+                return null;
+            })
+        );
+
+        return topAlbums.filter(a => a !== null);
+
+    } catch (error) {
+        console.error("Erro ao calcular top álbuns:", error);
+        return [];
+    }
+};
+
+// 2. FUNÇÃO DE RENDERIZAÇÃO (Ajustada para chamar a global)
+async function renderTop6Albums() {
+    const grid = document.getElementById('top-albums-grid');
+    if (!grid) return;
+
+    // Agora chamamos via window para garantir que ela exista
+    const albums = await window.getTop6AlbumsByStreams();
+
+    grid.innerHTML = ""; // Limpa skeletons
+
+    albums.forEach((album, index) => {
+        const albumCard = document.createElement('div');
+        albumCard.className = "group cursor-pointer transition-all duration-300 hover:-translate-y-2";
+        
+        albumCard.innerHTML = `
+            <div class="relative aspect-square mb-3 overflow-hidden rounded-3xl shadow-2xl bg-[#121212]">
+                <div class="absolute top-3 left-3 z-10 bg-[#ace000] text-black w-8 h-8 flex items-center justify-center font-black rounded-full shadow-lg">
+                    ${index + 1}
+                </div>
+                <img src="${album.cover}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-black shadow-xl">
+                        <i class='bx bx-play text-3xl ml-1'></i>
+                    </div>
+                </div>
+            </div>
+            <div class="px-1">
+                <h3 class="text-white font-bold text-sm truncate uppercase tracking-tight">${album.albumTitle}</h3>
+                <p class="text-gray-500 text-[10px] font-medium uppercase tracking-widest truncate">${album.artist}</p>
+                <div class="mt-1 flex items-center gap-1">
+                    <span class="text-[#ace000] text-[10px] font-bold">${album.totalStreams.toLocaleString()} STREAMS</span>
+                </div>
+            </div>
+        `;
+
+        albumCard.onclick = () => navigateTo('album', album.id);
+        grid.appendChild(albumCard);
+    });
+}
 
 function setupAddAlbumPage() {
     const albumForm = document.querySelector("#combinedForm");
@@ -2651,8 +2737,10 @@ function fetchAndRenderRecentArtists() {
 
 function setupDashboardPage() {
     setupCounterListeners();
+    renderTop6Albums();
     fetchAndRenderRecentArtists();
     fetchAndRenderTopSongsList();
+    
 }
 
 if (document.getElementById('musicsGrid')) {

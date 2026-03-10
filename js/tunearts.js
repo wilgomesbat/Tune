@@ -1438,56 +1438,80 @@ async function gerarPlaylistThisIs() {
     }
 }
 
-
 async function setupDashboardPage() {
     const uid = currentUser?.uid;
     if (!uid) return;
 
-   try {
-        // Carrega dados do artista
+    try {
+        // 1. DADOS DO ARTISTA E DESTAQUE (ARTIST PICK)
         const artistDoc = await getDoc(doc(db, "usuarios", uid));
-        if (artistDoc.exists()) {
-            const data = artistDoc.data();
-            
-            // Se já tiver algo fixado, mostra o card ativo
-            if (data.pinnedItem) {
-                atualizarPreviewSorteio(data.pinnedItem, data.foto, data.nomeArtistico || data.nome);
-            }
+        const artistData = artistDoc.exists() ? artistDoc.data() : {};
+        const artistName = artistData.nomeArtistico || artistData.nome || "Artista";
+        
+        // Carrega o Destaque se existir (Usando sua lógica de pílula)
+        if (artistData.pinnedItem) {
+            atualizarPreviewSorteio(artistData.pinnedItem, artistData.foto, artistName);
         }
 
-        // 2. STREAMS TOTAIS
-        const q = query(collection(db, "musicas"), where("artist", "==", uid));
-        const snap = await getDocs(q);
+        // 2. BUSCAR ÚLTIMO LANÇAMENTO PARA O CARD VERMELHO
+        const qLatest = query(collection(db, "musicas"), where("artist", "==", uid), orderBy("timestamp", "desc"), limit(1));
+        const snapLatest = await getDocs(qLatest);
         
-        let total = 0;
-        snap.forEach(d => total += (d.data().streams || 0));
-        
-        const el = document.getElementById('weekly-streams');
-        if (el) el.textContent = new Intl.NumberFormat('pt-BR').format(total);
+        if (!snapLatest.empty) {
+            const latest = snapLatest.docs[0].data();
+            document.getElementById('latest-title').textContent = latest.title;
+            document.getElementById('latest-cover').src = latest.cover || latest.capa;
 
-        // 3. RESTANTE DO SETUP
-        loadTopTracks(uid);
+            const totalStreamsMusica = latest.streams || 0;
+            document.getElementById('latest-total-streams').textContent = totalStreamsMusica.toLocaleString('pt-BR');
+
+            // --- MÉTRICAS 7 DIAS ---
+            const seteDias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const q7d = query(collection(db, "logs_atividades"), where("itemTitle", "==", latest.title), where("timestamp", ">=", seteDias));
+            const snap7d = await getDocs(q7d);
+            document.getElementById('stat-streams-7d').textContent = snap7d.size.toLocaleString('pt-BR');
+            
+          
+            // --- OUVINDO AGORA ---
+            const agoraLimit = new Date(Date.now() - 3 * 60000);
+            const qLive = query(collection(db, "logs_atividades"), where("itemTitle", "==", latest.title), where("timestamp", ">=", agoraLimit));
+            const liveSnap = await getDocs(qLive);
+            document.getElementById('live-count').textContent = liveSnap.size;
+        }
+
+        // 3. SOMA TOTAL DE STREAMS DO ARTISTA (SUA FUNÇÃO ORIGINAL)
+        const qTodasMusicas = query(collection(db, "musicas"), where("artist", "==", uid));
+        const musSnap = await getDocs(qTodasMusicas);
+        let somaTotalArtista = 0;
+        musSnap.forEach(doc => {
+            somaTotalArtista += (doc.data().streams || 0);
+        });
+        document.getElementById('stat-total-artist-streams').textContent = somaTotalArtista.toLocaleString('pt-BR');
+
+        // 4. CHAMAR RESTANTE DO SETUP
+        loadTopTracks(uid); 
         verificarERenderizarBotaoThisIs();
 
-    } catch (error) {
-        console.error("Erro no setup da dashboard:", error);
+    } catch (e) {
+        console.error("Erro na Dashboard:", e);
     }
 }
 
 async function loadTopTracks(uid) {
     const list = document.getElementById('top-tracks-list');
     if (!list) return;
-
     const q = query(collection(db, "musicas"), where("artist", "==", uid), orderBy("streams", "desc"), limit(5));
     const snap = await getDocs(q);
-    list.innerHTML = snap.empty ? '<p>Nenhuma música.</p>' : '';
-    
+    list.innerHTML = snap.empty ? '<p class="text-gray-500">Nenhuma música.</p>' : '';
     snap.forEach(d => {
         const m = d.data();
-        list.innerHTML += `<div class="flex items-center p-2 bg-white/5 mb-1 rounded">
-            <img src="${m.cover}" class="w-8 h-8 rounded mr-2">
-            <span class="text-sm flex-grow">${m.title}</span>
-            <span class="text-xs font-bold">${m.streams || 0}</span>
+        list.innerHTML += `
+        <div class="flex items-center p-3 bg-black mb-2 rounded-xl ">
+            <img src="${m.cover}" class="w-10 h-10 rounded-md mr-3 object-cover">
+            <div class="flex-grow">
+                <div class="text-white text-sm font-bold">${m.title}</div>
+                <div class="text-gray-500 text-xs">${m.streams || 0} streams</div>
+            </div>
         </div>`;
     });
 }
