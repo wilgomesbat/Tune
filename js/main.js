@@ -108,6 +108,10 @@ if (window.currentUserUid) {
 }
 }
 
+const BLACKLIST_UIDS = [
+  "5aZ74tlIUzcVjjrUBHdw1rLQPRF2"
+];
+
 window.loadContent = loadContent;
 
 // --- ROTEAMENTO CORRIGIDO ---
@@ -162,6 +166,15 @@ onAuthStateChanged(auth, async (user) => {
         if (!isAtLogin) window.location.href = "/"; 
         return;
     }
+
+    const isBlackPage = window.location.pathname.includes("black.html");
+
+if (user && BLACKLIST_UIDS.includes(user.uid) && !isBlackPage) {
+    console.warn("⛔ Usuário bloqueado:", user.uid);
+
+    window.location.href = "/black.html";
+    return;
+}
 
     // Verificação de status no Banco (Original)
     try {
