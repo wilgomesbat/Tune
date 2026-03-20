@@ -204,7 +204,7 @@ async function runSecurityCheck() {
     const totalAbas = Object.keys(currentTabs).length;
 
     // --- REGRAS DE BANIMENTO POR ABAS ---
-    if (totalAbas >= 3) {
+    if (totalAbas >= 7) {
         return banirPorAbas("Tentativa de fraude de reprodução. Detectadas " + totalAbas + " abas abertas.");
     }
 
