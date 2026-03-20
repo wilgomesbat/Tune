@@ -7,6 +7,58 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     
     <style>
+
+/* Container */
+.recuperar-container{
+  max-width: 420px;
+  margin: 20px auto;
+  text-align: center;
+}
+
+/* Botão */
+.btn-recuperar{
+  background: #1db954;
+  color: white;
+  border: none;
+  padding: 12px 22px;
+  font-size: 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+
+.btn-recuperar:hover{
+  background: #18a34a;
+  transform: translateY(-1px);
+}
+
+.btn-recuperar:active{
+  transform: scale(0.98);
+}
+
+/* Barra de progresso */
+.progress-box{
+  margin-top: 18px;
+  background: #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 18px;
+}
+
+.progress-bar{
+  height: 100%;
+  width: 0%;
+  background: #1db954;
+  transition: width 0.25s ease;
+}
+
+/* Texto progresso */
+#progress{
+  margin-top: 6px;
+  font-size: 13px;
+  color: #aaa;
+}
         /* Estilização para o toggle */
         .maintenance-toggle-switch input:checked + .block {
             background-color: #b82929; /* Verde Spotify */
@@ -62,14 +114,19 @@
             <p id="maintenanceStatusMessage" class="mt-2 text-sm text-gray-500">Carregando status...</p>
         </section>
 
-<button onclick="zerarStreamsGlobais()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-    Zerar Todos os Streams
+<div class="recuperar-container">
+
+<button onclick="reconstruirStreams()" class="btn-recuperar">
+Recuperar Streams
 </button>
 
-<div class="flex gap-4 mt-4">
-    <button onclick="zerarStreamsMensais()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">
-        Zerar Streams Mensais
-    </button>
+<div class="progress-box">
+  <div id="barra" class="progress-bar"></div>
+</div>
+
+<div id="progress">Progresso: 0%</div>
+
+</div>
         
     </div>
 

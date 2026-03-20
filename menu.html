@@ -139,13 +139,12 @@
     min-width: 80px;
 }
 
-/* Header */
 .sidebar-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 30px;
-    padding: 0 10px;
+    justify-content: space-between; /* Logo na ponta esquerda, seta na direita */
+    padding: 10px 20px 30px 20px; /* Alinhado com os itens de baixo */
+    width: 100%;
 }
 
 .logo-img { width: 30px; }
@@ -500,181 +499,185 @@
 
   
 
-   <svg style="display: none">
-  <filter id="glass-distortion">
-    <feTurbulence type="turbulence" baseFrequency="0.015" numOctaves="2" result="noise" />
-    <feDisplacementMap in="SourceGraphic" in2="noise" scale="20" id="distort-map" />
-  </filter>
-</svg>
 
-<div id="mobile-nav-bar" class="hidden-desktop">
 
-    
-    <div class="nav-content">
-        <a href="#" class="nav-link active" data-page="home" data-base-src="Home Icon">
-            <img src="/assets/Home Icon.svg" alt="Início">
-        </a>
 
-        <a href="#" class="nav-link" data-page="search" data-base-src="Search Icon">
-            <img src="/assets/Search Icon.svg" alt="Buscar">
-        </a>
+<div id="mobile-nav-bar">
+  <div class="nav-content">
+    <div class="nav-indicator liquid"></div>
 
-        <a href="#" class="nav-link" data-page="library" data-base-src="Your Playlisy Icon">
-            <img src="/assets/user-round.svg" alt="Sua Biblioteca">
-        </a>
-    </div>
+    <a href="#" class="nav-link active" data-index="0" data-page="home">
+      <img src="/assets/Home Icon.svg" alt="Início">
+    </a>
+    <a href="#" class="nav-link" data-index="1" data-page="search">
+      <img src="/assets/Search Icon.svg" alt="Buscar">
+    </a>
+    <a href="#" class="nav-link" data-index="2" data-page="library">
+      <img src="/assets/user-round.svg" alt="Biblioteca">
+    </a>
+  </div>
 </div>
 
 
 
     <script>
-// --- CONFIGURAÇÃO VISUAL ---
-const OUTLINE_OPACITY = '0.5';
-const FILLED_OPACITY = '1.0';
+/**
+ * --- CONFIGURAÇÕES E ESTADO GLOBAL ---
+ */
+const NAV_CONFIG = {
+    outlineOpacity: '0.5',
+    filledOpacity: '1.0',
+    validPages: ['home', 'search', 'library', 'album', 'playlist', 'artist', 'music', 'liked']
+};
 
-// Função para atualizar visualmente os links da sidebar/mobile nav
-function updateActiveNavLink(pageName) {
-    const navLinks = document.querySelectorAll('.nav-link');
-    navLinks.forEach(link => {
-        const isTarget = link.getAttribute('data-page').includes(pageName);
+
+
+/**
+ * --- ATUALIZAÇÃO VISUAL (Interface e Menu) ---
+ * Esta função cuida de acender o ícone correto e mover a "pílula" de vidro.
+ */
+function updateVisualState(pageName) {
+    const allLinks = document.querySelectorAll('.nav-link');
+    const indicator = document.querySelector('.nav-indicator');
+    
+    allLinks.forEach(link => {
         const img = link.querySelector('img');
+        const isTarget = link.getAttribute('data-page') === pageName;
         
         if (isTarget) {
             link.classList.add('active');
-            if (img) img.style.opacity = FILLED_OPACITY;
+            if (img) img.style.opacity = NAV_CONFIG.filledOpacity;
+            
+            if (indicator) {
+                // Pega a posição exata (em pixels) do link em relação ao container
+                const targetPos = link.offsetLeft;
+                
+                // Move o indicador para essa posição exata
+                // Removemos o translateY(-50%) daqui pois ele já está no CSS fixo
+                indicator.style.transform = `translateY(-50%) translateX(${targetPos}px)`;
+            }
         } else {
             link.classList.remove('active');
-            if (img) img.style.opacity = OUTLINE_OPACITY;
+            if (img) img.style.opacity = NAV_CONFIG.outlineOpacity;
         }
     });
 }
 
-// --- ROTEAMENTO E NAVEGAÇÃO ---
+/**
+ * --- ROTEAMENTO E NAVEGAÇÃO ---
+ */
 
+// Função chamada ao clicar nos botões do menu
 function handleNavigation(event) {
     event.preventDefault();
-    
-    // Pega o elemento clicado (mesmo se clicar no ícone dentro do <a>)
     const clickedLink = event.currentTarget;
     const pageName = clickedLink.getAttribute('data-page'); 
 
     if (!pageName) return;
 
-   
-
-    // 1. Carrega o conteúdo
-    // O id é null para cliques no menu, e true para salvar no histórico
-    if (typeof loadContent === 'function') {
-        loadContent(pageName, null, true); 
+    // 1. Carrega o conteúdo (A função loadContent deve estar global no seu projeto)
+    if (typeof window.loadContent === 'function') {
+        // O terceiro parâmetro 'true' indica que deve salvar no histórico do navegador
+        window.loadContent(pageName, null, true); 
     }
 
-    // 2. Atualização Visual
-    updateVisualState(clickedLink);
+    // 2. Atualiza o menu visualmente
+    updateVisualState(pageName);
 }
 
-function updateVisualState(activeLink) {
-    const allLinks = document.querySelectorAll('.nav-link');
-    
-    allLinks.forEach(link => {
-        link.classList.remove('active');
-        const img = link.querySelector('img');
-        if (img) img.style.opacity = '0.5'; // Estado inativo
-    });
-
-    activeLink.classList.add('active');
-    const activeImg = activeLink.querySelector('img');
-    if (activeImg) activeImg.style.opacity = '1.0'; // Estado ativo
-}
-
-// Inicialização
-document.querySelectorAll('.nav-link').forEach(link => {
-    link.addEventListener('click', handleNavigation);
-});
-
+// Inicializa a página baseada na URL atual (útil para F5/Refresh)
 function initializeRouting() {
-    const pathname = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
+    const pathname = window.location.pathname;
 
-    let page = 'home';
-    let id = null;
+    let page = urlParams.get('page') || 'home';
+    let id = urlParams.get('id') || null;
 
-    // Remove barras e nomes de arquivos físicos da análise
-    const pathParts = pathname.split('/').filter(p => p !== "" && p !== "index.html" && p !== "menu.html" && p !== "index");
-
-    if (pathParts.length > 0) {
-        page = pathParts[0]; 
+    // Lógica para capturar caminhos como /search ou /album/123
+    const pathParts = pathname.split('/').filter(p => p !== "" && !p.includes('.html') && p !== "index");
+    if (pathParts.length > 0 && !urlParams.has('page')) {
+        page = pathParts[0];
         id = pathParts[1] || null;
-    } else if (urlParams.has('page')) {
-        page = urlParams.get('page');
-        id = urlParams.get('id');
     }
 
-    // Validação extra: se a página detectada for inválida, força Home
-    const validPages = ['home', 'search', 'library', 'album', 'playlist', 'artist', 'music', 'liked'];
-    if (!validPages.includes(page)) {
-        page = 'home';
-    }
+    // Fallback para home se a página não for reconhecida
+    if (!NAV_CONFIG.validPages.includes(page)) page = 'home';
 
-    console.log(`🚀 Roteamento: Carregando [${page}]`);
+    console.log(`🚀 Roteamento: Inicializando em [${page}]`);
     
     if (typeof window.loadContent === 'function') {
         window.loadContent(page, id, false); 
     }
-    updateActiveNavLink(page);
+    updateVisualState(page);
 }
 
+/**
+ * --- GESTÃO DE HISTÓRICO (BOTÃO VOLTAR) ---
+ */
+
+// Escuta quando o usuário clica em "Voltar" ou "Avançar" no navegador
 window.addEventListener('popstate', (e) => {
-    if (e.state && e.state.page) {
-        // Navega para a página salva no histórico
-        window.loadContent(e.state.page, e.state.id, false);
-        updateActiveNavLink(e.state.page);
-    } else {
-        // Se e.state for nulo, significa que voltamos ao início de tudo (/)
-        window.loadContent('home', null, false);
-        updateActiveNavLink('home');
-    }
-});
-
-function updateBrowserHistory(page, id) {
-    // Se for home, a URL deve ser apenas "/", caso contrário /pagina ou /pagina/id
-    const url = (page === 'home') ? '/' : (id ? `/${page}/${id}` : `/${page}`);
-    window.history.pushState({ page, id }, '', url);
-}
-
-// Event Listeners
-document.addEventListener('DOMContentLoaded', () => {
-    initializeRouting();
+    console.log("⬅️ Navegação de histórico detectada");
     
-    const links = document.querySelectorAll('.nav-link');
-    links.forEach(link => link.addEventListener('click', handleNavigation));
-});
+    let page = 'home';
+    let id = null;
 
-// Overlay de Loading
-window.addEventListener('load', () => {
-    const loadingOverlay = document.getElementById('loading-overlay');
-    if (loadingOverlay) {
-        loadingOverlay.classList.add('hidden');
-        setTimeout(() => loadingOverlay.style.display = 'none', 500);
+    if (e.state && e.state.page) {
+        page = e.state.page;
+        id = e.state.id;
     }
+
+    // Recarrega o conteúdo sem criar um novo item no histórico (evita loops)
+    if (typeof window.loadContent === 'function') {
+        window.loadContent(page, id, false);
+    }
+    updateVisualState(page);
 });
 
+/**
+ * --- UTILITÁRIOS ---
+ */
+
+// Sidebar (Desktop/Lateral)
 function toggleSidebar() {
     const sidebar = document.getElementById('latNav');
     const iconSvg = document.getElementById('toggle-icon');
-    
-    // Alterna a classe na sidebar
+    if (!sidebar) return;
+
     sidebar.classList.toggle('collapsed');
 
-    // Verifica se está fechada para mudar o desenho do ícone (SVG Path)
-    if (sidebar.classList.contains('collapsed')) {
-        // Ícone Chevron-Right (Seta para direita)
-        iconSvg.innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
-    } else {
-        // Ícone Chevron-Left (Seta para esquerda)
-        iconSvg.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline>';
+    if (iconSvg) {
+        if (sidebar.classList.contains('collapsed')) {
+            iconSvg.innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
+        } else {
+            iconSvg.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline>';
+        }
     }
 }
 
+/**
+ * --- INICIALIZAÇÃO EVENTOS ---
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Inicia as rotas
+    initializeRouting();
+    
+    // 2. Configura cliques nos links de navegação (Nav Bar)
+    const links = document.querySelectorAll('.nav-link');
+    links.forEach(link => {
+        link.addEventListener('click', handleNavigation);
+    });
+
+    // 3. Gerenciamento do Overlay de Loading (Opcional)
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+        window.addEventListener('load', () => {
+            loadingOverlay.classList.add('hidden');
+            setTimeout(() => loadingOverlay.style.display = 'none', 500);
+        });
+    }
+});
     </script>
 
 <div id="full-screen-player" class="hidden">

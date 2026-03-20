@@ -58,19 +58,7 @@ export async function uploadImageToCloudinary(file) {
     return data.secure_url;
 }
 
-async function verificarManutencao() {
-    const docRef = doc(db, "config", "status");
-    try {
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists() && docSnap.data().manutencao) {
-            window.location.href = "main";
-        }
-    } catch (e) {
-        console.error("Erro ao verificar status de manutenção: ", e);
-    }
-}
-verificarManutencao();
+
 
 // Constantes Globais
 const ACTIVE_OPACITY = '1';
@@ -96,29 +84,34 @@ onAuthStateChanged(auth, async (user) => {
 
         if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
+            const valorNoBanco = userData.artista;
 
-            // AJUSTE AQUI: Verifica se é diferente de "true" para bloquear
-            // Se for "true", ele ignora o IF e segue para o painel.
-            if (userData.artista !== "true") { 
-                console.warn("Acesso negado: Usuário não possui perfil de artista.");
+            // Normalização: identifica se é artista (aceita Boolean true ou String "true")
+            const ehArtista = (valorNoBanco === true || valorNoBanco === "true");
+
+            // SE NÃO FOR ARTISTA, EXPULSA
+            if (!ehArtista) { 
+                console.warn("Acesso negado: Apenas artistas podem acessar esta página.");
                 window.location.href = "index.html"; 
                 return;
             }
 
-            // Se chegou aqui, é porque userData.artista === "true"
+            // SE CHEGOU AQUI, É ARTISTA: LIBERA O CONTEÚDO
             currentUser = user;
             window.currentArtistUid = user.uid;
-            console.log("Artista verificado e conectado:", user.uid);
+            console.log("Acesso de artista confirmado:", user.uid);
 
             if (typeof initializePageNavigation === "function") {
                 initializePageNavigation();
             }
             
         } else {
+            // Se o documento nem existir, manda para index por segurança
+            console.error("Perfil não encontrado.");
             window.location.href = "index.html";
         }
     } catch (error) {
-        console.error("Erro ao verificar permissões:", error);
+        console.error("Erro na verificação de permissões:", error);
         window.location.href = "index.html";
     }
 });
@@ -575,8 +568,7 @@ window.abrirModalEdicao = async function(id, colecao, tituloAtual) {
     const inputDate = document.getElementById('edit-item-date-input');
     const inputGenre = document.getElementById('edit-item-genre-input');
     const btnSalvar = document.getElementById('btn-salvar-edicao');
-    const btnExcluir = document.getElementById('btn-excluir-edicao');
-
+    
     // Abre o modal e limpa estados anteriores
     modal.style.display = 'flex';
     inputTitle.value = "Carregando...";
@@ -638,11 +630,7 @@ window.abrirModalEdicao = async function(id, colecao, tituloAtual) {
             };
         }
 
-        // Configuração do botão de excluir dentro deste contexto
-        btnExcluir.onclick = () => {
-            modal.style.display = 'none';
-            window.showDeleteConfirm(id, inputTitle.value, colecao);
-        };
+        
 
     } catch (error) {
         console.error("Erro ao carregar dados para edição:", error);

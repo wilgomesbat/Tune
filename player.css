@@ -1,27 +1,40 @@
-/* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+/* 1. SEMPRE OS @FONT-FACE NO TOPO */
 @font-face {
     font-family: 'Nationale Regular';
-    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
-         url('./fonts/Nationale-Regular.woff') format('woff');
+    src: url('/fonts/SpotifyMix-Medium.woff2') format('woff2'),
+         url('/fonts/SpotifyMix-Medium.woff') format('woff');
     font-weight: normal;
     font-style: normal;
+    font-display: swap; /* Ajuda a carregar mais rápido */
 }
+
 @font-face {
     font-family: 'Nationale Bold';
-    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
-         url('./fonts/Nationale-Bold.woff') format('woff');
+    src: url('/fonts/Nationale-Bold.woff2') format('woff2'),
+         url('/fonts/Nationale-Bold.woff') format('woff');
     font-weight: bold;
     font-style: normal;
+    font-display: swap;
 }
+
 @font-face {
     font-family: 'Nationale Black';
-    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
-         url('./fonts/Nationale-Black.woff') format('woff');
-    font-weight: bold;
+    src: url('/fonts/SpotifyMix-Black.woff2') format('woff2'),
+         url('/fonts/SpotifyMix-Black.woff') format('woff');
+    font-weight: 900;
     font-style: normal;
+    font-display: swap;
 }
 
+/* Garante que o player suma completamente */
+#music-player.hidden {
+    display: none !important;
+}
 
+/* Opcional: Animação para aparecer suavemente */
+#music-player {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
 
 #music-player {
     font-family: 'Nationale Regular';
@@ -30,7 +43,7 @@
     left: 0 !important;
     width: 100% !important;
     /* Valor astronômico para passar a sidebar */
-    z-index: 9999 !important;
+  
      display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -40,7 +53,8 @@
     color: white;
     
     /* O JS vai controlar a background-color agora */
-    background-color: #121212; 
+    background: rgb(18, 18, 18); /* Fundo escuro igual ao Tidal */
+
     transition: background-color 0.8s ease; 
     overflow: hidden;
 }

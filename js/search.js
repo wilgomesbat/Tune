@@ -94,7 +94,31 @@ function renderResults(results, container) {
         return;
     }
 
-    // 1. Músicas (Usando title e artistName)
+    // --- 1. ARTISTAS (PRIMEIRO) ---
+    results.artists.forEach(artist => {
+        html += `
+            <div class="search-item" onclick="window.location.href='menu.html?page=artist&id=${artist.id}'">
+                <img src="${artist.foto || 'default-avatar.png'}" class="img-artist">
+                <div class="info">
+                    <p class="title">${artist.nomeArtistico || artist.apelido}</p>
+                    <p class="subtitle">Artista</p>
+                </div>
+            </div>`;
+    });
+
+    // --- 2. ÁLBUNS (SEGUNDO) ---
+    results.albums.forEach(album => {
+        html += `
+            <div class="search-item" onclick="window.location.href='menu.html?page=album&id=${album.id}'">
+                <img src="${album.cover || album.capa || 'default-cover.png'}" class="img-song">
+                <div class="info">
+                    <p class="title">${album.album || album.nome}</p>
+                    <p class="subtitle">Álbum</p>
+                </div>
+            </div>`;
+    });
+
+    // --- 3. MÚSICAS (TERCEIRO) ---
     results.songs.forEach(song => {
         const isExplicit = song.explicit === true;
         html += `
@@ -110,27 +134,14 @@ function renderResults(results, container) {
             </div>`;
     });
 
-    // 2. Artistas
-    results.artists.forEach(artist => {
+    // --- 4. PLAYLISTS (POR ÚLTIMO) ---
+    results.playlists.forEach(playlist => {
         html += `
-            <div class="search-item" onclick="window.location.href='menu.html?page=artist&id=${artist.id}'">
-                <img src="${artist.foto || 'default-avatar.png'}" class="img-artist">
+            <div class="search-item" onclick="window.location.href='menu.html?page=playlist&id=${playlist.id}'">
+                <img src="${playlist.cover || playlist.image || 'default-cover.png'}" class="img-song">
                 <div class="info">
-                    <p class="title">${artist.nomeArtistico || artist.apelido}</p>
-                    <p class="subtitle">Artista</p>
-                </div>
-            </div>`;
-    });
-
-    // 3. Playlists e Álbuns
-    [...results.playlists, ...results.albums].forEach(item => {
-        const isAlbum = item.album !== undefined;
-        html += `
-            <div class="search-item" onclick="window.location.href='menu.html?page=${isAlbum ? 'album' : 'playlist'}&id=${item.id}'">
-                <img src="${item.cover || item.capa || item.image || 'default-cover.png'}" class="img-song">
-                <div class="info">
-                    <p class="title">${item.name || item.nome || item.album}</p>
-                    <p class="subtitle">${isAlbum ? 'Álbum' : 'Playlist'}</p>
+                    <p class="title">${playlist.name || playlist.nome}</p>
+                    <p class="subtitle">Playlist</p>
                 </div>
             </div>`;
     });

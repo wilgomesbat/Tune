@@ -7,13 +7,14 @@ import {
     onSnapshot, orderBy, doc, getDoc, updateDoc, increment, setDoc, limit, where, getDocs 
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { getAuth, updatePassword, updateEmail, sendEmailVerification, deleteUser, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
 // 3. IMPORTANTE: Importe as INSTÂNCIAS do seu novo arquivo de configuração
 // Isso garante que todo o site use a mesma conexão
 import { db, auth } from './firebase-config.js';
 
+let isAppInitialized = false; // A trava para não carregar duas vezes
 
 async function loadContent(pageName, id = null, shouldPushState = true) {
     const contentArea = document.getElementById('content-area');
@@ -150,151 +151,222 @@ function initializeRouting() {
     }, 150);
 }
 
-onAuthStateChanged(auth, async (user) => {
-    const path = window.location.pathname;
-    const isAtLogin = path === "/" || path.includes("index.html") || path === "/index";
-    const agora = Date.now();
+async function verificarManutencao() {
+    const docRef = doc(db, "config", "status");
+    try {
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().manutencao) {
+            window.location.href = "main";
+        }
+    } catch (e) {
+        console.error("Erro ao verificar status de manutenção: ", e);
+    }
+}
+verificarManutencao();
 
-    // Verifica se há um bloqueio ativo no navegador (apenas loga no console)
-    const lockdownAte = parseInt(localStorage.getItem('tune_lockdown_until')) || 0;
-    if (lockdownAte > agora) {
-        const restam = Math.round((lockdownAte - agora) / 60000);
-        console.warn(`⚠️ [TUNE] O navegador possui uma restrição de streams ativa por mais ${restam} minutos.`);
+/**
+ * TUNE TEAM SECURE CORE - V5 (AGRESSIVO - MULTI-TAB LOCK + BAN)
+ */
+async function runSecurityCheck() {
+    const overlay = document.getElementById('loading-overlay');
+    const logoImg = overlay?.querySelector('img');
+    const TAB_COUNT_KEY = 'tune_tabs_open';
+    const SESSION_ID = Date.now().toString() + Math.random().toString(36).substring(2);
+    
+    if (!overlay) return true;
+    logoImg?.classList.add('logo-verificando');
+
+    // Função que agora redireciona para a tela de banimento
+    function banirPorAbas(motivo) {
+        console.warn("BANIMENTO POR MULTI-TABS:", motivo);
+        // Opcional: Você pode salvar o motivo no localStorage para ler na black.html
+        localStorage.setItem('tune_ban_reason', motivo);
+        window.location.href = "black.html";
+        return false;
     }
 
+    // --- GESTÃO DE ABAS (CONTADOR REAL-TIME) ---
+    const getTabs = () => JSON.parse(localStorage.getItem(TAB_COUNT_KEY) || '{}');
+    const setTabs = (tabs) => localStorage.setItem(TAB_COUNT_KEY, JSON.stringify(tabs));
+
+    let currentTabs = getTabs();
+    const agora = Date.now();
+
+    // Limpeza de abas fantasmas (Heartbeat check)
+    Object.keys(currentTabs).forEach(id => {
+        if (agora - currentTabs[id] > 10000) delete currentTabs[id];
+    });
+
+    currentTabs[SESSION_ID] = agora;
+    setTabs(currentTabs);
+
+    const totalAbas = Object.keys(currentTabs).length;
+
+    // --- REGRAS DE BANIMENTO POR ABAS ---
+    if (totalAbas >= 3) {
+        return banirPorAbas("Tentativa de fraude de reprodução. Detectadas " + totalAbas + " abas abertas.");
+    }
+
+    // Heartbeat: Mantém a aba viva e monitora novas abas abertas em tempo real
+    const heartbeat = setInterval(() => {
+        let tabs = getTabs();
+        tabs[SESSION_ID] = Date.now();
+        setTabs(tabs);
+        
+        // Se o usuário abrir uma 3ª aba em outra janela, esta aqui detecta e bane
+        if (Object.keys(tabs).length >= 3) {
+            clearInterval(heartbeat);
+            banirPorAbas("Nova janela detectada durante a sessão. Limite excedido.");
+        }
+    }, 3000);
+
+    // Limpar o ID desta sessão ao fechar a aba normalmente
+    window.addEventListener('beforeunload', () => {
+        let tabs = getTabs();
+        delete tabs[SESSION_ID];
+        setTabs(tabs);
+    });
+
+    // --- DETECÇÃO DE BOT/SCRIPT ---
+    const isBot = window.navigator.webdriver || !window.navigator.languages.length || window.outerWidth === 0;
+    if (isBot) {
+        return banirPorAbas("Navegação automatizada detectada.");
+    }
+
+    // Delay visual de segurança
+    await new Promise(r => setTimeout(r, 1500));
+
+    // Liberação do Overlay
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+        overlay.style.display = 'none';
+        logoImg?.classList.remove('logo-verificando');
+    }, 600);
+
+    return true;
+}
+
+// Inicia a verificação ao carregar
+runSecurityCheck();
+
+(function() {
+    // 1. FUNÇÃO DE BANIMENTO (Redirecionamento)
+    function banUser() {
+        console.warn("ACESSO NEGADO: Comportamento suspeito detectado.");
+        window.location.href = "black.html";
+    }
+
+    // 2. DETECTOR DE DEBUGGER (O mais forte)
+    // Se o console estiver aberto, o 'debugger' causa um atraso que nós medimos
+    setInterval(function() {
+        const startTime = performance.now();
+        debugger; 
+        const endTime = performance.now();
+        
+        if (endTime - startTime > 100) {
+            banUser();
+        }
+    }, 1000);
+
+    // 3. DETECTOR DE REDIMENSIONAMENTO (F12 Lateral)
+    // Se a diferença entre a janela e a área de conteúdo for grande, o console está aberto
+    window.addEventListener('resize', function() {
+        const threshold = 160;
+        const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+        const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+        
+        if (widthThreshold || heightThreshold) {
+            banUser();
+        }
+    });
+
+    // 4. BLOQUEIO DE TECLAS DE INSPEÇÃO
+    document.addEventListener('keydown', function(e) {
+        // Bloqueia F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+        if (
+            e.key === "F12" ||
+            (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J")) ||
+            (e.ctrlKey && (e.key === "U" || e.key === "u"))
+        ) {
+            e.preventDefault();
+            banUser();
+            return false;
+        }
+    });
+
+    // 5. BLOQUEIO DE CLIQUE DIREITO (Evita o "Inspecionar")
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        // Opcional: não banir aqui, apenas bloquear o menu
+    });
+
+})();
+
+onAuthStateChanged(auth, async (user) => {
+    // 1. SEGURANÇA IMEDIATA (Multi-tab e Bots)
+    const safe = await runSecurityCheck();
+    if (!safe) return;
+
+    const path = window.location.pathname;
+    const isAtLogin = path === "/" || path.includes("index.html") || path === "/index";
+const emailDisplay = document.getElementById('user-email-display');
     if (!user) {
         if (!isAtLogin) window.location.href = "/"; 
         return;
     }
 
-    const isBlackPage = window.location.pathname.includes("black.html");
-
-if (user && BLACKLIST_UIDS.includes(user.uid) && !isBlackPage) {
-    console.warn("⛔ Usuário bloqueado:", user.uid);
-
-    window.location.href = "/black.html";
-    return;
-}
-
-    // Verificação de status no Banco (Original)
-    try {
-        const userRef = doc(db, "usuarios", user.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists() && userSnap.data().status === "suspenso") {
-            const expira = userSnap.data().suspensaoAte?.toDate();
-            if (expira && new Date() < expira) {
-                console.error("❌ [CONTA] Esta conta está suspensa no banco de dados.");
-                // Aqui você decide se quer ou não manter o renderizarTelaBloqueioTune para suspensões REAIS de conta
-                return;
-            }
+    if (emailDisplay) {
+            emailDisplay.innerText = user.email;
         }
-    } catch (e) { console.error("Erro status:", e); }
 
-    window.currentUserUid = user.uid;
-    if (isAtLogin) {
-        window.loadContent('home', null, false);
-    } else {
-        initializeRouting();
+    // 2. BLACKLIST
+    if (BLACKLIST_UIDS.includes(user.uid)) {
+        window.location.href = "/black.html";
+        return;
     }
 
-    if (typeof verificarStatusArtista === 'function') verificarStatusArtista(user.uid);
-});
+    try {
+        // 3. BUSCA DADOS DO USUÁRIO UMA ÚNICA VEZ
+        const userRef = doc(db, "usuarios", user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
 
-controlarFluxoManutencaoFirestore();
-
-function controlarFluxoManutencaoFirestore() {
-    console.log("Iniciando monitor de manutenção via Firestore...");
-
-    // Referência para o documento dentro da coleção 'config' e documento 'status'
-    const manutencaoDocRef = doc(db, 'config', 'status');
-
-    onSnapshot(manutencaoDocRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const dados = snapshot.data();
-            const estaEmManutencao = dados.manutencao; // Pega o campo 'manutencao'
             
-            console.log("Status Manutenção Firestore:", estaEmManutencao);
-
-            const path = window.location.pathname;
-            const paginaAtual = path.substring(path.lastIndexOf('/') + 1);
-            const tela = document.getElementById('maintenance-screen');
-
-            if (estaEmManutencao === true) {
-                if (paginaAtual !== "main" && paginaAtual !== "main") {
-                    window.location.href = "main";
+            // VERIFICAÇÃO DE SUSPENSÃO
+            if (userData.status === "suspenso") {
+                const expira = userData.suspensaoAte?.toDate();
+                if (expira && new Date() < expira) {
+                    renderizarTelaBloqueioTune(expira);
                     return;
                 }
-                if (tela) {
-                    tela.style.display = 'flex';
-                    tela.classList.remove('maintenance-hidden');
-                    document.body.style.overflow = 'hidden';
-                }
-            } else {
-                if (tela) {
-                    tela.style.display = 'none';
-                    tela.classList.add('maintenance-hidden');
-                    document.body.style.overflow = '';
-                }
             }
-        } else {
-            console.warn("⚠️ Documento 'config/status' não encontrado no Firestore!");
         }
-    }, (error) => {
-        console.error("Erro ao ouvir Firestore:", error);
-    });
-}
 
-function renderizarTelaBloqueioTune(dataExpira) {
-    const minutosRestantes = Math.ceil((dataExpira - new Date()) / 60000);
+        
+    } catch (e) { 
+        console.error("Erro ao carregar perfil:", e); 
+    }
+
+    // 4. LIBERAÇÃO DO SITE
+    window.currentUserUid = user.uid;
     
-    // Verifica se o modal já existe para não duplicar
-    if (document.getElementById('ban-popup-overlay')) return;
+    // ✅ CORREÇÃO: Verifica se já inicializou para não carregar a Home de novo
+    if (!isAppInitialized) {
+        isAppInitialized = true; // Ativa a trava
+        
+        if (isAtLogin) {
+            window.loadContent('home', null, false);
+        } else {
+            initializeRouting();
+        }
+    }
 
-    const overlay = document.createElement('div');
-    overlay.id = 'ban-popup-overlay';
-    overlay.style.cssText = `
-        position: fixed; inset: 0; z-index: 100000;
-        background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(15px);
-        display: flex; align-items: center; justify-content: center;
-        padding: 20px; font-family: 'Nationale Regular', sans-serif;
-    `;
-
-    overlay.innerHTML = `
-        <div style="background: #0a0a0a; border: 1px solid #1a1a1a; padding: 50px 40px; border-radius: 32px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 1);">
-            
-
-            <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(244, 67, 54, 0.1); color: #f44336; padding: 10px 20px; border-radius: 100px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; border: 1px solid rgba(244, 67, 54, 0.2); margin-bottom: 24px;">
-                                Acesso Suspenso
-            </div>
-
-
-            <h1 style="font-family: 'Nationale Black'; font-size: 26px; color: #fff; margin-bottom: 12px; text-transform: uppercase;">Conta Suspensa</h1>
-            <p style="color: #888; font-size: 15px; line-height: 1.6; margin-bottom: 25px;">
-                Identificamos uma atividade irregular de cliques na sua conta. Para proteger os nossos artistas, o seu acesso foi restringido temporariamente.
-            </p>
-
-            <div style="background: #111; border: 1px solid #222; padding: 20px; border-radius: 16px; margin-bottom: 30px;">
-                <p style="font-size: 10px; color: #444; text-transform: uppercase; margin-bottom: 5px; font-weight: bold;">Poderá voltar em</p>
-                <span style="font-size: 24px; font-weight: bold; color: #fff;">${minutosRestantes} minutos</span>
-            </div>
-
-            <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 20px;">
-                <a href="termos.html" style="color: #555; text-decoration: none; font-size: 12px; font-weight: bold;">Termos de Uso</a>
-                <a href="https://x.com/tunedks" style="color: #555; text-decoration: none; font-size: 12px; font-weight: bold;">Suporte</a>
-            </div>
-
-           
-        </div>
-    `;
-
-    document.body.appendChild(overlay);
-    document.body.style.overflow = 'hidden'; // Impede o scroll ao fundo
-    
-    // Opcional: Recarregar automaticamente quando o tempo acabar
-    setTimeout(() => window.location.reload(), (minutosRestantes * 60000));
-}
-
-
+    if (typeof populateUserProfile === 'function') populateUserProfile(user);
+    console.log("🚀 [TUNE] Plataforma inicializada.");
+});
 // -------------------------------
 // ☁️ Cloudinary (UPLOAD FRONT)
 // -------------------------------
@@ -385,7 +457,6 @@ function setupAddAlbumPage() {
 
 
 
-
 function handleInitialRoute() {
     const params = new URLSearchParams(window.location.search);
 
@@ -395,11 +466,41 @@ function handleInitialRoute() {
     loadContent(page, id);
 }
 
+// 1. Função que realmente decide se mostra ou esconde
+async function processarExibicao(container, uid) {
+    try {
+        const userDocRef = doc(db, "usuarios", uid);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const valor = userData.artista;
+
+            // NORMALIZAÇÃO: Aceita booleano true ou string "true"
+            const ehArtista = (valor === true || valor === "true");
+
+            if (ehArtista) {
+                console.log("🎨 Artista detectado. Exibindo banner.");
+                container.style.setProperty('display', 'block', 'important');
+            } else {
+                // Se for false (bool), "false" (string), null ou undefined, ESCONDE
+                console.log("🚫 Usuário comum. Escondendo banner.");
+                container.style.setProperty('display', 'none', 'important');
+            }
+        } else {
+            container.style.setProperty('display', 'none', 'important');
+        }
+    } catch (e) {
+        console.error("Erro ao processar exibição:", e);
+        container.style.setProperty('display', 'none', 'important');
+    }
+}
+
+// 2. Sua função de verificação com a lógica aplicada
 async function verificarStatusArtista(uid) {
-    // Tenta encontrar o container. Se for SPA, ele pode demorar a aparecer no DOM
     let promoContainer = document.querySelector('.artist-promo-container');
     
-    // Se não achar de primeira, espera 100ms e tenta de novo (máximo 5 vezes)
+    // Se o container não existe no DOM ainda
     if (!promoContainer) {
         let tentativas = 0;
         const interval = setInterval(async () => {
@@ -408,31 +509,16 @@ async function verificarStatusArtista(uid) {
             
             if (promoContainer || tentativas > 5) {
                 clearInterval(interval);
-                if (promoContainer) processarExibicao(promoContainer, uid);
+                if (promoContainer) {
+                    await processarExibicao(promoContainer, uid);
+                }
             }
         }, 100);
         return;
     }
 
-    processarExibicao(promoContainer, uid);
-}
-
-// Função auxiliar para processar a lógica
-async function processarExibicao(container, uid) {
-    try {
-        const userDocRef = doc(db, "usuarios", uid);
-        const userSnap = await getDoc(userDocRef);
-
-        if (userSnap.exists()) {
-            const userData = userSnap.data();
-            if (userData.artista === true || userData.artista === "true") {
-                console.log("🎨 Exibindo banner promo para artista.");
-                container.style.setProperty('display', 'block', 'important');
-            } else {
-                container.style.display = 'none';
-            }
-        }
-    } catch (e) { console.error(e); }
+    // Se o container já existe, processa direto
+    await processarExibicao(promoContainer, uid);
 }
 
 // -------------------------------
@@ -457,92 +543,59 @@ function hideLoadingAndShowContent() {
  * @param {firebase.User} user - O objeto de usuário retornado pelo Firebase Auth.
  */
 async function populateUserProfile(user) {
-    // Imagem de fallback do seu novo HTML
     const DEFAULT_PROFILE_PIC = "./assets/artistpfp.png"; 
-    
     
     if (user) {
         const uid = user.uid;
         
-
-        // Variáveis que serão preenchidas
-        let nomeArtistico = "Carregando Nome...";
-        let apelido = "Carregando ID...";
+        // Valores iniciais de carregamento
+        let nomeUsuario = "Carregando..."; 
         let profilePicURL = DEFAULT_PROFILE_PIC;
-        let email = user.email;
 
-        // --- 2.2. OBTENDO TODOS OS DADOS DO DOCUMENTO FIRESTORE ---
-       try {
-    // 💡 IMPORTANTE: MUDE "users" PARA O NOME EXATO DA SUA COLEÇÃO NO FIRESTORE (EX: "Users", "Perfis", "clientes")
-    const collectionPath = "usuarios"; // <-- Corrija o nome desta coleção!
-    const userDocRef = doc(db, collectionPath, uid); 
-    
-    
-    const userDoc = await getDoc(userDocRef);
-    
-    if (userDoc.exists()) {
-        
-        const userData = userDoc.data();
-        
-        // Mapeamento das chaves do Firestore
-        nomeArtistico = userData.nomeArtistico || user.displayName || 'Artista Desconhecido';
-        profilePicURL = userData.foto || user.photoURL || DEFAULT_PROFILE_PIC; 
-        apelido = userData.apelido || uid; 
-        email = userData.email || user.email;
-        
-       
-        
-    } else {
-      
-        // Fallbacks: usa o que está no Auth ou o valor padrão
-        nomeArtistico = user.displayName || 'Artista Desconhecido';
-        apelido = uid;
-        profilePicURL = user.photoURL || DEFAULT_PROFILE_PIC;
-    }
-} catch (error) {
-           
-            // Fallbacks em caso de erro de permissão ou conexão
-            nomeArtistico = user.displayName || 'Erro ao carregar nome';
-            apelido = uid;
-            profilePicURL = user.photoURL || DEFAULT_PROFILE_PIC;
+        try {
+            const userDocRef = doc(db, "usuarios", uid); 
+            const userDoc = await getDoc(userDocRef);
+            
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                
+                // --- DEFINIÇÃO DA CHAVE ---
+                // Pegamos o valor da chave 'displayName' do Firestore. 
+                // Se não existir, tentamos o displayName do Auth, ou um padrão.
+                nomeUsuario = userData.displayName || user.displayName || "Usuário"; 
+                
+                // Carrega a foto
+                profilePicURL = userData.foto || user.photoURL || DEFAULT_PROFILE_PIC; 
+                
+                console.log("✅ Dados carregados. Nome do usuário:", nomeUsuario);
+            }
+        } catch (error) {
+            console.error("❌ Erro ao acessar o Firestore:", error);
+            nomeUsuario = user.displayName || "Erro ao carregar";
         }
 
-        // --- 2.3. INJETANDO DADOS NO HTML ---
+        // --- INJETANDO NO HTML ---
         
-        // Foto de Perfil
-        const profilePic = document.querySelector('.profile-pic');
+        const profileName = document.querySelector('.user-name');
+        if (profileName) {
+            profileName.textContent = nomeUsuario;
+        }
+
+        // 2. Foto de Perfil (Avatar)
+        // No seu HTML a imagem está dentro de .avatar-container
+        const profilePic = document.querySelector('.avatar-container img');
         if (profilePic) {
             profilePic.src = profilePicURL;
-            profilePic.alt = `Foto de Perfil de ${nomeArtistico}`;
-        }
-        
-        // Nome de Exibição
-        const profileName = document.querySelector('.profile-name');
-        if (profileName) {
-            profileName.textContent = nomeArtistico;
+            profilePic.alt = `Foto de ${nomeUsuario}`;
         }
 
-        // Nome de Usuário (Apelido)
-        const usernameValue = document.querySelector('.account-details .detail-item:not(.email-item) .detail-value');
-        if (usernameValue) {
-            usernameValue.textContent = apelido;
+        // 3. Campo de Username nos Detalhes (Substitui o ID pup31wjh...)
+        // Use o ID 'user-username-display' no seu HTML
+        const usernameDetail = document.getElementById('user-username-display');
+        if (usernameDetail) {
+            usernameDetail.textContent = nomeUsuario;
         }
-        
-        // E-mail
-        const emailValue = document.querySelector('.email-item .detail-value');
-        if (emailValue) {
-            emailValue.textContent = email;
-        }
-        
-        // Se a seção do plano fosse dinâmica, ela seria atualizada aqui:
-        // document.querySelector('.plan-name').textContent = 'Premium';
-        // document.querySelector('.plan-description').textContent = 'Assinatura mensal';
-
-
-    } else {
-       
     }
-    
 }
 
 // === SISTEMA DE FILA DE REPRODUÇÃO ===
@@ -782,7 +835,7 @@ async function getArtistName(artistUid) {
 function getTrendIndicator(lastStreamDate) {
     // Se não houver data, tratamos como música nova (NEW)
     if (!lastStreamDate) {
-        return '<span style="color: #60a5fa; font-size: 9px; font-weight: bold; display: block; line-height: 1;">NEW</span>';
+        return '<span style="color: #60a5fa; font-size: 9px; font-weight: bold; display: block; line-height: 1;"></span>';
     }
 
     try {
@@ -2227,6 +2280,194 @@ async function toggleLikeMusic(track, buttonElement) {
     }
 }
 
+// No seu main.js (Garanta que 'auth' e 'db' estejam acessíveis)
+
+document.addEventListener('click', async (event) => {
+    const overlay = document.getElementById('overlay');
+
+    // 1. ABRIR O MODAL
+    if (event.target && event.target.id === 'openModal') {
+        event.preventDefault();
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    // 2. FECHAR O MODAL
+    if (event.target && (event.target.id === 'closeModal' || event.target === overlay)) {
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    // 3. EXCLUSÃO DIRETA (Firestore + Auth)
+    if (event.target && event.target.id === 'confirmDelete') {
+        const btn = event.target;
+        const user = auth.currentUser;
+
+        if (!user) {
+            alert("Nenhum usuário logado.");
+            return;
+        }
+
+        // Feedback visual imediato
+        btn.innerText = "Excluindo...";
+        btn.disabled = true;
+
+        try {
+            const userUid = user.uid;
+
+            // PASSO A: Deleta a coleção/documento em 'usuarios' usando o UID
+            // Importante: 'db' e 'doc/deleteDoc' devem estar importados no topo do arquivo
+            const userDocRef = doc(db, "usuarios", userUid);
+            await deleteDoc(userDocRef);
+            console.log("Banco de dados limpo.");
+
+            // PASSO B: Deleta o usuário do Authentication (Sem pedir login novo)
+            await deleteUser(user);
+            console.log("Auth removido.");
+
+            // Sucesso total
+            alert("Conta e dados excluídos permanentemente.");
+            window.location.href = "index.html";
+
+        } catch (error) {
+            console.error("Erro na exclusão:", error);
+            
+            // Se der erro de segurança, avisamos de forma simples sem forçar logout
+            if (error.code === 'auth/requires-recent-login') {
+                alert("Por segurança, saia e entre novamente antes de excluir.");
+            } else {
+                alert("Erro ao excluir dados: " + error.message);
+            }
+            
+            // Reseta o botão em caso de erro
+            btn.innerText = "Close account";
+            btn.disabled = false;
+        }
+    }
+});
+
+
+// 1. Funções Auxiliares de UI
+const showError = (field, msg) => {
+    const span = document.getElementById(`error-${field}`);
+    const input = document.getElementById(`edit-${field}`);
+    if (span) span.innerText = msg;
+    if (input) input.classList.add('input-error');
+};
+
+const clearErrors = () => {
+    document.querySelectorAll('.error-msg').forEach(s => s.innerText = "");
+    document.querySelectorAll('.tune-modal-box input').forEach(i => i.classList.remove('input-error'));
+};
+
+// 2. Evento de Clique Global
+document.addEventListener('click', async (e) => {
+    
+    // --- ABRIR MODAL E CARREGAR DADOS ---
+    if (e.target.closest('#openEditModalBtn')) {
+        const editOverlay = document.getElementById('edit-profile-overlay');
+        const user = auth.currentUser;
+
+        if (!user || !editOverlay) return;
+
+        // Abre o modal e limpa estados anteriores
+        editOverlay.style.display = 'flex';
+        clearErrors();
+
+        // Preenche e-mail do Auth
+        const emailInput = document.getElementById('edit-email');
+        if (emailInput) emailInput.value = user.email;
+
+        // Busca Apelido no Firestore
+        try {
+            const userDocRef = doc(db, "usuarios", user.uid);
+            const userSnap = await getDoc(userDocRef);
+
+            const nickInput = document.getElementById('edit-nickname');
+            if (userSnap.exists() && nickInput) {
+                // Tenta carregar 'apelido' ou 'displayName' conforme seu banco
+                nickInput.value = userSnap.data().apelido || userSnap.data().apelido || "";
+            }
+        } catch (error) {
+            console.error("Erro ao carregar dados do Firestore:", error);
+        }
+    }
+
+    // --- FECHAR MODAL ---
+    if (e.target.id === 'closeEditModal' || e.target.id === 'edit-profile-overlay') {
+        const editOverlay = document.getElementById('edit-profile-overlay');
+        if (editOverlay) {
+            editOverlay.style.display = 'none';
+            document.getElementById('edit-password').value = ""; // Limpa senha ao fechar
+        }
+    }
+
+    // --- BOTÃO SALVAR ---
+    if (e.target.id === 'saveProfileChanges') {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const btn = e.target;
+        const nick = document.getElementById('edit-nickname').value.trim();
+        const email = document.getElementById('edit-email').value.trim();
+        const pass = document.getElementById('edit-password').value; // Senha sem trim
+
+        clearErrors();
+        let hasError = false;
+
+        // Validações
+        if (!nick) { 
+            showError('nickname', "O apelido não pode ser vazio."); 
+            hasError = true; 
+        }
+        if (!email.includes('@')) { 
+            showError('email', "E-mail inválido."); 
+            hasError = true; 
+        }
+        
+        // Validação de Senha Obrigatória
+        if (!pass) {
+            showError('password', "A senha é obrigatória para salvar as alterações.");
+            hasError = true;
+        } else if (pass.length < 6) { 
+            showError('password', "A senha deve ter no mínimo 6 caracteres."); 
+            hasError = true; 
+        }
+
+        if (hasError) return;
+
+        btn.innerText = "Salvando...";
+        btn.disabled = true;
+
+        try {
+            // A. Firestore: Atualiza o apelido
+            await updateDoc(doc(db, "usuarios", user.uid), { 
+                displayName: nick,
+                apelido: nick 
+            });
+
+            // B. Auth: Atualiza Email (se alterado)
+            if (email !== user.email) {
+                await updateEmail(user, email);
+            }
+
+            // C. Auth: Atualiza Senha
+            await updatePassword(user, pass);
+
+            alert("Perfil atualizado com sucesso!");
+            location.reload();
+
+        } catch (error) {
+            console.error("Erro:", error.code);
+            if (error.code === 'auth/requires-recent-login') {
+                showError('password', "Sessão expirada. Saia e entre novamente para salvar alterações de segurança.");
+            } else {
+                showError('nickname', "Erro ao salvar: " + error.message);
+            }
+        } finally {
+            btn.innerText = "Salvar perfil";
+            btn.disabled = false;
+        }
+    }
+});
 /**
  * Atualiza visualmente o ícone da estrela
  */
@@ -2249,7 +2490,6 @@ function updateLikeIcon(button, isLiked) {
     }
 }
 
-
 /**
  * Configura a página do álbum com fidelidade visual extrema e lógica de Pre-save
  * @param {string} albumId - ID do álbum no Firebase
@@ -2266,7 +2506,7 @@ async function setupAlbumPage(albumId) {
         artistName: document.getElementById('artist-name-detail'),
         year: document.getElementById('album-year-detail'),
         playBtn: document.getElementById('main-play-btn'),
-        shareBtn: document.getElementById('btn-share-instagram'), // Botão ao lado do play
+        shareBtn: document.getElementById('btn-share-instagram'),
         genre: document.getElementById('album-genre'),
         preSaveContainer: document.getElementById('pre-save-container'),
         preSaveBtn: document.getElementById('pre-save-btn')
@@ -2305,7 +2545,7 @@ async function setupAlbumPage(albumId) {
         if (isLocked) {
             if (elements.preSaveContainer) {
                 elements.preSaveContainer.classList.remove('hidden');
-                window.startCountdown(albumDateStr);
+                if (window.startCountdown) window.startCountdown(albumDateStr);
             }
             if (elements.playBtn) elements.playBtn.parentElement.classList.add('hidden');
 
@@ -2316,10 +2556,10 @@ async function setupAlbumPage(albumId) {
                 const docSnap = await getDoc(saveRef);
                 if (!docSnap.exists()) {
                     await setDoc(saveRef, { albumId, savedAt: serverTimestamp(), preSaved: true });
-                    updatePreSaveUI(true);
+                    if (window.updatePreSaveUI) window.updatePreSaveUI(true);
                 } else {
                     await deleteDoc(saveRef);
-                    updatePreSaveUI(false);
+                    if (window.updatePreSaveUI) window.updatePreSaveUI(false);
                 }
             };
         } else {
@@ -2327,21 +2567,34 @@ async function setupAlbumPage(albumId) {
             if (elements.playBtn) elements.playBtn.parentElement.classList.remove('hidden');
         }
 
-        // 4. Configuração de Imagens e Fundo
-        elements.cover.src = album.cover || './assets/default-cover.png';
-        elements.cover.crossOrigin = "Anonymous";
+        // --- 4. Configuração de Imagens (Lógica Animated Cover) ---
+        
+        const staticCover = album.cover || './assets/default-cover.png';
+        // Verificação da chave 'animatedCover'
+        const hasAnimatedCover = album.animatedCover && album.animatedCover !== "N/A" && album.animatedCover !== "";
 
-        if (elements.bgImageLayer) {
-            elements.bgImageLayer.style.backgroundImage = `url(${album.cover})`;
-        }
-
-        // Capa Animada
-        if (elements.animated && album.animatedCover && album.animatedCover !== "N/A") {
-            elements.animated.src = album.animatedCover;
-            elements.animated.onload = () => {
+        if (hasAnimatedCover) {
+            // Se houver capa animada, ela substitui o src da imagem principal
+            elements.cover.src = album.animatedCover;
+            console.log("✨ Animated Cover detectada e aplicada.");
+            
+            // Se você tiver um elemento separado para animação (camada extra)
+            if (elements.animated) {
+                elements.animated.src = album.animatedCover;
                 elements.animated.classList.remove('hidden');
                 setTimeout(() => elements.animated.classList.replace('opacity-0', 'opacity-100'), 50);
-            };
+            }
+        } else {
+            // Caso contrário, mantém a estática
+            elements.cover.src = staticCover;
+            if (elements.animated) elements.animated.classList.add('hidden');
+        }
+
+        elements.cover.crossOrigin = "Anonymous";
+
+        // Camada de fundo (sempre estática para performance)
+        if (elements.bgImageLayer) {
+            elements.bgImageLayer.style.backgroundImage = `url(${staticCover})`;
         }
 
         // 5. Cores Dinâmicas (Color Thief)
@@ -2367,7 +2620,10 @@ async function setupAlbumPage(albumId) {
         const musicSnap = await getDocs(musicQuery);
         const tracks = [];
         musicSnap.forEach(docSnap => tracks.push({ id: docSnap.id, ...docSnap.data() }));
-        renderAlbumTracksAppleStyle(tracks, isLocked);
+        
+        if (typeof renderAlbumTracksAppleStyle === 'function') {
+            renderAlbumTracksAppleStyle(tracks, isLocked);
+        }
 
         // 8. Botão Play
         if (!isLocked && elements.playBtn && tracks.length) {
@@ -2376,104 +2632,6 @@ async function setupAlbumPage(albumId) {
                 else if (window.playTrackGlobal) window.playTrackGlobal(tracks[0]);
             };
         }
-
-        // ... dentro da sua função setupMusicPage ...
-
-document.addEventListener('click', async (e) => {
-    
-    // --- 1. LÓGICA PARA FECHAR (O X NA ESQUERDA) ---
-    // Usamos 'closest' para capturar o clique mesmo que seja no ícone pequeno
-    const closeBtn = e.target.closest('#close-share-preview');
-    const modal = document.getElementById('share-preview-modal');
-
-    if (closeBtn || (modal && e.target === modal)) {
-        if (modal && !modal.classList.contains('hidden')) {
-            modal.classList.replace('flex', 'hidden');
-            // Limpa o preview para não dar erro na próxima vez
-            const previewContainer = document.getElementById('preview-image-container');
-            if (previewContainer) previewContainer.innerHTML = ''; 
-            return;
-        }
-    }
-
-    // --- 2. LÓGICA PARA ABRIR O SHARE (SEM LOADING) ---
-    const shareBtn = e.target.closest('#btn-share-instagram');
-    if (shareBtn) {
-        e.preventDefault();
-        
-        // Removemos o loading. O ícone permanece o mesmo.
-        shareBtn.style.opacity = "0.7"; // Apenas um feedback visual sutil de clique
-        shareBtn.style.pointerEvents = 'none';
-
-        try {
-            const currentData = {
-                title: document.getElementById('album-title-detail')?.innerText || "Tune",
-                artist: document.getElementById('artist-name-detail')?.innerText || "Artista",
-                cover: document.getElementById('album-cover-detail')?.src
-            };
-
-            if (!window.html2canvas) {
-                const script = document.createElement('script');
-                script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-                document.head.appendChild(script);
-                await new Promise(r => script.onload = r);
-            }
-
-            const storyCover = document.getElementById('story-cover');
-            const storyTitle = document.getElementById('story-title');
-            const storyArtist = document.getElementById('story-artist');
-            const storyBg = document.getElementById('story-bg-blur');
-
-            if (storyTitle) {
-                storyTitle.innerText = currentData.title;
-                storyTitle.style.paddingBottom = "45px"; // Resolve corte de g, j, p
-                storyTitle.style.overflow = "visible";
-            }
-            if (storyArtist) storyArtist.innerText = currentData.artist;
-            
-            if (storyCover) {
-                storyCover.crossOrigin = "anonymous";
-                storyCover.src = currentData.cover + (currentData.cover.includes('?') ? '&' : '?') + "t=" + Date.now();
-            }
-            if (storyBg) storyBg.style.backgroundImage = `url(${storyCover.src})`;
-
-            await new Promise(resolve => {
-                if (storyCover.complete) resolve();
-                else { 
-                    storyCover.onload = resolve; 
-                    storyCover.onerror = resolve; 
-                    setTimeout(resolve, 3000); 
-                }
-            });
-
-            const card = document.getElementById('story-share-card');
-            const canvas = await html2canvas(card, { 
-                useCORS: true, 
-                scale: 1.5, 
-                backgroundColor: "#030303",
-                onclone: (cloned) => {
-                    cloned.getElementById('story-title').style.overflow = "visible";
-                }
-            });
-
-            const imgData = canvas.toDataURL("image/png");
-            const previewContainer = document.getElementById('preview-image-container');
-
-            if (modal && previewContainer) {
-                previewContainer.innerHTML = `<img src="${imgData}" class="w-full h-full object-contain">`;
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-
-        } catch (err) {
-            console.error("Erro no Share:", err);
-        } finally {
-            // Restaura o botão ao estado normal
-            shareBtn.style.opacity = "1";
-            shareBtn.style.pointerEvents = 'auto';
-        }
-    }
-});
 
     } catch (err) {
         console.error("Erro crítico no setupAlbumPage:", err);
@@ -2709,32 +2867,43 @@ async function setupLibraryPage() {
         await populateUserProfile(auth.currentUser);
     }
 
-}
-
-function createArtistCard(docData, docId) {
+}function createArtistCard(docData, docId) {
     const card = document.createElement("div");
-    card.className = "w-27 flex-shrink-0 text-center cursor-pointer hover:scale-105 transition-transform duration-300 group";
+    
+    // Removido o fundo (bg), mantendo apenas o padding e a largura proporcional
+    card.className = "w-[150px] flex-shrink-0 cursor-pointer group relative flex flex-col items-center transition-transform duration-300 hover:scale-[1.02]";
     
     card.setAttribute('data-navigate', 'artist');
     card.setAttribute('data-id', docId);
 
-        const isSharkLabel = docData.gravadora?.toLowerCase() === 'shark';
-
-    // --- 2. Lógica de Imagem ---
-    let imgSrc = "/assets/artistpfp.png"; // Fallback padrão
+    // Lógica de Imagem
+    let imgSrc = "/assets/artistpfp.png"; 
     if (docData.foto && docData.foto !== "") {
         imgSrc = docData.foto;
     }
 
-
     card.innerHTML = `
-        <div class="relative mx-auto w-24 h-24">
-            <img src="${imgSrc}" alt="${docData.nomeArtistico}" 
-                 class="w-24 h-24 rounded-full object-cover shadow-md">
+        <div class="relative w-[140px] h-[140px] mb-3 flex-shrink-0">
+            <div class="w-full h-full rounded-full overflow-hidden shadow-xl">
+                <img src="${imgSrc}" alt="${docData.nomeArtistico}" 
+                     class="w-full h-full object-cover">
+            </div>
+            
+            <div class="absolute bottom-1 right-1 bg-[#1ed760] w-10 h-10 rounded-full flex items-center justify-center shadow-lg opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                <i class='bx bx-play text-black text-2xl ml-0.5'></i>
+            </div>
         </div>
-        <p class="text-white text-[11px] font-bold truncate mt-3 px-1">
-            <span>${docData.nomeArtistico || "Artista"}</span>
-        </p>
+
+        <div class="w-full text-left px-1">
+            <h3 class="text-white text-[14px] truncate leading-tight mb-1" 
+                style="font-family: 'SpotifyMix-Bold', sans-serif; font-weight: 700;">
+                ${docData.nomeArtistico || "Artista"}
+            </h3>
+            <p class="text-[#b3b3b3] text-[12px]" 
+               style="font-family: 'Nationale Regular', sans-serif; font-weight: 400;">
+                Artista
+            </p>
+        </div>
     `;
 
     return card;
@@ -2793,80 +2962,204 @@ songItem.addEventListener("click", () => {
 }
 
 function createPlaylistCard(playlist, playlistId) {
-    const playlistCard = document.createElement('div');
-    playlistCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
+    const card = document.createElement('div');
+    card.className = 'flex flex-col items-start cursor-pointer group transition-transform duration-300 hover:scale-[1.02] flex-shrink-0';
+    card.style.width = '150px';
+    card.style.minWidth = '150px';
     
-    // CORREÇÃO: Atributos de navegação
-    playlistCard.setAttribute('data-navigate', 'playlist');
-    playlistCard.setAttribute('data-id', playlistId);
+    card.setAttribute('data-navigate', 'playlist');
+    card.setAttribute('data-id', playlistId);
 
-    playlistCard.innerHTML = `
-        <div class="relative w-full pb-[100%] rounded-md">
-        
-            <img src="${playlist.cover || '/assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
+    // Prioriza a capa estática. Se não existir, usa a cover (mesmo que seja gif, ficará estática)
+    const displayCover = playlist.staticCover || playlist.cover || '/assets/default-cover.png';
+
+    card.innerHTML = `
+        <div class="relative w-full aspect-square mb-3 flex-shrink-0 bg-[#282828] rounded-md overflow-hidden">
+            <img src="${displayCover}" 
+                 class="w-full h-full object-cover rounded-md shadow-lg pointer-events-none">
+            
+            <div class="absolute bottom-2 right-2 bg-[#1ed760] w-10 h-10 rounded-full flex items-center justify-center shadow-xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                <i class='bx bx-play text-black text-2xl ml-0.5'></i>
+            </div>
         </div>
-        <div class="mt-2 w-full">
-            <h3 class="text-sm font-semibold text-white truncate">${playlist.name}</h3>
-            <p class="text-gray-400 text-xs truncate">${playlist.genres?.join(', ') || 'Playlist'}</p>
+
+        <div class="w-full">
+            <h3 class="text-white text-[14px] truncate leading-tight mb-[4px]"
+                style="font-family: 'Nationale Bold', sans-serif; font-weight: 700;">
+                ${playlist.name}
+            </h3>
+            <p class="text-[#b3b3b3] text-[12px] truncate"
+               style="font-family: 'Nationale Regular', sans-serif;">
+                ${playlist.genres?.join(', ') || 'Playlist'}
+            </p>
         </div>
     `;
-    return playlistCard;
-}
-
-
-/**
- * Renderiza uma lista de itens em uma linha de cards.
- * Esta função deve ser única no main.js.
- * @param {string} rowElementId - O ID do elemento div.card-row onde os cards serão inseridos.
- * @param {Array<object>} items - A lista de dados (playlists, álbuns, etc.).
- * @param {string} type - O tipo de item ('playlist', 'album', 'artist') para escolher a função de criação de card.
- */
-function renderCardRow(rowElementId, items, type) {
-    const listElement = document.getElementById(rowElementId);
-    if (!listElement) return;
-
-    listElement.innerHTML = ''; 
-
-    // Ordenar itens se houver data/ano disponível
-    const sortedItems = [...items].sort((a, b) => {
-        const valA = a.data || a.ano || 0;
-        const valB = b.data || b.ano || 0;
-        return valB > valA ? 1 : -1;
-    });
-    
-    sortedItems.forEach(item => {
-        let card;
-        if (type === 'playlist') card = createPlaylistCard(item, item.id);
-        else if (type === 'album') card = createAlbumCard(item, item.id);
-        else if (type === 'artist') card = createArtistCard(item, item.id);
-
-        if (card) listElement.appendChild(card);
-    });
+    return card;
 }
 
 function createAlbumCard(album, albumId) {
-    const albumCard = document.createElement('div');
-    albumCard.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4';
+    const card = document.createElement('div');
+    card.className = 'flex flex-col items-start cursor-pointer group transition-transform duration-300 hover:scale-[1.02] flex-shrink-0';
+    card.style.width = '150px';
+    card.style.minWidth = '150px';
     
-    albumCard.setAttribute('data-navigate', 'album');
-    albumCard.setAttribute('data-id', albumId);
+    card.setAttribute('data-navigate', 'album');
+    card.setAttribute('data-id', albumId);
 
-    // Adicionamos o evento de clique para contar o stream diário
-    albumCard.addEventListener('click', () => {
-        trackAlbumDayStream(albumId);
-    });
+    // Mesma lógica: Prioriza imagem que não se mexe
+    const displayCover = album.staticCover || album.cover || '/assets/default-cover.png';
 
-    albumCard.innerHTML = `
-        <div class="relative w-full pb-[100%] rounded-md">
-            <img src="${album.cover || '/assets/default-cover.png'}" class="absolute top-0 left-0 w-full h-full object-cover rounded-md shadow-lg block">
+    card.innerHTML = `
+        <div class="relative w-full aspect-square mb-3 flex-shrink-0 bg-[#282828] rounded-md overflow-hidden">
+            <img src="${displayCover}" 
+                 class="w-full h-full object-cover rounded-md shadow-lg pointer-events-none">
+            
+            <div class="absolute bottom-2 right-2 bg-[#1ed760] w-10 h-10 rounded-full flex items-center justify-center shadow-xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                <i class='bx bx-play text-black text-2xl ml-0.5'></i>
+            </div>
         </div>
-        <div class="mt-2 w-full">
-            <h3 class="text-sm font-semibold text-white truncate">${album.album}</h3>
-            <p class="text-gray-400 text-xs truncate">${album.artist}</p>
+
+        <div class="w-full">
+            <h3 class="text-white text-[14px] truncate leading-tight mb-[4px]"
+                style="font-family: 'Nationale Bold', sans-serif; font-weight: 700;">
+                ${album.album}
+            </h3>
+            <p class="text-[#b3b3b3] text-[12px] truncate"
+               style="font-family: 'Nationale Regular', sans-serif;">
+                ${album.artist}
+            </p>
         </div>
     `;
-    return albumCard;
+
+    card.addEventListener('click', () => {
+        if (typeof trackAlbumDayStream === 'function') trackAlbumDayStream(albumId);
+    });
+
+    return card;
 }
+
+function createStationCard(playlistData) {
+// 1. Extrair os dados primeiro
+    const data = playlistData.data ? playlistData.data() : playlistData;
+    const playlistId = playlistData.id || data.id;
+    const playlistCover = data.cover || 'https://i.ibb.co/HTCFR8Db/Design-sem-nome-4.png';
+    const artistUID = data.uid || data.artistUid || data.uidars;
+
+    // 2. CRIAR O ELEMENTO (Agora sim!)
+    const card = document.createElement('div');
+    card.className = 'playlist-banner-card';
+    
+    // 3. AGORA CONFIGURAR OS ATRIBUTOS (Depois de criado)
+    card.setAttribute('data-navigate', 'playlist');
+    card.setAttribute('data-id', playlistId);
+
+    card.innerHTML = `
+        <div class="card-background" style="background-image: url('${playlistCover}'); filter: blur(10px); opacity: 0.5;"></div>
+        <div class="card-overlay">
+            <div class="card-header">
+                <div class="playlist-cover-wrapper">
+                    <img src="${playlistCover}" class="mini-cover" alt="Capa">
+                </div>
+                <div class="header-text">
+                    <span class="type-label">RÁDIO</span>
+                    <h3 class="playlist-title">${data.name || 'Estação'}</h3>
+                    <p class="playlist-sub-type">Stations</p>
+                </div>
+            </div>
+            <div class="card-footer">
+                <p class="description">Carregando artista...</p>
+                <div class="card-controls">
+                    <div class="right-controls">
+                         <button class="btn-play-big">
+                            <img src="/assets/Group.png" class="play-icon-black" style="width:24px;">
+                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 3. BUSCA DA FOTO DO ARTISTA (Background process)
+    if (artistUID) {
+        // Buscamos na coleção 'usuarios' pelo UID que está na playlist
+        getDoc(doc(db, "usuarios", artistUID)).then(userSnap => {
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                const artistPhoto = userData.foto || playlistCover;
+
+                const bg = card.querySelector('.card-background');
+                const desc = card.querySelector('.description');
+                
+                if (bg) {
+                    bg.style.backgroundImage = `url('${artistPhoto}')`;
+                    bg.style.filter = "saturate(0.8) brightness(0.7)";
+                    bg.style.opacity = "1";
+                }
+                if (desc) {
+                    desc.textContent = `Para fãs de ${userData.nomeArtistico || 'artista'} e mais`;
+                }
+            }
+        }).catch(err => {
+            console.error("Erro ao buscar foto do artista:", err);
+            const desc = card.querySelector('.description');
+            if (desc) desc.textContent = "Playlist • Tune";
+        });
+    }
+
+    card.onclick = (e) => {
+        // Evita que o clique no botão de Play abra a página (opcional)
+        if (e.target.closest('.btn-play-big')) {
+            e.stopPropagation();
+            console.log("Play direto pressionado para:", playlistId);
+            // Aqui você chamaria sua função de tocar, ex: playMusic(playlistId)
+            return;
+        }
+
+        console.log("Abrindo playlist ID:", playlistId);
+        
+        // 1. Esconde a Home e mostra a página de detalhes (ajuste o ID conforme seu HTML)
+        const homeSection = document.getElementById("home-section");
+        const playlistSection = document.getElementById("playlist-details-section");
+
+        if (homeSection) homeSection.classList.add("hidden");
+        if (playlistSection) playlistSection.classList.remove("hidden");
+
+        // 2. Chama a função que você já tem para carregar os dados
+        if (typeof setupPlaylistPage === "function") {
+            setupPlaylistPage(playlistId);
+        }
+    };
+
+    return card;
+}
+
+// Função auxiliar para atualizar o card quando o artista for carregado
+function updateCardWithArtist(cardId, photoUrl, artistName, descFallback = "") {
+    const cardElement = document.getElementById(cardId);
+    if (!cardElement) return;
+
+    // Atualiza a imagem de fundo (agora a foto do artista)
+    const bgElement = cardElement.querySelector('.card-background');
+    bgElement.style.backgroundImage = `url('${photoUrl}')`;
+    bgElement.style.filter = "saturate(0.8)"; // Remove o blur do placeholder e aplica o filtro original
+
+    // Atualiza a descrição
+    const descElement = cardElement.querySelector('.description');
+    descElement.textContent = descFallback || `Para fãs de ${artistName} e mais`;
+
+    // Remove a classe de loading
+    cardElement.classList.remove('is-loading');
+
+    // (Opcional) Adicione o botão de play real aqui
+    const footerElement = cardElement.querySelector('.card-footer');
+    footerElement.innerHTML += `
+        <div class="card-controls">
+            <button class="btn-play-banner"><img src="/assets/play_arrow_24dp.png"></button>
+        </div>
+    `;
+}
+
+
 
 // Função para gerenciar o streamsDay
 async function trackAlbumDayStream(albumId) {
@@ -4013,103 +4306,89 @@ function setGreeting() {
 }
 async function fetchAndRenderNewSingles() {
     const listContainer = document.getElementById('new-singles-list');
-    if (!listContainer) return;
+    const sectionWrapper = document.getElementById('section-novas-musicas');
+    if (!listContainer || !sectionWrapper) return;
+
+    // Injeção das fontes Spotify Mix
+    if (!document.getElementById('spotify-font-style')) {
+        const style = document.createElement('style');
+        style.id = 'spotify-font-style';
+        style.innerText = `
+            @font-face { font-family: 'Spotify Mix'; src: url('/fonts/SpotifyMix-Medium.woff') format('woff'); font-weight: 500; }
+            @font-face { font-family: 'Spotify Mix'; src: url('/fonts/SpotifyMix-Bold.woff') format('woff'); font-weight: 700; }
+        `;
+        document.head.appendChild(style);
+    }
 
     try {
         const musicasRef = collection(db, "musicas");
+        const tempoLimite = new Date();
+        tempoLimite.setHours(tempoLimite.getHours() - 168);
 
-// 1. Aumente o tempo para teste (ex: 7 dias = 168 horas)
-const tempoLimite = new Date();
-tempoLimite.setHours(tempoLimite.getHours() - 72); 
-
-// 2. Query ajustada
-const q = query(
-    musicasRef, 
-    where("single", "==", "true"), // Mantido como string, conforme seu print
-    where("status", "==", "publico"), // Garante que só pega as públicas
-    where("timestamp", ">=", tempoLimite),
-    orderBy("timestamp", "desc"), 
-    limit(20)
-);
+        // CONFIGURAÇÃO: Limite de 6 músicas
+        const q = query(
+            musicasRef, 
+            where("single", "==", "true"),
+            where("status", "==", "publico"),
+            where("timestamp", ">=", tempoLimite),
+            orderBy("timestamp", "desc"), 
+            limit(6) 
+        );
 
         const querySnapshot = await getDocs(q);
-        listContainer.innerHTML = '';
-
+        
+        // LÓGICA DE VISIBILIDADE: Se estiver vazia, encerra e mantém escondido
         if (querySnapshot.empty) {
-            listContainer.innerHTML = '<p class="text-gray-500 p-4 text-xs">Nenhum lançamento recente.</p>';
+            sectionWrapper.classList.add('hidden');
             return;
         }
 
+        // Se houver músicas, mostra a seção
+        sectionWrapper.classList.remove('hidden');
+        listContainer.innerHTML = '';
+
+        let index = 1;
         querySnapshot.forEach(docSnap => {
+            const track = { id: docSnap.id, ...docSnap.data() };
             
-    const track = { id: docSnap.id, ...docSnap.data() };
-    
-    // --- NOVA LÓGICA DE DATA MAIS ROBUSTA ---
-    const now = new Date();
-let releaseDate;
-if (track.timestamp && track.timestamp.toDate) {
-    releaseDate = track.timestamp.toDate();
-} else if (track.scheduledTime && track.scheduledTime !== "Imediato") {
-    releaseDate = new Date(track.scheduledTime);
-} else {
-    releaseDate = new Date(); // Se for "Imediato", considera como "agora"
-}
-    
-    // Verificação de segurança
-    const isFuture = releaseDate > now;
-    // ---------------------------------------
-
-    const card = document.createElement('div');
-    card.className = 'cursor-pointer flex flex-col items-start text-left flex-shrink-0 w-[150px] mr-4 group';
-    
-    card.setAttribute('data-navigate', 'music');
-    card.setAttribute('data-id', track.id);
-
-    card.innerHTML = `
-        <div class="relative w-full pb-[100%] rounded-md overflow-hidden shadow-lg bg-[#121212]">
-            <img src="${track.cover || './assets/default-cover.png'}" 
-                 class="absolute top-0 left-0 w-full h-full object-cover rounded-md transition-transform duration-300 group-hover:scale-105 ${isFuture ? 'opacity-50 blur-[1px]' : ''}"
-                 onerror="this.src='./assets/default-cover.png'">
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-4 px-3 py-2 hover:bg-white/10 rounded-md transition-all cursor-pointer group';
             
-            ${isFuture ? `
-                <div class="absolute top-2 right-2 bg-[#00FF5B] text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow-lg z-10">
-                    PRÉ-SALVE
+            row.innerHTML = `
+                
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <img src="${track.cover || './assets/default-cover.png'}" class="w-full h-full object-cover rounded shadow-lg">
+                    <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class='bx bx-play text-white text-2xl'></i>
+                    </div>
                 </div>
-            ` : ''}
 
-            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-2xl transform translate-y-2 group-hover:translate-y-0 transition-transform">
-                    <i class='bx ${isFuture ? 'bx-time-five' : 'bx-play'} text-black text-2xl ${!isFuture ? 'ml-1' : ''}'></i>
+                <div class="flex flex-col min-w-0">
+                    <h3 class="text-sm text-white truncate leading-tight flex items-center gap-1" style="font-weight: 700;">
+                        ${track.title}
+                        ${(track.explicit === true || track.explicit === "true") ? '<span class="bg-gray-400 text-black text-[8px] font-black px-1 rounded-[2px]">E</span>' : ''}
+                    </h3>
+                    <p class="text-xs text-gray-400 truncate mt-0.5" style="font-weight: 500;">
+                        ${track.artistName || 'Artista'}
+                    </p>
                 </div>
-            </div>
-        </div>
+            `;
 
-        <div class="mt-3 w-full">
-            <h3 class="text-sm font-bold text-white truncate flex items-center gap-1">
-                ${track.title}
-                ${(track.explicit === true || track.explicit === "true") ? '<span class="explicit-tag" style="font-size:7px; padding: 1px 3px; scale: 0.9;">E</span>' : ''}
-            </h3>
-            <p class="text-gray-400 text-[11px] font-medium truncate mt-0.5">${track.artistName || 'Artista'}</p>
-            ${isFuture ? `<p class="text-[#00FF5B] text-[9px] font-bold mt-1 uppercase tracking-tighter">Lançamento agendado</p>` : ''}
-        </div>
-    `;
+            // Clique para navegar
+            row.addEventListener('click', () => {
+                if (typeof navigateToPage === 'function') {
+                    navigateToPage('music', { id: track.id });
+                }
+            });
 
-    listContainer.appendChild(card);
-
-    
-});
-
-        // Inicializa botões de scroll se a função existir
-        if (typeof setupScrollButtons === 'function') {
-            setupScrollButtons('singles-home-scroll-left', 'singles-home-scroll-right', 'new-singles-list');
-        }
+            listContainer.appendChild(row);
+        });
 
     } catch (error) {
-        console.error("Erro crítico ao renderizar singles:", error);
-        listContainer.innerHTML = '<p class="text-red-500 p-4 text-xs">Erro ao carregar lançamentos.</p>';
+        console.error("Erro ao carregar lista:", error);
+        sectionWrapper.classList.add('hidden');
     }
 }
-
 
 
 // Função auxiliar para os botões de scroll (caso você não tenha uma genérica)
@@ -4511,64 +4790,39 @@ async function loadHomeFavorites() {
         console.error("Erro ao carregar favoritos:", e);
     }
 }
-
-// 2. Inicialização do Cache
-window.__HOME_CACHE__ = window.__HOME_CACHE__ || { loaded: false, html: null, scrollPosition: 0 };
-
 async function setupArtistsCarouselPriority() {
     const listContainer = document.getElementById('artists-list');
     const loadingMessage = document.getElementById('artists-loading-message');
     if (!listContainer) return;
 
-    const GLOBAL_LEGENDS = [
-         "Legendaryture", "Taylor Swift", "Marina", "Ariana Grande", "Rihanna", 
-        "Madonna",  "Luan Santana"
-    ].map(name => name.toLowerCase().trim());
-
     try {
         const usuariosRef = collection(db, "usuarios");
+        // Mantemos o filtro de apenas quem é artista, mas sem limite rígido de 100 
+        // para ter mais variedade no sorteio se desejar
         const q = query(usuariosRef, where("artista", "==", "true"), limit(100));
         
         const querySnapshot = await getDocs(q);
         let artistas = [];
         
         querySnapshot.forEach(docSnap => {
-            // ESSENCIAL: Garantir que o ID do documento esteja no objeto
             artistas.push({ 
                 id: docSnap.id, 
-                uid: docSnap.id, // Alguns setups usam uid em vez de id
+                uid: docSnap.id, 
                 ...docSnap.data() 
             });
         });
 
-        // ⭐ ORDENAÇÃO
-        artistas.sort((a, b) => {
-            const nomeA = (a.nomeArtistico || "").toLowerCase().trim();
-            const nomeB = (b.nomeArtistico || "").toLowerCase().trim();
-
-            const aIsLegend = GLOBAL_LEGENDS.includes(nomeA) ? 1 : 0;
-            const bIsLegend = GLOBAL_LEGENDS.includes(nomeB) ? 1 : 0;
-            if (bIsLegend !== aIsLegend) return bIsLegend - aIsLegend;
-
-            const aIsVerified = a.verificado === "true" ? 1 : 0;
-            const bIsVerified = b.verificado === "true" ? 1 : 0;
-            if (bIsVerified !== aIsVerified) return bIsVerified - aIsVerified;
-
-            const aIsCloudinary = (a.foto || "").includes("cloudinary.com") ? 1 : 0;
-            const bIsCloudinary = (b.foto || "").includes("cloudinary.com") ? 1 : 0;
-            return bIsCloudinary - aIsCloudinary;
-        });
+        // 🎲 EMBARALHAMENTO ALEATÓRIO (Fisher-Yates Shuffle)
+        for (let i = artistas.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [artistas[i], artistas[j]] = [artistas[j], artistas[i]];
+        }
 
         if (loadingMessage) loadingMessage.style.display = 'none';
         listContainer.innerHTML = '';
 
-        // Filtra e Renderiza
-        const artistasFiltrados = artistas.filter(art => 
-            art.verificado === "true" || GLOBAL_LEGENDS.includes((art.nomeArtistico || "").toLowerCase().trim())
-        );
-
-        artistasFiltrados.slice(0, 20).forEach(docData => {
-            // Passamos docData.id explicitamente como segundo argumento
+        // Renderiza os primeiros 20 artistas da lista já embaralhada
+        artistas.slice(0, 20).forEach(docData => {
             const card = createArtistCard(docData, docData.id);
             listContainer.appendChild(card);
         });
@@ -4578,7 +4832,7 @@ async function setupArtistsCarouselPriority() {
         }
 
     } catch (error) {
-    
+        console.error("Erro ao carregar artistas aleatórios:", error);
     }
 }
 
@@ -4586,11 +4840,11 @@ async function loadTopArtists() {
     const container = document.getElementById('top-artists-list');
     if (!container) return;
 
-    // 1. LIMPEZA IMEDIATA: Remove o conteúdo antes de qualquer busca assíncrona
+    // 1. LIMPEZA IMEDIATA
     container.innerHTML = ''; 
 
     try {
-        // Busca as músicas (usando o campo 'artist' que vimos na sua imagem do Firebase)
+        // Busca as músicas mais ouvidas para identificar quais artistas estão em alta
         const songsQuery = query(collection(db, "musicas"), orderBy("streams", "desc"), limit(40));
         const songsSnap = await getDocs(songsQuery);
         
@@ -4601,17 +4855,47 @@ async function loadTopArtists() {
         });
 
         const topUIDs = Array.from(uniqueArtistUIDs).slice(0, 10);
+        
+        // Buscamos os dados dos usuários (perfil do artista)
         const artistSnaps = await Promise.all(topUIDs.map(uid => getDoc(doc(db, "usuarios", uid))));
 
-        const fragment = document.createDocumentFragment();
-        artistSnaps.forEach(snap => {
+        // Criamos uma lista de objetos de artistas para processar as somas
+        const artistsDataList = [];
+
+        for (const snap of artistSnaps) {
             if (snap.exists()) {
-                const card = createArtistCard(snap.data(), snap.id);
-                fragment.appendChild(card);
+                const artistUid = snap.id;
+                const userData = snap.data();
+
+                // BUSCA TODAS AS MÚSICAS DESTE ARTISTA PARA SOMAR OS OUVINTES (Igual na setupArtistPage)
+                const qArtistMusics = query(collection(db, "musicas"), where("artist", "==", artistUid));
+                const musicsSnap = await getDocs(qArtistMusics);
+
+                let totalMonthlyListeners = 0;
+                musicsSnap.forEach(mDoc => {
+                    const mData = mDoc.data();
+                    totalMonthlyListeners += Number(mData.ouvintesMensais || 0);
+                });
+
+                artistsDataList.push({
+                    id: artistUid,
+                    ...userData,
+                    monthlyListeners: totalMonthlyListeners // Adicionamos a soma ao objeto
+                });
             }
+        }
+
+        // Ordena a lista final pelo total de ouvintes mensais (do maior para o menor)
+        artistsDataList.sort((a, b) => b.monthlyListeners - a.monthlyListeners);
+
+        const fragment = document.createDocumentFragment();
+        artistsDataList.forEach(artist => {
+            // Passamos o objeto com o 'monthlyListeners' já calculado para o card
+            const card = createArtistCard(artist, artist.id);
+            fragment.appendChild(card);
         });
 
-        // 2. VERIFICAÇÃO DE SEGURANÇA: Só insere se o container continuar vazio
+        // 2. VERIFICAÇÃO DE SEGURANÇA
         if (container.children.length === 0) {
             container.appendChild(fragment);
         }
@@ -4621,9 +4905,10 @@ async function loadTopArtists() {
         }
 
     } catch (error) {
-       
+        console.error("Erro ao carregar top artistas por ouvintes:", error);
     }
 }
+
 async function setupFanArtistSection() {
     const listContainer = document.getElementById('fan-albums-list');
     const sectionWrapper = document.getElementById('fan-section');
@@ -4777,7 +5062,7 @@ async function setupHomePage() {
             setupContentCarousel(
                 'stations-list', 'stations-scroll-left', 'stations-scroll-right', 
                 'stations-loading-message', 'playlists', 
-                [where('category', '==', 'Stations'), limit(12)], createPlaylistCard
+                [where('category', '==', 'Stations'), limit(12)], createStationCard
             ),
             setupContentCarousel(
                 'top-albums-day-list', 'top-albums-day-left', 'top-albums-day-right', 

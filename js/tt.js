@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, startAfter, serverTimestamp,  collection, doc, getDoc, updateDoc, setDoc, query, where, onSnapshot, orderBy, getDocs, limit, addDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore,   Timestamp, startAfter, serverTimestamp,  collection, doc, getDoc, updateDoc, setDoc, query, where, onSnapshot, orderBy, getDocs, limit, addDoc, increment, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { getDatabase, ref as databaseRef, set, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
@@ -1264,37 +1264,237 @@ window.getTop6AlbumsByStreams = async function() {
     }
 };
 
-// 2. FUNÇÃO DE RENDERIZAÇÃO (Ajustada para chamar a global)
-async function renderTop6Albums() {
+async function getTop10WeeklyPerformance() {
+    try {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const startTimestamp = Timestamp.fromDate(sevenDaysAgo);
+
+        // A. Buscar logs validados da última semana
+        const logsRef = collection(db, "logs_atividades");
+        const qLogs = query(
+            logsRef, 
+            where("type", "==", "play_20s_valid"),
+            where("timestamp", ">=", startTimestamp)
+        );
+        const logSnap = await getDocs(qLogs);
+
+        if (logSnap.empty) return [];
+
+        const musicUniqueListeners = {}; // { musicId: Set(userIds) }
+        const musicValidStreams = {};    // { musicId: count }
+        
+        logSnap.forEach(doc => {
+            const data = doc.data();
+            const musicId = data.itemId;
+            const userId = data.userId;
+            
+            if (musicId && userId) {
+                // Contagem de Ouvintes Únicos
+                if (!musicUniqueListeners[musicId]) {
+                    musicUniqueListeners[musicId] = new Set();
+                }
+                musicUniqueListeners[musicId].add(userId);
+
+                // Contagem de Streams Válidos
+                musicValidStreams[musicId] = (musicValidStreams[musicId] || 0) + 1;
+            }
+        });
+
+        // B. Mapear Músicas -> Álbuns
+        const musicasSnap = await getDocs(collection(db, "musicas"));
+        const albumStats = {}; 
+
+        musicasSnap.forEach(doc => {
+            const musicData = doc.data();
+            const musicId = doc.id;
+            const albumId = musicData.album;
+
+            const streams = musicValidStreams[musicId] || 0;
+            const listeners = musicUniqueListeners[musicId] ? musicUniqueListeners[musicId].size : 0;
+
+            if (albumId && (streams > 0 || listeners > 0)) {
+                if (!albumStats[albumId]) {
+                    albumStats[albumId] = { totalStreams: 0, totalListeners: 0 };
+                }
+                albumStats[albumId].totalStreams += streams;
+                albumStats[albumId].totalListeners += listeners;
+            }
+        });
+
+        // C. Buscar Álbuns e Calcular Ranking
+        const albumsSnap = await getDocs(collection(db, "albuns"));
+        const ranking = [];
+
+        albumsSnap.forEach(doc => {
+            const albumId = doc.id;
+            const stats = albumStats[albumId];
+
+            if (stats) {
+                const data = doc.data();
+                
+                // CÁLCULO PONDERADO: 60% Ouvintes / 40% Streams
+                const performanceScore = (stats.totalStreams * 0.4) + (stats.totalListeners * 0.6);
+
+                ranking.push({
+                    id: albumId,
+                    albumTitle: data.album,
+                    cover: data.cover,
+                    artist: data.artist,
+                    displayStreams: stats.totalStreams,
+                    displayListeners: stats.totalListeners,
+                    score: performanceScore
+                });
+            }
+        });
+
+        // Retorna Top 10 ordenado pelo Score
+        return ranking.sort((a, b) => b.score - a.score).slice(0, 10);
+
+    } catch (error) {
+        console.error("Erro no ranking ponderado:", error);
+        return [];
+    }
+}
+
+/**
+ * 2. FUNÇÃO DE RENDERIZAÇÃO
+ */
+async function getTop10AlbumsByPerformance() {
+    try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const startTimestamp = Timestamp.fromDate(thirtyDaysAgo);
+
+        // A. Buscar logs (Play de 20s e Cliques)
+        const logsRef = collection(db, "logs_atividades");
+        const qLogs = query(logsRef, where("timestamp", ">=", startTimestamp));
+        const logSnap = await getDocs(qLogs);
+
+        const musicUniqueListeners = {}; 
+        const musicValidStreams = {};    
+        
+        logSnap.forEach(doc => {
+            const data = doc.data();
+            const { itemId, userId, type } = data;
+            
+            if (itemId && userId) {
+                // Contagem de Ouvintes Únicos (Peso principal)
+                if (!musicUniqueListeners[itemId]) musicUniqueListeners[itemId] = new Set();
+                musicUniqueListeners[itemId].add(userId);
+
+                // Contagem de Streams Válidos (play_20s_valid)
+                if (type === "play_20s_valid") {
+                    musicValidStreams[itemId] = (musicValidStreams[itemId] || 0) + 1;
+                }
+            }
+        });
+
+        // B. Agrupar por Álbum
+        const musicasSnap = await getDocs(collection(db, "musicas"));
+        const albumStats = {}; 
+
+        musicasSnap.forEach(doc => {
+            const data = doc.data();
+            const albumId = data.album;
+            const musicId = doc.id;
+
+            const validStreams = musicValidStreams[musicId] || 0;
+            const listenersCount = musicUniqueListeners[musicId] ? musicUniqueListeners[musicId].size : 0;
+
+            if (albumId) {
+                if (!albumStats[albumId]) {
+                    albumStats[albumId] = { streams: 0, listeners: 0 };
+                }
+                albumStats[albumId].streams += validStreams;
+                albumStats[albumId].listeners += listenersCount;
+            }
+        });
+
+        // C. Ranking Final (TOP 10)
+        const albumsSnap = await getDocs(collection(db, "albuns"));
+        const ranking = [];
+
+        albumsSnap.forEach(doc => {
+            const albumId = doc.id;
+            const stats = albumStats[albumId];
+
+            if (stats) {
+                const data = doc.data();
+                // Ranking ponderado: 60% Ouvintes / 40% Streams
+                const performanceScore = (stats.streams * 0.4) + (stats.listeners * 0.6);
+
+                ranking.push({
+                    id: albumId,
+                    albumTitle: data.album,
+                    cover: data.cover,
+                    artist: data.artist,
+                    displayStreams: stats.streams,
+                    displayListeners: stats.listeners,
+                    score: performanceScore
+                });
+            }
+        });
+
+        // Retorna os 10 melhores
+        return ranking.sort((a, b) => b.score - a.score).slice(0, 10);
+
+    } catch (error) {
+        console.error("Erro no ranking Top 10:", error);
+        return [];
+    }
+}
+
+/**
+ * 2. RENDERIZAÇÃO NO GRID
+ */
+async function renderTop10Albums() {
     const grid = document.getElementById('top-albums-grid');
     if (!grid) return;
 
-    // Agora chamamos via window para garantir que ela exista
-    const albums = await window.getTop6AlbumsByStreams();
+    grid.innerHTML = `<div class="col-span-full text-center text-gray-500 py-10">Calculando Top 10...</div>`;
 
-    grid.innerHTML = ""; // Limpa skeletons
+    const albums = await getTop10AlbumsByPerformance();
+    grid.innerHTML = "";
 
     albums.forEach((album, index) => {
         const albumCard = document.createElement('div');
-        albumCard.className = "group cursor-pointer transition-all duration-300 hover:-translate-y-2";
+        // Ajuste de classes para garantir que o Top 10 fique bem distribuído
+        albumCard.className = "group cursor-pointer transition-all duration-300 hover:-translate-y-2 fade-in";
         
         albumCard.innerHTML = `
             <div class="relative aspect-square mb-3 overflow-hidden rounded-3xl shadow-2xl bg-[#121212]">
-                <div class="absolute top-3 left-3 z-10 bg-[#ace000] text-black w-8 h-8 flex items-center justify-center font-black rounded-full shadow-lg">
+                <div class="absolute top-3 left-3 z-10 bg-[#ace000] text-black w-8 h-8 flex items-center justify-center font-black rounded-full shadow-lg border-2 border-black/20">
                     ${index + 1}
                 </div>
-                <img src="${album.cover}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                <img src="${album.cover}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy">
                 <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-black shadow-xl">
                         <i class='bx bx-play text-3xl ml-1'></i>
                     </div>
                 </div>
             </div>
+            
             <div class="px-1">
-                <h3 class="text-white font-bold text-sm truncate uppercase tracking-tight">${album.albumTitle}</h3>
-                <p class="text-gray-500 text-[10px] font-medium uppercase tracking-widest truncate">${album.artist}</p>
-                <div class="mt-1 flex items-center gap-1">
-                    <span class="text-[#ace000] text-[10px] font-bold">${album.totalStreams.toLocaleString()} STREAMS</span>
+                <h3 class="text-black font-bold text-xs truncate uppercase tracking-tight">${album.albumTitle}</h3>
+                <p class="text-gray-500 text-[9px] font-medium uppercase tracking-widest truncate mb-2">${album.artist}</p>
+                
+                <div class="space-y-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <div class="flex items-center justify-between text-[8px] font-black uppercase text-[#ace000]">
+                        <span>Ouvintes</span>
+                        <span>${album.displayListeners}</span>
+                    </div>
+                    <div class="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-[#ace000] rounded-full" style="width: ${Math.min(100, (album.displayListeners / 50) * 100)}%"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-[8px] font-black uppercase text-gray-400">
+                        <span>Valid Streams</span>
+                        <span>${album.displayStreams}</span>
+                    </div>
+                    <div class="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-white/30 rounded-full" style="width: ${Math.min(100, (album.displayStreams / 100) * 100)}%"></div>
+                    </div>
                 </div>
             </div>
         `;
@@ -1511,6 +1711,107 @@ window.openEditModal = async (albumId) => {
         modal.classList.add('flex');
     } catch (e) { console.error("Erro ao abrir modal:", e); }
 };
+
+async function reconstruirStreams(){
+
+  const progressText = document.getElementById("progress");
+  const progressBar = document.getElementById("barra");
+
+  if(progressText) progressText.innerText = "Lendo logs...";
+  if(progressBar) progressBar.style.width = "0%";
+
+  const logsRef = collection(db,"logs_atividades");
+  const snapshot = await getDocs(logsRef);
+
+  const totalLogs = snapshot.size;
+  let processados = 0;
+
+  const streamsPorMusica = {};
+
+  function gerarAleatorio(){
+    return Math.floor(Math.random() * (600000 - 100000 + 1)) + 100000;
+  }
+
+  snapshot.forEach((docSnap)=>{
+
+    const data = docSnap.data();
+
+    if(data.type !== "play_20s_valid") return;
+
+    const musicId = data.itemId;
+
+    if(!musicId) return;
+
+    let valor = data.valorGerado;
+
+    if(!valor){
+      valor = gerarAleatorio();
+    }
+
+    if(!streamsPorMusica[musicId]){
+      streamsPorMusica[musicId] = 0;
+    }
+
+    streamsPorMusica[musicId] += valor;
+
+    processados++;
+
+    const progresso = ((processados / totalLogs) * 100).toFixed(2);
+
+    if(progressText){
+      progressText.innerText =
+        `Lendo logs: ${progresso}% (${processados}/${totalLogs})`;
+    }
+
+    if(progressBar){
+      progressBar.style.width = progresso + "%";
+    }
+
+  });
+
+  if(progressText) progressText.innerText = "Atualizando músicas...";
+
+  const musicIds = Object.keys(streamsPorMusica);
+
+  for(let i = 0; i < musicIds.length; i++){
+
+    const musicId = musicIds[i];
+    const totalStreams = streamsPorMusica[musicId];
+
+    const musicRef = doc(db,"musicas",musicId);
+
+    try{
+
+      await updateDoc(musicRef,{
+        streams: totalStreams
+      });
+
+    }catch(err){
+
+      console.warn("Música não encontrada:", musicId);
+
+    }
+
+    const progresso = (((i+1) / musicIds.length) * 100).toFixed(2);
+
+    if(progressText){
+      progressText.innerText =
+        `Atualizando músicas: ${progresso}% (${i+1}/${musicIds.length})`;
+    }
+
+    if(progressBar){
+      progressBar.style.width = progresso + "%";
+    }
+
+  }
+
+  if(progressText) progressText.innerText = "✅ Streams restaurados com sucesso";
+  if(progressBar) progressBar.style.width = "100%";
+
+}
+
+/* deixa a função acessível pelo HTML */
+window.reconstruirStreams = reconstruirStreams;
 
 async function setupEditAlbumsPage() {
     const albumsGrid = document.getElementById('albumsGrid');
@@ -1738,94 +2039,63 @@ const cancelModalBtn = document.getElementById('modalCancelButton');
 if (cancelModalBtn) {
     cancelModalBtn.onclick = () => modal.classList.add('hidden');
 }
-}
-async function setupLogsPage() {
+}async function setupLogsPage() {
     const logsContainer = document.getElementById('logs-container');
     if (!logsContainer) return;
 
-    logsContainer.innerHTML = '<div class="p-8 text-center text-gray-500 italic">Iniciando monitoramento Tune DKS...</div>';
+    logsContainer.innerHTML = '<div class="p-8 text-center text-gray-500 italic">Sincronizando streams em tempo real...</div>';
 
-    const logsRef = collection(db, "logs_atividades"); 
+    const logsRef = collection(db, "stream_logs"); 
     const q = query(logsRef, orderBy("timestamp", "desc"), limit(50));
 
-    // Monitoramento em tempo real (Snapshot)
     onSnapshot(q, (snapshot) => {
-        logsContainer.innerHTML = ''; 
+        logsContainer.innerHTML = '';
         
         snapshot.forEach(async (docSnap) => {
             const log = docSnap.data();
             const logId = docSnap.id;
             
-            let borderColor = 'border-gray-600'; 
-            let icon = '📄';
-            let label = 'Atividade';
+            // Alterado para mostrar segundos e formatado para 24h
+            const time = log.timestamp ? new Date(log.timestamp).toLocaleTimeString('pt-BR', {
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit'
+            }) : '--:--:--';
 
-            // --- LÓGICA DE FILTRO POR TIPO ---
-            switch (log.type) {
-                case 'play_start':
-                    borderColor = 'border-blue-400';
-                    icon = '🔘';
-                    label = 'Play';
-                    break;
-                case 'play_20s_valid':
-                    borderColor = 'border-green-500';
-                    icon = '✅';
-                    label = 'Stream Validada';
-                    break;
-                case 'play_spam_ban': // SINCRONIZADO COM O BANCO
-                    borderColor = 'border-red-600';
-                    icon = '⚠️';
-                    label = 'BLOQUEIO SPAM';
-                    break;
-                case 'album_view':
-                    borderColor = 'border-purple-500';
-                    icon = '💿';
-                    label = 'Viu Álbum';
-                    break;
-            }
+            const row = document.createElement('div');
+            row.className = 'table-row';
 
-            const logItem = document.createElement('div');
-            logItem.className = `flex items-center justify-between p-3 mb-2 bg-[#181818] rounded border-l-4 ${borderColor} animate-in fade-in duration-500`;
-
-            const timestamp = log.timestamp?.seconds ? new Date(log.timestamp.seconds * 1000) : new Date();
-            const hora = timestamp.toLocaleTimeString('pt-BR');
-
-            logItem.innerHTML = `
-                <div class="flex items-center gap-3">
-                    <span class="text-xl">${icon}</span>
-                    <div>
-                        <p class="text-white text-sm font-bold user-name-field" data-uid="${log.userId}">Carregando...</p>
-                        <p class="text-gray-400 text-[11px]">${label}: <b class="text-gray-100">${log.itemTitle}</b></p>
-                        ${log.motivo ? `<p class="text-[9px] text-red-400 font-bold uppercase mt-1">${log.motivo}</p>` : ''}
-                    </div>
+            row.innerHTML = `
+                <div class="col-user truncate font-semibold text-gray-200 user-name-field">Carregando...</div>
+                <div class="col-music truncate">
+                    <span class="text-white font-medium track-name-field">Buscando música...</span>
                 </div>
-                <div class="text-right">
-                    <p class="text-[9px] text-gray-700 font-mono">${log.userId?.substring(0,10) || '---'}</p>
-                    <span class="text-xs text-gray-500 font-mono">${hora}</span>
+                <div class="col-streams">
+                    <span class="badge-stream">+${(log.valor || 0).toLocaleString()}</span>
+                </div>
+                <div class="col-time font-mono text-[#1ed760] font-bold text-[11px] bg-white/5 px-2 py-1 rounded border border-white/5">
+                    ${time}
+                </div>
+                <div class="col-ip text-ip font-mono" style="font-size: 9px; opacity: 0.5;">
+                    ID: ${logId.substring(0, 12)}... 
                 </div>
             `;
-            logsContainer.appendChild(logItem);
+            
+            logsContainer.appendChild(row);
 
-            // Busca apelido do usuário para não ficar "Carregando"
-            if (log.userId && log.userId !== "deslogado") {
-                try {
-                    const userSnap = await getDoc(doc(db, "usuarios", log.userId));
-                    const nameField = logItem.querySelector('.user-name-field');
-                    if (userSnap.exists()) {
-                        nameField.textContent = userSnap.data().apelido || userSnap.data().nome || log.userName;
-                    } else {
-                        nameField.textContent = log.userName || "Anônimo";
-                    }
-                } catch (e) { console.error(e); }
-            } else {
-                logItem.querySelector('.user-name-field').textContent = "Visitante";
+            if (log.trackId) {
+                getDoc(doc(db, "musicas", log.trackId)).then(s => {
+                    if (s.exists()) row.querySelector('.track-name-field').innerText = s.data().title;
+                });
+            }
+            if (log.userId) {
+                getDoc(doc(db, "usuarios", log.userId)).then(s => {
+                    if (s.exists()) row.querySelector('.user-name-field').innerText = s.data().apelido || "Usuário";
+                });
             }
         });
     });
 }
-
-let lastMusicDoc = null;
-const LIMIT_PER_PAGE = 20;
 
 window.openEditMusicModal = async (musicId) => {
     const modal = document.getElementById('editMusicModal');
@@ -2444,6 +2714,7 @@ async function loadContent(pageName) {
             setupListArtistsPage();
         } else if (pageName === 'settings') {
             setupMaintenanceToggle(); 
+            
             // Você pode chamar outras funções de setup de configurações aqui se houver
         } else if (pageName === 'addmusic') {
             setupAddMusicPage();
@@ -2737,7 +3008,7 @@ function fetchAndRenderRecentArtists() {
 
 function setupDashboardPage() {
     setupCounterListeners();
-    renderTop6Albums();
+     renderTop10Albums();
     fetchAndRenderRecentArtists();
     fetchAndRenderTopSongsList();
     

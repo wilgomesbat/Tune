@@ -22,17 +22,6 @@ const emailInput = document.getElementById('email');
 const senhaInput = document.getElementById('senha');
 const termosCheckbox = document.getElementById('termos-uso');
 
-// --- VERIFICAÇÃO DE MANUTENÇÃO ---
-async function verificarManutencao() {
-    const docRef = doc(db, "config", "status");
-    try {
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().manutencao) {
-            window.location.href = "man";
-        }
-    } catch (e) { console.error(e); }
-}
-verificarManutencao();
 
 // --- FUNÇÃO TOAST ---
 function showToast(message, type = "error") {
@@ -84,7 +73,7 @@ const senha = senhaInput.value;
             email: email,
             apelido: user,
             nomeArtistico: nome,
-            artista: "true", 
+            artista: "false", 
             admin: "false",
             verificado: "false",
             niveladmin: 0,
@@ -94,7 +83,7 @@ const senha = senhaInput.value;
             instagram: "",
             twitter: "",
             youtube: "",
-            streams: 0,
+            
             status: "ativo",
             foto: "", // Como não tem upload, deixamos vazio para não dar erro
             criadoEm: new Date().toLocaleString('pt-BR'),
@@ -119,10 +108,7 @@ const senha = senhaInput.value;
         console.error(err);
         let userMessage = 'Erro desconhecido. Tente novamente.';
 
-        // Tratamento de erros específicos
-        if (err.message.includes("Imagem maior que 2MB")) {
-            userMessage = "A foto deve ter no máximo 2MB.";
-        } else if (err.code === 'auth/email-already-in-use') {
+        if (err.code === 'auth/email-already-in-use') {
             userMessage = 'O e-mail já está em uso.';
         } else if (err.code === 'auth/weak-password') {
             userMessage = 'A senha deve ter pelo menos 6 caracteres.';

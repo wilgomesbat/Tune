@@ -27,16 +27,14 @@ body {
   transition: opacity 0.3s ease;
 }
 
-/* ============================= */
-/* FONTS */
-/* ============================= */
+/* 1. SEMPRE OS @FONT-FACE NO TOPO */
 @font-face {
     font-family: 'Nationale Regular';
-    /* Removido o '.' para buscar da raiz */
-    src: url('/fonts/Nationale-Regular.woff2') format('woff2'),
-         url('/fonts/Nationale-Regular.woff') format('woff');
+    src: url('/fonts/SpotifyMix-Medium.woff2') format('woff2'),
+         url('/fonts/SpotifyMix-Medium.woff') format('woff');
     font-weight: normal;
     font-style: normal;
+    font-display: swap; /* Ajuda a carregar mais rápido */
 }
 
 @font-face {
@@ -45,14 +43,16 @@ body {
          url('/fonts/Nationale-Bold.woff') format('woff');
     font-weight: bold;
     font-style: normal;
+    font-display: swap;
 }
 
 @font-face {
     font-family: 'Nationale Black';
-    src: url('/fonts/Nationale-Black.woff2') format('woff2'),
-         url('/fonts/Nationale-Black.woff') format('woff');
-    font-weight: 900; /* Black geralmente usa 900 para diferenciar do Bold */
+    src: url('/fonts/SpotifyMix-Black.woff2') format('woff2'),
+         url('/fonts/SpotifyMix-Black.woff') format('woff');
+    font-weight: 900;
     font-style: normal;
+    font-display: swap;
 }
 
 /* ============================= */

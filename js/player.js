@@ -15,11 +15,22 @@ import {
     deleteField,
     increment,
     collection, 
-    addDoc      
+    addDoc,
+    Timestamp // Adicionado caso precise para datas
 } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-// 2. Importe o auth e db do seu arquivo de configuração
+// AQUI ESTÁ O SEGREDO: Importar do arquivo de FUNCTIONS
+import { 
+    getFunctions, 
+    httpsCallable 
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-functions.js";
+
 import { auth, db } from './firebase-config.js';
+
+// Define no window para o player.js enxergar
+window.getFunctions = getFunctions;
+window.httpsCallable = httpsCallable;
+
 // FUNÇÃO GLOBAL PADRÃO DO TUNE
 window.playTrackGlobal = function(track) {
     if (!track) return;
@@ -37,6 +48,43 @@ window.playTrackGlobal = function(track) {
     loadTrack(track);
 };
 
+
+
+
+window.ultimaValidacaoSucesso = 0;
+window.bonusTimer30s = null;
+window.bonusTimer60s = null;
+window.bonusEntregue30s = false;
+window.bonusEntregue60s = false;
+window.tempoAcumuladoNestaMusica = 0;
+window.lastCheckTime = null;
+
+
+// Definição global da função para evitar o erro de ReferenceError
+window.updateInterfaceLabels = function(current, total) {
+    const el = typeof getPlayerElements === 'function' ? getPlayerElements() : {};
+    
+    // Proteção contra divisão por zero
+    let percent = total > 0 ? (current / total) * 100 : 0;
+
+    const miniBar = document.getElementById("progress-fill");
+    const fullBar = document.getElementById("fs-player-bar-fill");
+    const timeCurrent = document.getElementById("current-time");
+
+    // Formatação do tempo (Certifique-se de que a função formatTime também existe)
+    const currentTimeFormatted = typeof formatTime === 'function' ? formatTime(current) : current;
+    const totalTimeFormatted = typeof formatTime === 'function' ? formatTime(total) : total;
+
+    // Aplica no DOM com verificações de existência
+    if (miniBar) miniBar.style.width = `${percent}%`;
+    if (fullBar) fullBar.style.width = `${percent}%`;
+    if (timeCurrent) timeCurrent.textContent = currentTimeFormatted;
+
+    // Atualiza elementos do Player Tela Cheia (FS)
+    if (el.fsProgressFill) el.fsProgressFill.style.width = percent + "%";
+    if (el.fsCurrentTimeEl) el.fsCurrentTimeEl.textContent = currentTimeFormatted;
+    if (el.fsTotalTimeEl) el.fsTotalTimeEl.textContent = totalTimeFormatted;
+};
 
 // --- ESTADO GLOBAL E PROTEÇÃO ---
 const audio = new Audio();
@@ -756,348 +804,203 @@ function vincularBotoesInterface() {
 
 // Chame essa função ao carregar o script
 vincularBotoesInterface();
-
-// --- VARIÁVEIS DE CONTROLE GLOBAL (Deixe fora da função) ---
+// ==========================================
+// 1. CONFIGURAÇÕES E VARIÁVEIS GLOBAIS
+// ==========================================
 window.streamTimer = null; 
 window.isProcessingStream = false;
 window.streamEntregueNestaExecucao = false; 
-window.idDaMusicaAtualNoPlayer = null; // Nova trava para identificar troca de faixa
+window.idDaMusicaAtualNoPlayer = null; 
+window.streamStartTime = null;
+window.historicoGlobal = window.historicoGlobal || [];
+window.historicoValidacao = window.historicoValidacao || {};
+let validacaoJaEnviada = false;
+let trackingInterval = null;
+
+
+
+
+function formatarTempo(segundos) {
+    const min = Math.floor(segundos / 60);
+    const seg = Math.floor(segundos % 60);
+    return `${min}:${seg < 10 ? '0' : ''}${seg}`;
+}
 
 window.onPlayerStateChange = function(event) {
     const state = event.data;
-    const el = getPlayerElements();
+    const el = typeof getPlayerElements === 'function' ? getPlayerElements() : {};
     const iconPlay = "/assets/Group.png";
     const iconPause = "/assets/pause.fill.png";
 
+    // 1. Detectar troca de música para resetar os marcos de tempo
     if (window.currentTrack && window.idDaMusicaAtualNoPlayer !== window.currentTrack.id) {
         window.idDaMusicaAtualNoPlayer = window.currentTrack.id;
         window.streamEntregueNestaExecucao = false;
+        window.bonusEntregue30s = false;
+        window.bonusEntregue60s = false;
+        window.streamStartTime = null;
+        limparTodosOsTimers();
     }
 
-    // 1. LIMPEZA DE SEGURANÇA
-    if (state === 2 || state === 0 || state === -1) {
-        if (window.streamTimer) { 
-            clearTimeout(window.streamTimer); 
-            window.streamTimer = null; 
-        }
-    }
-
-    if (state === 5 || state === -1) { event.target.playVideo(); }
-
-    // 2. ESTADO: TOCANDO (1)
-    if (state === 1) {
+    // 2. Lógica por Estado
+    if (state === 1) { // --- TOCANDO ---
+        if (!window.streamStartTime) window.streamStartTime = Date.now();
         if (typeof startYoutubeTracking === 'function') startYoutubeTracking();
-        
-        // Atualiza Ícones
+
+        // Atualiza ícones da interface
         if (el.playBtn) el.playBtn.querySelector('img').src = iconPause;
         if (el.fsPlayPauseBtn) {
             const fsImg = el.fsPlayPauseBtn.querySelector('img');
             if (fsImg) fsImg.src = iconPause;
-            const playIcon = document.getElementById('fs-play-icon');
-            const pauseIcon = document.getElementById('fs-pause-icon');
-            if (playIcon) { playIcon.classList.add('hidden'); pauseIcon.classList.remove('hidden'); }
         }
 
-        // MOTOR DE STREAMS
+        // AGENDAMENTO DE STREAMS (Escada de tempo)
+        // Marco 20s (100k)
         if (!window.streamEntregueNestaExecucao && !window.streamTimer) {
-           
-            
-            window.streamTimer = setTimeout(async () => {
-                if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1) {
-                    
-                    // ESPERA A RESPOSTA DO FIREBASE
-                    const gravouNoBanco = await validarStreamOficial(window.currentTrack);
-                    
-                    if (gravouNoBanco) {
-                        window.streamEntregueNestaExecucao = true; 
-                       
-                    } else {
-                        console.log("⚠️ O stream não foi contabilizado devido às regras de SPAM.");
-                        // Não setamos streamEntregueNestaExecucao como true para permitir 
-                        // que o sistema tente de novo se o tempo de spam passar.
-                    }
-                    window.streamTimer = null;
-                }
-            }, 20000); 
+            window.streamTimer = setTimeout(() => validarStreamOficial(window.currentTrack), 20000);
+        }
+
+        // Marco 30s (500k)
+        if (!window.bonusEntregue30s && !window.bonusTimer30s) {
+            window.bonusTimer30s = setTimeout(() => validarStreamOficial(window.currentTrack), 30000);
+        }
+
+        // Marco 60s (1M a 2M)
+        if (!window.bonusEntregue60s && !window.bonusTimer60s) {
+            window.bonusTimer60s = setTimeout(() => validarStreamOficial(window.currentTrack), 60000);
         }
     } 
-    
-    // 3. ESTADO: PAUSADO / FIM
-    else {
+    else { // --- PAUSADO, BUFFERING OU FIM ---
         if (typeof stopYoutubeTracking === 'function') stopYoutubeTracking();
+        
+        // Volta ícone para Play
         if (el.playBtn) el.playBtn.querySelector('img').src = iconPlay;
-        if (el.fsPlayPauseBtn) {
-            const fsImg = el.fsPlayPauseBtn.querySelector('img');
-            if (fsImg) fsImg.src = iconPlay;
-            const playIcon = document.getElementById('fs-play-icon');
-            const pauseIcon = document.getElementById('fs-pause-icon');
-            if (playIcon) { playIcon.classList.remove('hidden'); pauseIcon.classList.add('hidden'); }
-        }
+        
+        limparTodosOsTimers();
 
+        // Se a música acabou (Estado 0), pula para a próxima
         if (state === 0 && typeof window.pularParaProxima === "function") {
             window.pularParaProxima();
         }
     }
 };
 
-function agendarProximoCiclo() {
-    if (window.streamTimer) clearTimeout(window.streamTimer);
-    window.streamTimer = setTimeout(async () => {
-        if (window.ytPlayer && window.ytPlayer.getPlayerState() === 1 && !window.isProcessingStream) {
-            window.isProcessingStream = true; 
-            await validarStreamOficial(window.currentTrack);
-            window.isProcessingStream = false;
-            agendarProximoCiclo(); 
-        }
-    }, 20000);
+function limparTodosOsTimers() {
+    if (window.streamTimer) { clearTimeout(window.streamTimer); window.streamTimer = null; }
+    if (window.bonusTimer30s) { clearTimeout(window.bonusTimer30s); window.bonusTimer30s = null; }
+    if (window.bonusTimer60s) { clearTimeout(window.bonusTimer60s); window.bonusTimer60s = null; }
 }
 
-// --- CONFIGURAÇÕES GLOBAIS DE ESTADO ---
-let validacaoJaEnviada = false;
-window.historicoGlobal = window.historicoGlobal || [];
-window.historicoValidacao = window.historicoValidacao || {};
-window.isProcessingStream = false;
+function calcularStreams(tempoOuvido) {
+    let min, max;
 
-// Helpers para o Lockdown (opcional, já que agora usamos Firestore, mas bom manter para redundância)
-const OBTER_LOCKDOWN = () => parseInt(localStorage.getItem('tune_lockdown_until')) || 0;
-const DEFINIR_LOCKDOWN = (ms) => localStorage.setItem('tune_lockdown_until', ms);
-
-/**
- * 1. MONITOR DE PROGRESSO (20 SEGUNDOS)
- */
-function monitorarProgressoAudio(audioElement, trackAtual) {
-    if (!trackAtual || !trackAtual.id) return;
-
-    const tempoSegundos = Math.floor(audioElement.currentTime);
-
-    if (tempoSegundos >= 20 && !validacaoJaEnviada) {
-        validacaoJaEnviada = true; 
-        console.log(`🎯 Marca de 20s atingida para: ${trackAtual.title}. Validando...`);
-        
-        validarStreamOficial(trackAtual).then(sucesso => {
-            if (sucesso) {
-                console.log("💎 [TUNE] Stream contabilizada com sucesso.");
-            } else {
-                console.warn("⚠️ [TUNE] Stream não contabilizada (Regras de Segurança).");
-            }
-        });
+    if (tempoOuvido >= 60) {
+        // Marco de 1 minuto: 1M a 2M
+        min = 1000000;
+        max = 2000000;
+    } else if (tempoOuvido >= 30) {
+        // Marco de 30 segundos: 500k
+        min = 480000;
+        max = 520000;
+    } else if (tempoOuvido >= 20) {
+        // Marco de 20 segundos: 100k
+        min = 95000;
+        max = 105000;
+    } else {
+        return 0; // Não atingiu o tempo mínimo
     }
-}
 
-function resetarValidacaoTrack() {
-    validacaoJaEnviada = false;
-    window.isProcessingStream = false;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 
 
-/**
- * 2. VALIDAÇÃO OFICIAL (CORRIGIDA)
- */
 async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
-    const user = typeof auth !== 'undefined' ? auth.currentUser : null;
-    if (!user) {
-        console.error("❌ [ERRO] Usuário não autenticado.");
+    const agora = Date.now();
+    if (window.ultimaValidacaoSucesso && (agora - window.ultimaValidacaoSucesso < 15000)) {
+        console.warn("⏳ [SISTEMA] Aguarde o intervalo de segurança para validar novamente.");
         return false;
     }
 
-    const agora = Date.now();
-    const userRef = doc(db, "usuarios", user.uid);
+    const currentUser = typeof auth !== 'undefined' ? auth.currentUser : null;
+    if (!currentUser) return false;
+
+    window.isProcessingStream = true;
+    const userRef = doc(db, "usuarios", currentUser.uid);
 
     try {
-        // --- PASSO 1: VERIFICAÇÃO DE STATUS E DESBLOQUEIO ---
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
             const userData = userSnap.data();
-            
-            if (userData.status === "suspenso") {
-                // Converte timestamp do Firebase para milissegundos com segurança
-                const suspensaoAte = userData.suspensaoAte ? userData.suspensaoAte.toDate().getTime() : 0;
 
+
+            if (userData.status === "suspenso") {
+                const suspensaoAte = userData.suspensaoAte?.toDate().getTime() || 0;
                 if (agora < suspensaoAte) {
-                    const restam = Math.ceil((suspensaoAte - agora) / 60000);
-                    
-                    return false; 
-                } else {
-                    // O tempo de suspensão expirou: Limpa o banco e segue viagem
-                    console.log("🔓 [TUNE] Tempo expirado. Reativando acesso...");
-                    await updateDoc(userRef, {
-                        status: "ativo",
-                        suspensaoAte: deleteField(),
-                        motivoSuspensao: deleteField()
-                    });
+                    console.error("🚫 Conta suspensa até " + new Date(suspensaoAte).toLocaleString());
+                    window.isProcessingStream = false;
+                    return false;
                 }
+                await updateDoc(userRef, { status: "ativo", suspensaoAte: deleteField() });
             }
         }
 
-        // --- PASSO 2: DETECÇÃO DE FLOOD (CLIQUES RÁPIDOS) ---
-        window.historicoGlobal.push(agora);
-        window.historicoGlobal = window.historicoGlobal.filter(t => agora - t < 10000);
+        const tempoOuvido = (agora - (window.streamStartTime || agora)) / 1000;
+        if (tempoOuvido < 19) { 
+            window.isProcessingStream = false; 
+            return false; 
+        }
 
-        if (window.historicoGlobal.length > 3) {
-            const DUAS_HORAS = 2 * 60 * 60 * 1000;
-            const dataExpira = new Date(agora + DUAS_HORAS);
+        const valorSorteado = calcularStreams(tempoOuvido);
+        if (valorSorteado === 0) { window.isProcessingStream = false; return false; }
 
-            console.error("🔥 [SPAM] Detectado! Suspensão de 2h aplicada no Firestore.");
+        const functionsInstance = getFunctions(undefined, "us-central1");
+        const registrarStreamFN = httpsCallable(functionsInstance, "registrarStream");
 
-            await updateDoc(userRef, {
-                status: "suspenso",
-                suspensaoAte: Timestamp.fromDate(dataExpira),
-                motivoSuspensao: "Flood de cliques (Automático)."
-            });
+        const result = await registrarStreamFN({
+            trackId: track.id,
+            valor: valorSorteado,
+            tempoOuvido: tempoOuvido
+        });
+
+        if (!result.data || !result.data.success) {
+            window.isProcessingStream = false;
             return false;
         }
 
-        // --- PASSO 3: COOLDOWN DE REPLAY (MESMA MÚSICA - 2 MINUTOS) ---
-        const ultimaVal = window.historicoValidacao[track.id] || 0;
-        if (agora - ultimaVal < 120000) {
-            console.warn(`⏳ [REPLAY] "${track.title}" em intervalo.`);
-            return false;
-        }
-
-        // --- PASSO 4: SOMA DOS STREAMS E OUVINTES ---
-        window.isProcessingStream = true;
         const musicRef = doc(db, "musicas", track.id);
-        const valorSorteado = Math.floor(Math.random() * 300001) + 100000;
-
-        let updates = {
+        await updateDoc(musicRef, {
             streams: increment(valorSorteado),
             streamsMensal: increment(valorSorteado),
             lastMonthlyStreamDate: serverTimestamp()
-        };
-
-        // Lógica de Ouvintes (Protegida contra erro de undefined)
-        const registroId = `ouv_${user.uid}_${track.id}`;
-        const registroRef = doc(db, "registro_ouvintes", registroId);
-        const registroSnap = await getDoc(registroRef);
-
-        let podeSomarOuvinte = true;
-        if (registroSnap.exists()) {
-            const dataReg = registroSnap.data();
-            // Verifica se o campo existe antes de converter
-            const ultimaVezOuvinte = (dataReg && dataReg.timestamp) ? dataReg.timestamp.toDate().getTime() : 0;
-            
-            if (agora - ultimaVezOuvinte < 18000000) { // Janela de 5 horas
-                podeSomarOuvinte = false;
-            }
-        }
-
-        if (podeSomarOuvinte) {
-            const valorBase = Math.floor(Math.random() * 200001) + 100000;
-            const eQueda = Math.random() < 0.20; 
-            const valorFinalOuvintes = eQueda ? -Math.abs(Math.floor(valorBase * 0.5)) : valorBase;
-            
-            updates.ouvintesMensais = increment(valorFinalOuvintes);
-            await setDoc(registroRef, { userId: user.uid, trackId: track.id, timestamp: serverTimestamp() });
-        }
-
-        // EFETIVA NO FIRESTORE
-        await updateDoc(musicRef, updates);
-
-        // LOG DE SUCESSO
-        await addDoc(collection(db, "logs_atividades"), {
-            type: 'play_20s_valid',
-            itemTitle: track.title,
-            userId: user.uid,
-            timestamp: serverTimestamp(),
-            valorGerado: valorSorteado
         });
 
-        window.historicoValidacao[track.id] = agora;
+        await addDoc(collection(db, "stream_logs"), { 
+            type: "play_valid",
+            trackId: track.id,
+            itemTitle: track.title,
+            userId: currentUser.uid,
+            timestamp: Date.now(),
+            valor: valorSorteado,
+            tempoOuvido: tempoOuvido.toFixed(0),
+            ip: result.data.ip || "0.0.0.0"
+        });
+
+        if (tempoOuvido >= 60) window.bonusEntregue60s = true;
+        else if (tempoOuvido >= 30) window.bonusEntregue30s = true;
+        else if (tempoOuvido >= 20) window.streamEntregueNestaExecucao = true;
+
+        window.ultimaValidacaoSucesso = Date.now();
         window.isProcessingStream = false;
-        console.log(`✅ [SUCESSO] +${valorSorteado.toLocaleString()} streams.`);
+        console.log(`💎 [TUNE] +${valorSorteado.toLocaleString()} streams via IP!`);
         return true;
 
     } catch (e) {
-        console.error("❌ Erro na validação:", e.message);
+        console.error("❌ Erro Validação:", e);
         window.isProcessingStream = false;
         return false;
-    }
-}
-
-// Função auxiliar para o log não quebrar
-function formatNumber(num) {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num;
-}
-
-function updateInterfaceLabels(current, total) {
-    const { fsProgressFill, fsCurrentTimeEl, fsTotalTimeEl } = getPlayerElements();
-    
-    // Proteção contra divisão por zero
-    let percent = 0;
-    if (total > 0) {
-        percent = (current / total) * 100;
-    }
-
-    const miniBar = document.getElementById("progress-fill");
-    const fullBar = document.getElementById("fs-player-bar-fill");
-    const timeCurrent = document.getElementById("current-time");
-
-
-    if (miniBar) miniBar.style.width = `${percent}%`;
-    if (fullBar) fullBar.style.width = `${percent}%`;
-    if (timeCurrent) timeCurrent.textContent = formatTime(current);
-
-    
-    // Formata o tempo
-    const currentTimeFormatted = formatTime(current);
-    const totalTimeFormatted = formatTime(total);
-
-    // Aplica no DOM (Player Tela Cheia)
-    if (fsProgressFill) fsProgressFill.style.width = percent + "%";
-    if (fsCurrentTimeEl) fsCurrentTimeEl.textContent = currentTimeFormatted;
-    if (fsTotalTimeEl) fsTotalTimeEl.textContent = totalTimeFormatted;
-
-    // Aplica no DOM (Mini Player - Caso queira mostrar lá também)
-    const miniProgress = document.getElementById("progress-fill");
-    const miniCurrent = document.getElementById("current-time");
-    const miniTotal = document.getElementById("total-time");
-
-    if (miniProgress) miniProgress.style.width = percent + "%";
-    if (miniCurrent) miniCurrent.textContent = currentTimeFormatted;
-    if (miniTotal) miniTotal.textContent = totalTimeFormatted;
-}
-
-
-async function registrarLog(itemTitle, type, itemId) {
-    try {
-        const user = auth.currentUser;
-        await addDoc(collection(db, "logs_atividades"), {
-            userName: user ? (user.displayName || "Usuário Tune") : "Anônimo",
-            userId: user ? user.uid : "deslogado",
-            itemId: itemId || "N/A",
-            itemTitle: itemTitle,
-            type: type,
-            timestamp: serverTimestamp(),
-            device: navigator.userAgent.includes("iPhone") ? "iPhone" : "Desktop"
-        });
-    } catch (e) { console.error("Erro Log:", e); }
-}
-
-function setupYoutubeAction() {
-    const { fsPlayPauseBtn } = getPlayerElements();
-
-    if (fsPlayPauseBtn) {
-        fsPlayPauseBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            if (!currentTrack) return;
-
-            // Já que agora tudo é YouTube, basta chamar a loadTrack
-            window.loadTrack(currentTrack);
-
-            // Inicia o contador para validar o Stream (20 segundos)
-            streamTimer = setTimeout(() => {
-                if (typeof validarStreamOficial === 'function') {
-                    validarStreamOficial(currentTrack);
-                }
-            }, 20000); // 20 segundos
-        };
     }
 }
 
@@ -1363,37 +1266,42 @@ async function updateFullScreenBackground(track) {
     
     const imgForColor = new Image();
     imgForColor.crossOrigin = "Anonymous";
+imgForColor.onload = function() {
+    try {
+        const colorThief = new ColorThief();
+        // Pegamos uma paleta de 5 cores para ter opções
+        const palette = colorThief.getPalette(imgForColor, 5); 
+        
+        // Transformamos a paleta RGB em HSL e filtramos a melhor
+        const bestColor = palette
+            .map(rgb => {
+                const hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+                return { rgb, hsl };
+            })
+            .filter(c => c.hsl.l > 0.15 && c.hsl.l < 0.85) // Ignora quase preto ou quase branco
+            .sort((a, b) => b.hsl.s - a.hsl.s)[0]; // Escolhe a cor mais SATURADA (viva)
 
-    imgForColor.onload = function() {
-        try {
-            const colorThief = new ColorThief();
-            const [r, g, b] = colorThief.getColor(imgForColor); 
+        const finalRgb = bestColor ? bestColor.rgb : palette[0];
+        let { h, s, l } = rgbToHsl(finalRgb[0], finalRgb[1], finalRgb[2]);
 
-            // --- TRUQUE PARA COR FORTE: CONVERSÃO PARA HSL ---
-            let { h, s, l } = rgbToHsl(r, g, b);
+        // Ajustes finos para o FullScreen (Aurora Effect)
+        s = Math.max(s, 0.7); // Garante vivacidade
+        l = 0.45; // Brilho fixo para consistência no fundo escuro
 
-            // 1. Forçamos a Saturação (S) para ser sempre alta (ex: 80%+)
-            s = Math.max(s, 0.8); 
+        const strongColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+        const glowColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%, 0.4)`;
 
-            // 2. Garantimos que o Brilho (L) seja visível mas não branco (ex: 40% a 50%)
-            l = Math.min(Math.max(l, 0.4), 0.5); 
+        aurora.style.background = `radial-gradient(circle at 50% 30%, 
+            ${strongColor} 0%, 
+            ${glowColor} 40%, 
+            rgba(0,0,0,0.9) 85%, 
+            #000 100%)`;
 
-            const strongColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
-            const glowColor = `hsl(${h * 360}, ${s * 100}%, ${l * 120}%, 0.3)`; // Um brilho extra
-
-            // GRADIENTE DE IMPACTO
-            // Usamos a cor forte ocupando mais espaço antes de escurecer
-            aurora.style.background = `radial-gradient(circle at 50% 35%, 
-                ${strongColor} 0%, 
-                ${glowColor} 40%, 
-                rgba(0,0,0,0.85) 85%, 
-                #000 100%)`;
-            
-                    } catch (e) {
-            console.warn(e);
-            aurora.style.background = "#121212";
-        }
-    };
+    } catch (e) {
+        console.warn("Erro ao extrair cor:", e);
+        aurora.style.background = "#121212";
+    }
+};
 
     imgForColor.src = track.cover ? `${track.cover}?t=${new Date().getTime()}` : "assets/10.png";
 }
@@ -1424,29 +1332,29 @@ function updateMiniPlayerBackground(track) {
     const img = new Image();
     img.crossOrigin = "Anonymous";
 
-    img.onload = function () {
-        try {
-            const colorThief = new ColorThief();
-            const [r, g, b] = colorThief.getColor(img);
+    // Dentro do updateMiniPlayerBackground:
+img.onload = function () {
+    try {
+        const colorThief = new ColorThief();
+        const palette = colorThief.getPalette(img, 5);
 
-            let { h, s, l } = rgbToHsl(r, g, b);
+        const bestColor = palette
+            .map(rgb => ({ rgb, hsl: rgbToHsl(rgb[0], rgb[1], rgb[2]) }))
+            .sort((a, b) => b.hsl.s - a.hsl.s)[0];
 
-            s = Math.max(s, 0.8);
-            l = Math.min(Math.max(l, 0.35), 0.45);
+        let { h, s, l } = bestColor.hsl;
 
-            const strongColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+        // Ajuste para o MiniPlayer: Menos brilho para o texto branco ler bem
+        s = Math.min(s, 0.6); // Saturação moderada
+        l = 0.12; // Bem escuro para o efeito Glass que você usa
 
-            // escurece levemente a cor
-l = Math.max(l - 0.15, 0.15); 
+        const darkColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
+        miniPlayer.style.background = darkColor;
 
-const darkColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
-
-miniPlayer.style.background = darkColor;
-
-        } catch (e) {
-            miniPlayer.style.background = "#121212";
-        }
-    };
+    } catch (e) {
+        miniPlayer.style.background = "#121212";
+    }
+};
 
     img.src = track.cover
         ? `${track.cover}?t=${Date.now()}`
@@ -1627,6 +1535,7 @@ function checkCurrentTrack() {
 document.addEventListener("DOMContentLoaded", () => {
     setupPlayerListeners();
     setupSwipeToClose();
+    checkCurrentTrack();
     setupQueueControls();
 });
 // No final do seu player.js

@@ -3,38 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logs de Atividade - Tune</title>
+    <title>Tune DKS | Monitoring Console</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <style>
-        body { background-color: #000; color: white; font-family: 'Inter', sans-serif; }
-        .log-card { background: #121212; border-left: 4px solid #1ed760; transition: 0.3s; }
-        .log-card:hover { background: #181818; }
-        .type-music { color: #1ed760; }
-        .type-album { color: #3d91ff; }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-primary: #0b0f0f;
+            --bg-secondary: #141a1a;
+            --accent: #008c99;
+            --text-main: #d1d5db;
+            --text-dim: #6b7280;
+            --border: #242c2c;
+        }
+
+        body { 
+            background-color: var(--bg-primary); 
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* --- Organizador da Tabela --- */
+        .monitor-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: #1a2222;
+            color: var(--text-dim);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+        }
+
+        .table-row {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .table-row:last-child { border-bottom: none; }
+        .table-row:hover { background: #1c2525; }
+
+        .cell { padding: 12px 16px; font-size: 13px; }
+
+        /* --- Badges e Status --- */
+        .badge-stream {
+            background: rgba(0, 140, 153, 0.15);
+            color: var(--accent);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+
+    /* Estilo da Tabela - Limpo e Profissional */
+    .monitor-container {
+        background: #141a1a;
+        border: 1px solid #242c2c;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 20px;
+    }
+
+    /* Cabeçalho Fixo */
+    .table-header {
+        display: flex;
+        background: #1a2222;
+        padding: 12px 16px;
+        border-bottom: 2px solid #242c2c;
+        font-size: 11px;
+        font-weight: 800;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* Linha de Dados */
+    .table-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid #242c2c;
+        transition: background 0.2s;
+    }
+
+    .table-row:hover { background: #1c2525; }
+
+    /* Definição de Largura das Colunas (Igual no Header e na Row) */
+    .col-user { flex: 2; min-width: 120px; }
+    .col-music { flex: 3; min-width: 180px; }
+    .col-streams { flex: 1.5; text-align: right; min-width: 100px; }
+    .col-time { flex: 1; text-align: center; min-width: 80px; }
+    .col-ip { flex: 2; text-align: right; min-width: 150px; }
+
+    /* Estilos de Texto */
+    .badge-stream {
+        background: rgba(0, 140, 153, 0.2);
+        color: #008c99;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: bold;
+    }
+
+    .text-ip { color: #58a6ff; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
     </style>
 </head>
-<body class="p-8">
+<body class="p-4 md:p-8">
 
-    <div class="max-w-4xl mx-auto">
-        <header class="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
+    <div class="max-w-6xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
-                <h1 class="text-3xl font-black uppercase tracking-tighter">Logs do Sistema</h1>
-                <p class="text-gray-400 text-sm">Monitoramento de cliques em tempo real</p>
+                <div class="flex items-center gap-3 mb-1">
+                    <div class="w-2 h-8 bg-[#008c99] rounded-full"></div>
+                    <h1 class="text-2xl font-extrabold tracking-tight text-white">Console de Operações</h1>
+                </div>
+                <p class="text-gray-500 text-sm ml-5">Monitoramento de tráfego e validação de streams</p>
             </div>
-            <i class='bx bx-history text-4xl text-[#1ed760]'></i>
+            
+            <div class="bg-[#141a1a] border border-[#242c2c] rounded-lg px-4 py-2 flex items-center gap-4">
+                <div class="text-right">
+                    <p class="text-[10px] text-gray-500 uppercase font-bold">Status do Cluster</p>
+                    <p class="text-xs text-green-500 font-mono">● Sistema Ativo</p>
+                </div>
+            </div>
         </header>
 
-        <div id="logs-container" class="space-y-3">
-            <div class="text-center py-10 text-gray-500">Aguardando atividades...</div>
+        <div class="monitor-table shadow-2xl">
+            <div class="table-header grid grid-cols-12 items-center">
+                <div class="col-span-3 cell text-left">Usuário</div>
+                <div class="col-span-4 cell">Música</div>
+                <div class="col-span-2 cell text-right">Streams</div>
+                <div class="col-span-1 cell text-center">Horário</div>
+                <div class="col-span-2 cell text-right">IP Address</div>
+            </div>
+
+            <div id="logs-container">
+                <div class="p-20 text-center text-gray-600 animate-pulse">
+                    <i class='bx bx-loader-alt bx-spin text-2xl mb-2'></i>
+                    <p class="text-sm font-mono uppercase">Estabelecendo conexão segura...</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-        import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, limit, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-        // Use a MESMA configuração que você já tem no main.js
         const firebaseConfig = {
             apiKey: "AIzaSyD4gKKJh59ljwOe0PDYaJSsfEp_7PMBD8s",
             authDomain: "tune-8cafb.firebaseapp.com",
@@ -46,46 +184,53 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
         const logsContainer = document.getElementById('logs-container');
 
-        // Escuta em tempo real (onSnapshot)
-        const q = query(collection(db, "logs"), orderBy("timestamp", "desc"), limit(50));
+        const q = query(collection(db, "stream_logs"), orderBy("timestamp", "desc"), limit(30));
 
         onSnapshot(q, (snapshot) => {
             logsContainer.innerHTML = '';
             
-            snapshot.forEach((doc) => {
-                const log = doc.data();
-                const time = log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString() : '--:--';
-                const date = log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleDateString() : '';
+            snapshot.forEach(async (docSnap) => {
+                const log = docSnap.data();
+                const time = log.timestamp ? new Date(log.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '--:--';
 
-                const div = document.createElement('div');
-                div.className = 'log-card p-4 rounded-r-lg flex justify-between items-center shadow-lg';
-                
-                const icon = log.type === 'Música' ? 'bx-music' : 'bx-disc';
-                const colorClass = log.type === 'Música' ? 'type-music' : 'type-album';
+                const row = document.createElement('div');
+                row.className = 'table-row grid grid-cols-12 items-center';
 
-                div.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                            <i class='bx ${icon} text-xl ${colorClass}'></i>
-                        </div>
-                        <div>
-                            <p class="text-white font-bold">
-                                <span class="text-gray-400 font-normal">Usuário:</span> ${log.userName}
-                            </p>
-                            <p class="text-sm text-gray-400">
-                                Clicou em <span class="text-white">${log.itemTitle}</span> (${log.type})
-                            </p>
-                        </div>
+                row.innerHTML = `
+                    <div class="col-span-3 cell flex items-center gap-3">
+                        <div class="w-7 h-7 bg-gray-800 rounded flex items-center justify-center text-[10px] font-bold text-gray-400">US</div>
+                        <span class="font-semibold text-gray-200 user-name-field truncate">...</span>
                     </div>
-                    <div class="text-right">
-                        <p class="text-[#1ed760] font-mono text-sm">${time}</p>
-                        <p class="text-gray-600 text-[10px] uppercase">${date}</p>
+                    <div class="col-span-4 cell">
+                        <p class="text-white font-medium track-name-field truncate">Buscando...</p>
+                        <p class="text-[10px] text-gray-500 font-mono tracking-tighter">ID: ${log.trackId?.substring(0,8)}</p>
+                    </div>
+                    <div class="col-span-2 cell text-right">
+                        <span class="badge-stream font-mono">+${(log.valor || 0).toLocaleString()}</span>
+                    </div>
+                    <div class="col-span-1 cell text-center font-mono text-gray-400 text-xs">
+                        ${time}
+                    </div>
+                    <div class="col-span-2 cell text-right font-mono text-[#58a6ff] text-[11px] opacity-80">
+                        ${log.ip || '0.0.0.0'}
                     </div>
                 `;
-                logsContainer.appendChild(div);
+                
+                logsContainer.appendChild(row);
+
+                // Busca dados assíncronos
+                if (log.trackId) {
+                    getDoc(doc(db, "musicas", log.trackId)).then(s => {
+                        if (s.exists()) row.querySelector('.track-name-field').innerText = s.data().title;
+                    });
+                }
+                if (log.userId) {
+                    getDoc(doc(db, "usuarios", log.userId)).then(s => {
+                        if (s.exists()) row.querySelector('.user-name-field').innerText = s.data().apelido || "Usuário";
+                    });
+                }
             });
         });
     </script>

@@ -3,32 +3,381 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perfil do Usuário</title>
-    <link rel="stylesheet" href="/style.css"> 
-    <link rel="stylesheet" href="/rodape.css"> 
+    <title>Perfil - Tune</title>
+    <style>
+        /* 1. FONTES */
+        @font-face { font-family: 'Nationale Bold'; src: url('/fonts/Nationale-Bold.woff2') format('woff2'); font-weight: bold; }
+        @font-face { font-family: 'Nationale Regular'; src: url('/fonts/SpotifyMix-Medium.woff2') format('woff2'); }
+
+        :root {
+            --bg-black: #000000;
+            --box-grey: #121212;
+            --text-white: #ffffff;
+            --text-grey: #a7a7a7;
+            --line: #292929;
+            --danger: #e91429;
+            /* Definição da margem lateral que cada elemento terá */
+            --margin-left: 20px; 
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-black);
+            color: var(--text-white);
+            font-family: 'Nationale Regular', sans-serif;
+
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 450px; /* Largura padrão mobile */
+            padding-top: 60px;
+        }
+
+        /* --- ELEMENTOS COM MARGEM PRÓPRIA --- */
+        
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+
+            margin-bottom: 40px;
+        }
+
+        .avatar-container {
+            width: 80px;
+            height: 80px;
+            background: #282828;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .user-name {
+            font-family: 'Nationale Bold';
+            font-size: 32px;
+            font-weight: 800;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-left: var(--margin-left); /* Margem no elemento */
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        .list-item {
+            margin-left: var(--margin-left); /* Margem no elemento */
+            padding: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-right: 20px; /* Espaço para o chevron não colar na borda direita */
+        }
+
+        .content-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .label { font-size: 14px; font-weight: 700; }
+        .sub-value { font-size: 14px; color: var(--text-grey); }
+        .chevron { color: var(--text-grey); font-size: 20px; }
+
+        /* Divisor: Sem margem para encostar nas bordas */
+        .divider {
+            width: 100%;
+            height: 1px;
+            background-color: var(--line);
+            border: none;
+        }
+
+        /* Plano */
+        .plan-row {
+            margin-left: var(--margin-left); /* Margem no elemento */
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 10px;
+            margin-bottom: 25px;
+        }
+
+        .icon-box {
+            width: 56px;
+            height: 56px;
+            background-color: #181818;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .plan-logo { width: 100%; height: 100%; object-fit: contain; }
+        .plan-text { font-size: 14px; font-weight: 700; }
+
+        /* Rodapé */
+        .delete-footer {
+            margin-left: var(--margin-left); /* Margem no elemento */
+            margin-top: 50px;
+            font-size: 13px;
+            color: var(--text-grey);
+            padding-bottom: 40px;
+        }
+
+        .delete-link {
+            color: var(--text-white);
+            text-decoration: underline;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* Modal permanece igual para o seu main.js */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal {
+            background: #282828;
+            width: 85%;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .artist-promo-container {
+    background-color: #ffffff;
+    border-radius: 12px;
+    /* Ajuste o padding para que o logo comece no mesmo eixo que o texto acima */
+    
+    margin-top: 20px;
+    margin-bottom: 25px;
+    display: flex;
+    width: calc(100% - 40px); /* Desconta a margem de 20px de cada lado */
+}
+
+.brand-icon {
+    width: 28px;
+    height: 28px;
+    filter: invert(1);
+    margin-right: 10px;
+}
+
+.brand-name {
+    color: #000000;
+    font-family: 'Nationale Bold';
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+.promo-btn-original {
+    background: transparent;
+    color: #000000;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+/* Overlay que cobre a tela toda */
+.tune-modal-overlay {
+    display: none; /* Escondido por padrão */
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 20000000; /* Acima do player e sidebar */
+    justify-content: center;
+    align-items: center;
+}
+
+/* Caixa do Modal */
+.tune-modal-box {
+    background: #181818;
+    width: 90%;
+    max-width: 360px;
+    padding: 32px;
+    border-radius: 12px;
+    border: 1px solid #292929;
+    text-align: left;
+}
+
+.modal-title {
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 22px;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.modal-subtitle {
+    font-size: 14px;
+    color: #a7a7a7;
+    margin-bottom: 24px;
+    line-height: 1.4;
+}
+
+/* Input */
+.input-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.input-group input {
+    width: 100%;
+    background: #282828;
+    color: #fff;
+    border: 1px solid transparent;
+    padding: 12px;
+    border-radius: 4px;
+    outline: none;
+}
+
+.input-group input:focus {
+    border-color: #1db954; /* Verde Tune ao focar */
+}
+
+/* Botões */
+.modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.btn-save {
+    background: #ffffff;
+    color: #000;
+    border: none;
+    padding: 14px;
+    border-radius: 30px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.btn-cancel {
+    background: transparent;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tune-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 20000000;
+    justify-content: center;
+    align-items: center;
+}
+
+.tune-modal-box {
+    background: #181818;
+    font-family: 'Nationale Regular', sans-serif;
+    width: 90%;
+    max-width: 400px;
+    padding: 35px;
+    border-radius: 12px;
+    
+}
+
+.modal-title-bold {
+    font-family: 'Nationale Regular', sans-serif;
+    font-size: 28px;
+    font-weight: 900;
+    margin-bottom: 25px;
+    color: #fff;
+    letter-spacing: -1px;
+}
+
+.input-group { margin-bottom: 20px; }
+.input-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+.input-group input { 
+    width: 100%; background: #282828; color: #fff; border: 1px solid transparent; 
+    padding: 12px; border-radius: 4px; outline: none; 
+}
+.input-group input:focus { border-color: #1db954; }
+
+.modal-actions-right { display: flex; justify-content: flex-end; gap: 15px; margin-top: 10px; }
+.btn-green { background: #ffffff; font-family: 'Nationale Regular', sans-serif; color: #000; border: none; padding: 12px 24px; border-radius: 30px; font-weight: 700; cursor: pointer; }
+.btn-text { background: transparent; color: #fff; font-family: 'Nationale Regular', sans-serif; border: none;  cursor: pointer; }
+
+/* Garante que a margem lateral seja EXATAMENTE 20px como no resto do perfil */
+.margin-side {
+    margin-left: var(--margin-left) !important;
+    margin-right: var(--margin-left) !important;
+}
+
+.error-msg {
+    color: #e91429; /* Vermelho Tune */
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 5px;
+    display: block;
+    min-height: 15px; /* Evita que o layout "pule" quando o erro aparece */
+}
+
+/* Deixa o input vermelho quando houver erro */
+.input-error {
+    border-color: #e91429 !important;
+}
+
+        .btn-modal {
+            width: 100%;
+            padding: 14px;
+            border-radius: 30px;
+            font-weight: 700;
+            border: none;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .confirm { background: var(--danger); color: white; }
+        .cancel { background: transparent; color: white; }
+    </style>
 </head>
 <body>
-    <div class="container">
+
+    <div class="app-container">
         <header class="profile-header">
-            <img src="/assets/artistpfp.png" alt="" class="profile-pic"> 
-            <h1 class="profile-name"></h1>
+            <div class="avatar-container">
+                <img src="/assets/artistpfp.png" style="width:100%; height:100%; object-fit:cover;" alt="Foto">
+            </div>
+            <h1 class="user-name"></h1>
         </header>
 
-            
-            <div class="detail-item email-item">
-                <div class="email-info">
-                    <span class="detail-label">E-mail</span>
-                    <span class="detail-value"></span>
-                </div> 
-            </div>
-        </section>
-
+        <h2 class="section-title">Conta</h2>
         
-<div class="artist-promo-container" style="display: none;">
+        <div class="list-item">
+            <div class="content-stack">
+                <span class="label">Username</span>
+                <span class="sub-value">pup31wjhxgolp...</span>
+            </div>
+        </div>
+
+        <div class="artist-promo-container margin-side">
     <div class="artist-promo-content"> 
         <div class="promo-left">
             <img src="/assets/logotunearts.png" alt="Tune Logo" class="promo-logo">
-           
         </div>
         <div class="promo-right">
             <button class="promo-button" onclick="window.location.href='tuneartists.html'">
@@ -37,15 +386,67 @@
         </div>
     </div>
 </div>
+        <hr class="divider">
+
+        <div class="list-item margin-side" id="openEditModalBtn" style="cursor: pointer; display: flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 20px 0;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a7a7a7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+    </svg>
+    <span style="font-size: 15px; font-weight: 700; color: white;">Editar informações pessoais</span>
+</div>
+<hr class="divider">
 
 
+        
+        <hr class="divider">
 
-    
-
-
-<script type="module" src="/js/main.js"></script>
-
+        <div class="delete-footer">
+            Para apagar sua conta <span class="delete-link" id="openModal">clique aqui.</span>
+        </div>
     </div>
-    
+
+    <div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 20000000; justify-content: center; align-items: center; font-family: 'Nationale Regular', sans-serif;">
+    <div style="background: #1d1d1d; width: 90%; max-width: 340px; padding: 32px; border-radius: 12px; text-align: center; color: white;">
+        <h3 style="font-family: 'Nationale Bold'; margin-bottom: 12px; font-size: 20px;">Excluir conta?</h3>
+        <p style="font-size: 14px; color: #a7a7a7; margin-bottom: 24px; line-height: 1.4;">Esta ação é <b>permanente</b> e não pode ser desfeita. Você perderá seus dados.</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button id="confirmDelete" style="background: #ffffff; color: rgb(0, 0, 0); border: none; padding: 14px; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 14px;">Apagar</button>
+            <button id="closeModal" style="background: transparent; color: white; border: none; padding: 10px; cursor: pointer; font-weight: bold; font-size: 14px;">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div id="edit-profile-overlay" class="tune-modal-overlay">
+    <div class="tune-modal-box">
+        <h2 class="modal-title-bold">Editar Perfil</h2>
+        
+        <div class="input-group">
+            <label>Apelido (Público)</label>
+            <input type="text" id="edit-nickname" placeholder="Seu apelido">
+            <span id="error-nickname" class="error-msg"></span>
+        </div>
+
+        <div class="input-group">
+            <label>E-mail (Conta)</label>
+            <input type="email" id="edit-email" placeholder="seu@email.com">
+            <span id="error-email" class="error-msg"></span>
+        </div>
+
+        <div class="input-group">
+            <label>Nova Senha (Opcional)</label>
+            <input type="password" id="edit-password" placeholder="Mínimo 6 caracteres">
+            <span id="error-password" class="error-msg"></span>
+        </div>
+
+        <div class="modal-actions-right">
+            <button id="closeEditModal" class="btn-text">Cancelar</button>
+            <button id="saveProfileChanges" class="btn-green">Salvar perfil</button>
+        </div>
+    </div>
+</div>
+
+    <script type="module" src="/js/main.js"></script>
 </body>
 </html>
