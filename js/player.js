@@ -925,20 +925,28 @@ function limparTodosOsTimers() {
     if (window.streamTimer) { clearTimeout(window.streamTimer); window.streamTimer = null; }
     if (window.bonusTimer30s) { clearTimeout(window.bonusTimer30s); window.bonusTimer30s = null; }
     if (window.bonusTimer60s) { clearTimeout(window.bonusTimer60s); window.bonusTimer60s = null; }
-}function calcularStreams(tempoOuvido) {
+}
+
+function calcularStreams(tempoOuvido) {
     let min, max;
-    if (tempoOuvido >= 60) {
-        min = 300000;
-        max = 700000;
-    } else if (tempoOuvido >= 30) {
-        min = 40000;
-        max = 200000;
-    } else if (tempoOuvido >= 20) {
+
+    // Invertemos a ordem ou usamos faixas fixas para não haver erro de interpretação
+    if (tempoOuvido >= 20 && tempoOuvido < 30) {
+        // Faixa dos 20 segundos
         min = 10000;
         max = 40000;
+    } else if (tempoOuvido >= 30 && tempoOuvido < 60) {
+        // Faixa dos 30 segundos
+        min = 40000;
+        max = 200000;
+    } else if (tempoOuvido >= 60) {
+        // Faixa de 1 minuto ou mais
+        min = 300000;
+        max = 700000;
     } else {
-        return 0;
+        return 0; // Menos de 20s não ganha nada
     }
+
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
