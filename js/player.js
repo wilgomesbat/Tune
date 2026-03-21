@@ -948,17 +948,16 @@ async function validarStreamOficial(track) {
     if (!track || !track.id || window.isProcessingStream) return false;
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
+    const masterTab = localStorage.getItem('tune_tabs_active_session_master');
+
     // 1. Bloqueio Multi-Aba (PC)
     if (!isMobile) {
-        const currentMaster = localStorage.getItem('tune_tabs_active_session_master');
-        if (currentMaster && currentMaster !== window.SESSION_ID) {
-            console.error("🚫 [BLOQUEIO] Aba secundária detectada.");
-            return false; 
+        if (typeof window.SESSION_ID !== 'undefined' && masterTab && masterTab !== window.SESSION_ID) {
+            console.error("🚫 [BLOQUEIO] Esta não é a aba principal.");
+            return false;
         }
     }
 
-    // 2. Bloqueio Visibilidade
     if (document.hidden) return false;
 
     const agora = Date.now();
@@ -968,7 +967,6 @@ async function validarStreamOficial(track) {
     window.isProcessingStream = true;
 
     try {
-        // 3. Cálculo de Tempo
         const tempoOuvido = (agora - (window.streamStartTime || agora)) / 1000;
         
         if (tempoOuvido < 19) { 
@@ -977,42 +975,35 @@ async function validarStreamOficial(track) {
             return false; 
         }
 
-        // 4. Interação (PC)
-        if (!isMobile && (window.userInteractions || 0) < 1) {
-            console.error("🚫 Sem interação humana.");
-            window.isProcessingStream = false;
-            return false;
-        }
-
-        // --- LÓGICA DE VALORES ---
-        const valorFinal = calcularStreams(tempoOuvido);
+        // --- LÓGICA DE VALORES (STREAMS) ---
+        const valorFinal = typeof calcularStreams === 'function' ? calcularStreams(tempoOuvido) : 0;
         if (valorFinal <= 0) {
             window.isProcessingStream = false;
             return false;
         }
 
-        // Lógica de Ouvintes (10k a 200k) - Sobe ou desce
-        const valorAjusteOuvintes = Math.floor(Math.random() * (200000 - 10000 + 1)) + 10000;
-        const operacao = Math.random() < 0.5 ? 1 : -1;
-        const ajusteFinalOuvintes = valorAjusteOuvintes * operacao;
+        // --- LÓGICA DE OUVINTES MENSAIS (NA MÚSICA) ---
+        const valorSorteadoOuvintes = Math.floor(Math.random() * (200000 - 10000 + 1)) + 10000;
+        
+        // 70% de chance de ADICIONAR | 30% de chance de REMOVER
+        const chance = Math.random();
+        let ajusteOuvintes;
 
-        // DEBUG NO CONSOLE PARA VOCÊ VER SE OS VALORES ESTÃO CERTOS
-        console.table({
-            "Musica": track.title,
-            "Tempo Ouvido": tempoOuvido.toFixed(2) + "s",
-            "Streams (+ )": valorFinal,
-            "Ouvintes (±)": ajusteFinalOuvintes,
-            "Operação": operacao > 0 ? "SOMA" : "SUBTRAÇÃO"
-        });
+        if (chance < 0.7) {
+            ajusteOuvintes = valorSorteadoOuvintes; // Adiciona o valor cheio (até 200k)
+        } else {
+            // Quando remove, remove apenas 40% do valor sorteado para evitar negativar a música
+            ajusteOuvintes = -(Math.floor(valorSorteadoOuvintes * 0.4)); 
+        }
 
-        // 5. Cloud Function
+        // 2. Cloud Function
         const functionsInstance = getFunctions(undefined, "us-central1");
         const registrarStreamFN = httpsCallable(functionsInstance, "registrarStream");
 
         const result = await registrarStreamFN({
             trackId: track.id,
             valor: valorFinal,
-            ajusteOuvintes: ajusteFinalOuvintes,
+            ajusteOuvintes: ajusteOuvintes,
             tempoOuvido: tempoOuvido,
             sessionId: window.SESSION_ID
         });
@@ -1022,34 +1013,38 @@ async function validarStreamOficial(track) {
             return false;
         }
 
-        // 6. Atualização Firestore
+        // --- 3. ATUALIZAÇÃO FIRESTORE (FOCO NA MÚSICA ID) ---
         const musicRef = doc(db, "musicas", track.id);
         
         await updateDoc(musicRef, {
-            streams: increment(valorFinal), 
-            ouvintesMensais: increment(ajusteFinalOuvintes), 
+            streams: increment(valorFinal), // Streams sempre sobem
+            ouvintesMensais: increment(ajusteOuvintes), // Ouvintes oscilam na música
             lastMonthlyStreamDate: serverTimestamp()
         });
 
-        // 5. Log de Auditoria (Corrigido para mostrar o valor como antes)
+        // --- 4. LOGS DE AUDITORIA CORRIGIDAS (COMO ANTES) ---
         await addDoc(collection(db, "stream_logs"), { 
-            type: ajusteFinalOuvintes > 0 ? "play_valid" : "listener_adjustment",
+            type: ajusteOuvintes > 0 ? "play_valid" : "listener_adjustment",
             trackId: track.id,
+            itemTitle: track.title || "Música",
             userId: currentUser.uid,
             timestamp: Date.now(),
-            valor: valorFinal, // <--- Volta a ser o campo principal para aparecer na lista
-            valorOuvintes: ajusteFinalOuvintes, // Ajuste aleatório dos ouvintes
-            itemTitle: track.title, // Adicionado para facilitar identificação na log
+            valor: valorFinal, // <--- Mostra a quantidade de streams na log como antes
+            valorOuvintes: ajusteOuvintes, // Log do ajuste de ouvintes
             tempoOuvido: tempoOuvido.toFixed(0),
-            sessionId: window.SESSION_ID,
             platform: isMobile ? 'mobile' : 'desktop'
         });
 
+        window.ultimaValidacaoSucesso = Date.now();
         window.isProcessingStream = false;
+        
+        const acao = ajusteOuvintes > 0 ? "📈 Ganho" : "📉 Ajuste";
+        console.log(`💎 [TUNE] +${valorFinal.toLocaleString()} Streams | ${acao}: ${ajusteOuvintes.toLocaleString()} Ouvintes.`);
+        
         return true;
 
     } catch (e) {
-        console.error("❌ Erro:", e);
+        console.error("❌ Erro na validação:", e);
         window.isProcessingStream = false;
         return false;
     }
