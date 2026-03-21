@@ -931,17 +931,17 @@ function calcularStreams(tempoOuvido) {
     let min, max;
 
     if (tempoOuvido >= 60) {
-        // Marco de 1 minuto: 1M a 2M
-        min = 1000000;
-        max = 2000000;
+        // 1 minuto: 800k a 1.5M
+        min = 800000;
+        max = 1500000;
     } else if (tempoOuvido >= 30) {
-        // Marco de 30 segundos: 500k
-        min = 480000;
-        max = 520000;
+        // 30 segundos: 100k a 500k
+        min = 100000;
+        max = 500000;
     } else if (tempoOuvido >= 20) {
-        // Marco de 20 segundos: 100k
-        min = 95000;
-        max = 105000;
+        // 20 segundos: 30k a 100k
+        min = 30000;
+        max = 100000;
     } else {
         return 0; // Não atingiu o tempo mínimo
     }
