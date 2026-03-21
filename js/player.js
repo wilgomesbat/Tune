@@ -943,22 +943,12 @@ function limparTodosOsTimers() {
 }
 
 async function validarStreamOficial(track) {
-    console.log("🔍 [TUNE CHECK] Iniciando validação...");
-
     if (!track || !track.id || window.isProcessingStream) return false;
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const masterTab = localStorage.getItem('tune_tabs_active_session_master');
 
-    // 1. Bloqueio Multi-Aba (PC)
-    if (!isMobile) {
-        if (typeof window.SESSION_ID !== 'undefined' && masterTab && masterTab !== window.SESSION_ID) {
-            console.error("🚫 [BLOQUEIO] Esta não é a aba principal.");
-            return false;
-        }
-    }
-
-    if (document.hidden) return false;
+    if (!isMobile && masterTab && masterTab !== window.SESSION_ID) return false;
 
     const agora = Date.now();
     const currentUser = typeof auth !== 'undefined' ? auth.currentUser : null;
@@ -968,83 +958,86 @@ async function validarStreamOficial(track) {
 
     try {
         const tempoOuvido = (agora - (window.streamStartTime || agora)) / 1000;
-        
         if (tempoOuvido < 19) { 
-            console.warn(`⏳ Tempo insuficiente (${tempoOuvido.toFixed(1)}s).`);
             window.isProcessingStream = false; 
             return false; 
         }
 
-        // --- LÓGICA DE VALORES (STREAMS) ---
+        // 1. CÁLCULO DE STREAMS (Sempre Positivo)
         const valorFinal = typeof calcularStreams === 'function' ? calcularStreams(tempoOuvido) : 0;
         if (valorFinal <= 0) {
             window.isProcessingStream = false;
             return false;
         }
 
-        // --- LÓGICA DE OUVINTES MENSAIS (NA MÚSICA) ---
-        const valorSorteadoOuvintes = Math.floor(Math.random() * (200000 - 10000 + 1)) + 10000;
+        // 2. BUSCA DADOS ATUAIS DA MÚSICA (Para evitar negativar)
+        const musicRef = doc(db, "musicas", track.id);
+        const musicSnap = await getDoc(musicRef);
+        let ouvintesAtuais = 0;
         
-        // 70% de chance de ADICIONAR | 30% de chance de REMOVER
-        const chance = Math.random();
-        let ajusteOuvintes;
-
-        if (chance < 0.7) {
-            ajusteOuvintes = valorSorteadoOuvintes; // Adiciona o valor cheio (até 200k)
-        } else {
-            // Quando remove, remove apenas 40% do valor sorteado para evitar negativar a música
-            ajusteOuvintes = -(Math.floor(valorSorteadoOuvintes * 0.4)); 
+        if (musicSnap.exists()) {
+            ouvintesAtuais = musicSnap.data().ouvintesMensais || 0;
         }
 
-        // 2. Cloud Function
+        // 3. LÓGICA DE OUVINTES COM TRAVA ANTI-NEGATIVO
+        const valorSorteadoOuvintes = Math.floor(Math.random() * (200000 - 10000 + 1)) + 10000;
+        const eAdicao = Math.random() < 0.6; // 60% de chance de subir
+        
+        let ajusteOuvintes;
+
+        if (eAdicao) {
+            ajusteOuvintes = valorSorteadoOuvintes;
+        } else {
+            // Se for para remover, verificamos se a música tem saldo
+            // Se o valor sorteado for maior que o que a música tem, removemos apenas 50% do que ela tem hoje
+            if (valorSorteadoOuvintes > ouvintesAtuais) {
+                ajusteOuvintes = -(Math.floor(ouvintesAtuais * 0.5)); 
+            } else {
+                ajusteOuvintes = -valorSorteadoOuvintes;
+            }
+        }
+
+        // 4. CHAMADA CLOUD FUNCTION
         const functionsInstance = getFunctions(undefined, "us-central1");
         const registrarStreamFN = httpsCallable(functionsInstance, "registrarStream");
-
         const result = await registrarStreamFN({
             trackId: track.id,
             valor: valorFinal,
             ajusteOuvintes: ajusteOuvintes,
-            tempoOuvido: tempoOuvido,
-            sessionId: window.SESSION_ID
+            tempoOuvido: tempoOuvido
         });
 
-        if (!result.data || !result.data.success) {
+        if (!result.data?.success) {
             window.isProcessingStream = false;
             return false;
         }
 
-        // --- 3. ATUALIZAÇÃO FIRESTORE (FOCO NA MÚSICA ID) ---
-        const musicRef = doc(db, "musicas", track.id);
-        
+        // 5. ATUALIZAÇÃO NO FIRESTORE (VALORES SEGUROS)
         await updateDoc(musicRef, {
-            streams: increment(valorFinal), // Streams sempre sobem
-            ouvintesMensais: increment(ajusteOuvintes), // Ouvintes oscilam na música
+            streams: increment(valorFinal),
+            ouvintesMensais: increment(ajusteOuvintes),
             lastMonthlyStreamDate: serverTimestamp()
         });
 
-        // --- 4. LOGS DE AUDITORIA CORRIGIDAS (COMO ANTES) ---
+        // 6. LOGS (MOSTRANDO O VALOR FINAL COMO ANTES)
         await addDoc(collection(db, "stream_logs"), { 
             type: ajusteOuvintes > 0 ? "play_valid" : "listener_adjustment",
             trackId: track.id,
             itemTitle: track.title || "Música",
             userId: currentUser.uid,
             timestamp: Date.now(),
-            valor: valorFinal, // <--- Mostra a quantidade de streams na log como antes
-            valorOuvintes: ajusteOuvintes, // Log do ajuste de ouvintes
+            valor: valorFinal, // Valor dos streams (ex: 300k)
+            valorOuvintes: ajusteOuvintes,
             tempoOuvido: tempoOuvido.toFixed(0),
             platform: isMobile ? 'mobile' : 'desktop'
         });
 
-        window.ultimaValidacaoSucesso = Date.now();
+        console.log(`✅ [TUNE] Streams: +${valorFinal} | Ouvintes: ${ajusteOuvintes}`);
         window.isProcessingStream = false;
-        
-        const acao = ajusteOuvintes > 0 ? "📈 Ganho" : "📉 Ajuste";
-        console.log(`💎 [TUNE] +${valorFinal.toLocaleString()} Streams | ${acao}: ${ajusteOuvintes.toLocaleString()} Ouvintes.`);
-        
         return true;
 
     } catch (e) {
-        console.error("❌ Erro na validação:", e);
+        console.error("❌ Erro:", e);
         window.isProcessingStream = false;
         return false;
     }
