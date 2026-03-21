@@ -937,7 +937,7 @@ function calcularStreams(tempoOuvido) {
     } else if (tempoOuvido >= 30) {
         // 30 segundos: ~40k a 200k
         min = 40000;
-        max = 100000;
+        max = 200000;
     } else if (tempoOuvido >= 20) {
         // 20 segundos: ~10k a 40k
         min = 10000;
