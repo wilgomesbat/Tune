@@ -23,92 +23,56 @@ const artistLinkIcon = document.getElementById('artist-link-icon');
 const artistLinkText = document.getElementById('artist-link-text');
 const loginButton = document.getElementById('login-button');
 const tuneteamItem = document.getElementById('tuneteam-item'); // O <li> do link do TuneTeam
-const popupOverlay = document.getElementById('user-popup-overlay');
-const closePopupBtn = document.getElementById('close-popup-btn');
 
 // --- Função para buscar e renderizar o perfil do usuário ---
 async function fetchAndRenderUserProfile(user) {
     try {
         const userDocRef = doc(db, "usuarios", user.uid);
         const docSnap = await getDoc(userDocRef);
+
         const userData = docSnap.exists() ? docSnap.data() : {};
 
         // --- Lógica para o link 'Suporte' / 'Painel Artist' ---
-        // Agora dentro da estrutura do novo Pop-up
-        const artistLink = document.getElementById('artist-link');
-        if (artistLink) {
-            const linkText = artistLink.querySelector('span');
+        if (artistLink && artistLinkIcon && artistLinkText) {
             if (userData.artista === "true") {
                 artistLink.href = "tuneartists.html";
-                if (linkText) linkText.textContent = "Painel Artist";
+                artistLinkText.textContent = "Painel";
+                artistLinkIcon.classList.add('hidden');
             } else {
                 artistLink.href = "#";
-                if (linkText) linkText.textContent = "Perfil";
+                artistLinkText.textContent = "Suporte";
+                artistLinkIcon.classList.remove('hidden');
             }
         }
 
         // --- Lógica para o Link do Tuneteam (Admin) ---
+        // Verifica se o niveladmin é o número 1
         if (tuneteamItem) {
+            // Compara diretamente com o número 1
             if (userData.niveladmin === 1) {
-                tuneteamItem.classList.remove('hidden');
+                tuneteamItem.classList.remove('hidden'); // Mostra se for admin
             } else {
-                tuneteamItem.classList.add('hidden');
+                tuneteamItem.classList.add('hidden'); // Esconde se não for
             }
         }
         
-        // --- Atualiza a imagem de perfil no botão ---
-        const userProfileImg = userProfileButton?.querySelector('img');
+        // --- Atualiza a imagem de perfil ---
         if (userProfileImg) {
             userProfileImg.src = userData.foto || user.photoURL || './assets/artistpfp.png';
+            userProfileImg.alt = userData.apelido || user.displayName || 'Foto do Usuário';
         }
 
-        // Exibe o container do usuário logado
+
+        // --- Alterna a visibilidade dos containers de perfil ---
         if (userProfileContainer) userProfileContainer.classList.remove('hidden');
         if (guestProfileContainer) guestProfileContainer.classList.add('hidden');
 
     } catch (err) {
         console.error("Erro ao buscar dados do usuário:", err);
+        if (userProfileImg) userProfileImg.src = './assets/artistpfp.png';
+        if (userProfileContainer) userProfileContainer.classList.add('hidden');
         if (guestProfileContainer) guestProfileContainer.classList.remove('hidden');
     }
-}
-
-// --- Lógica de Abertura do Pop-up ---
-if (userProfileButton && popupOverlay) {
-    userProfileButton.addEventListener('click', (event) => {
-        event.preventDefault();
-        popupOverlay.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // Trava o scroll da página
-    });
-}
-
-// --- Lógica de Fechamento do Pop-up ---
-if (closePopupBtn && popupOverlay) {
-    const fecharPopup = () => {
-        popupOverlay.classList.add('hidden');
-        document.body.style.overflow = ''; // Libera o scroll
-    };
-
-    closePopupBtn.addEventListener('click', fecharPopup);
-
-    // Fecha ao clicar no fundo escuro (overlay)
-    popupOverlay.addEventListener('click', (event) => {
-        if (event.target === popupOverlay) {
-            fecharPopup();
-        }
-    });
-}
-if (logoutLink) {
-    logoutLink.addEventListener('click', e => {
-        e.preventDefault();
-        signOut(auth)
-            .then(() => {
-                // Ao deslogar, garante que o popup feche e o scroll libere
-                if (popupOverlay) popupOverlay.classList.add('hidden');
-                document.body.style.overflow = '';
-                window.location.href = LOGIN_URL;
-            })
-            .catch(err => console.error("Erro no logout:", err));
-    });
 }
 
 // --- Autenticação ---
@@ -125,6 +89,31 @@ onAuthStateChanged(auth, user => {
     }
 });
 
+// --- Lógica do Dropdown do Perfil do Usuário ---
+if (userProfileButton && profileDropdown) {
+    userProfileButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        profileDropdown.classList.toggle('hidden');
+    });
+
+    window.addEventListener('click', (event) => {
+        if (!userProfileButton.contains(event.target) && !profileDropdown.contains(event.target)) {
+            profileDropdown.classList.add('hidden');
+        }
+    });
+}
+
+// --- Lógica de Logout ---
+if (logoutLink) {
+    logoutLink.addEventListener('click', e => {
+        e.preventDefault();
+        signOut(auth)
+            .then(() => {
+                window.location.href = LOGIN_URL;
+            })
+            .catch(err => console.error("Erro no logout:", err));
+    });
+}
 
 // --- Lógica do Botão "Entrar" ---
 if (loginButton) {
