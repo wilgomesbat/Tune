@@ -376,42 +376,58 @@
                     </div>
                 </div>
             </div>
+ 
+
         </nav>
         <main id="content-area" class="p-0"></main>
 
         <div class="tune-bottom-wrapper">
-            <div id="music-player" class="tune-player-bar">
-                <div class="player-inner-content">
-                    <div class="song-info">
-                        <img id="mini-player-cover" src="assets/default-cover.png" alt="Capa">
-                        <div class="song-text">
-                            <span id="player-title">Nenhuma música</span>
-                            <span id="player-artist">Escolha algo</span>
-                        </div>
-                    </div>
-                    <div class="player-controls">
-                        <button id="playpause-btn" class="btn-reset">
-                            <img src="/assets/Group.png" alt="Play" class="icon-play">
-                        </button>
-                    </div>
-                </div>
-                <div class="tune-progress-container">
-                    <div id="progress-fill"></div>
-                </div>
+            <div id="music-player">
+    <div class="player-main-content">
+        <div class="player-left">
+            <img id="mini-player-cover" src="assets/default-cover.png" alt="Capa" />
+            <div class="player-info">
+                <span id="player-title">Nenhuma música</span>
+                <span id="player-artist">Escolha algo para tocar</span>
             </div>
+        </div>
+
+        <div class="player-right">
+            <button id="playpause-btn" class="mini-play-btn">
+                <img src="/assets/Group.png" alt="Play">
+            </button>
+        </div>
+    
+
+        
+    </div>
+
+    <div class="progress-bar-bottom">
+        <span id="current-time">0:00</span>
+        <div class="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+        <span id="total-time">0:00</span>
+    </div>
+    <audio id="player-audio" preload="auto"></audio>
+</div>
             <div class="tune-nav-row">
-                <nav id="mobile-nav-bar" class="tune-nav-pill">
-                    <a href="#" class="nav-link active" data-page="home">
-                        <img src="/assets/Home Icon.svg" alt="Home">
-                    </a>
-                    <a href="#" class="nav-link" data-page="library">
-                        <img src="/assets/user-round.svg" alt="Library">
-                    </a>
-                </nav>
-                <div class="tune-search-circle" onclick="window.loadContent('search')">
-                    <img src="/assets/Search Icon.svg" alt="Search">
-                </div>
-            </div>
+                <div id="mobile-nav-bar">
+  <div class="nav-content">
+    <div class="nav-indicator liquid"></div>
+
+    <a href="#" class="nav-link active" data-index="0" data-page="home">
+      <img src="/assets/Home Icon.svg" alt="Início">
+    </a>
+    <a href="#" class="nav-link" data-index="1" data-page="search">
+      <img src="/assets/Search Icon.svg" alt="Buscar">
+    </a>
+    <a href="#" class="nav-link" data-index="2" data-page="library">
+      <img src="/assets/user-round.svg" alt="Biblioteca">
+    </a>
+  </div>
+</div>
+
         </div>
     </div>
 
@@ -479,111 +495,166 @@
         <div id="youtube-player"></div> 
     </div>
 
-    <script>
-        /** --- CONFIGURAÇÕES E ESTADO GLOBAL --- **/
-        const NAV_CONFIG = {
-            outlineOpacity: '0.5',
-            filledOpacity: '1.0',
-            validPages: ['home', 'search', 'library', 'album', 'playlist', 'artist', 'music', 'liked']
-        };
+       <script>
+/**
+ * --- CONFIGURAÇÕES E ESTADO GLOBAL ---
+ */
+const NAV_CONFIG = {
+    outlineOpacity: '0.5',
+    filledOpacity: '1.0',
+    validPages: ['home', 'search', 'library', 'album', 'playlist', 'artist', 'music', 'liked']
+};
 
-        function updateVisualState(pageName) {
-            const allLinks = document.querySelectorAll('.nav-link');
-            allLinks.forEach(link => {
-                const img = link.querySelector('img');
-                const isTarget = link.getAttribute('data-page') === pageName;
-                if (isTarget) {
-                    link.classList.add('active');
-                    if (img) img.style.opacity = NAV_CONFIG.filledOpacity;
-                } else {
-                    link.classList.remove('active');
-                    if (img) img.style.opacity = NAV_CONFIG.outlineOpacity;
-                }
-            });
+
+
+/**
+ * --- ATUALIZAÇÃO VISUAL (Interface e Menu) ---
+ * Esta função cuida de acender o ícone correto e mover a "pílula" de vidro.
+ */
+function updateVisualState(pageName) {
+    const allLinks = document.querySelectorAll('.nav-link');
+    const indicator = document.querySelector('.nav-indicator');
+    
+    allLinks.forEach(link => {
+        const img = link.querySelector('img');
+        const isTarget = link.getAttribute('data-page') === pageName;
+        
+        if (isTarget) {
+            link.classList.add('active');
+            if (img) img.style.opacity = NAV_CONFIG.filledOpacity;
+            
+            if (indicator) {
+                // Pega a posição exata (em pixels) do link em relação ao container
+                const targetPos = link.offsetLeft;
+                
+                // Move o indicador para essa posição exata
+                // Removemos o translateY(-50%) daqui pois ele já está no CSS fixo
+                indicator.style.transform = `translateY(-50%) translateX(${targetPos}px)`;
+            }
+        } else {
+            link.classList.remove('active');
+            if (img) img.style.opacity = NAV_CONFIG.outlineOpacity;
         }
+    });
+}
 
-        function handleNavigation(event) {
-            event.preventDefault();
-            const clickedLink = event.currentTarget;
-            const pageName = clickedLink.getAttribute('data-page'); 
-            if (!pageName) return;
-            if (typeof window.loadContent === 'function') {
-                window.loadContent(pageName, null, true); 
-            }
-            updateVisualState(pageName);
+/**
+ * --- ROTEAMENTO E NAVEGAÇÃO ---
+ */
+
+// Função chamada ao clicar nos botões do menu
+function handleNavigation(event) {
+    event.preventDefault();
+    const clickedLink = event.currentTarget;
+    const pageName = clickedLink.getAttribute('data-page'); 
+
+    if (!pageName) return;
+
+    // 1. Carrega o conteúdo (A função loadContent deve estar global no seu projeto)
+    if (typeof window.loadContent === 'function') {
+        // O terceiro parâmetro 'true' indica que deve salvar no histórico do navegador
+        window.loadContent(pageName, null, true); 
+    }
+
+    // 2. Atualiza o menu visualmente
+    updateVisualState(pageName);
+}
+
+// Inicializa a página baseada na URL atual (útil para F5/Refresh)
+function initializeRouting() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const pathname = window.location.pathname;
+
+    let page = urlParams.get('page') || 'home';
+    let id = urlParams.get('id') || null;
+
+    // Lógica para capturar caminhos como /search ou /album/123
+    const pathParts = pathname.split('/').filter(p => p !== "" && !p.includes('.html') && p !== "index");
+    if (pathParts.length > 0 && !urlParams.has('page')) {
+        page = pathParts[0];
+        id = pathParts[1] || null;
+    }
+
+    // Fallback para home se a página não for reconhecida
+    if (!NAV_CONFIG.validPages.includes(page)) page = 'home';
+
+    console.log(`🚀 Roteamento: Inicializando em [${page}]`);
+    
+    if (typeof window.loadContent === 'function') {
+        window.loadContent(page, id, false); 
+    }
+    updateVisualState(page);
+}
+
+/**
+ * --- GESTÃO DE HISTÓRICO (BOTÃO VOLTAR) ---
+ */
+
+// Escuta quando o usuário clica em "Voltar" ou "Avançar" no navegador
+window.addEventListener('popstate', (e) => {
+    console.log("⬅️ Navegação de histórico detectada");
+    
+    let page = 'home';
+    let id = null;
+
+    if (e.state && e.state.page) {
+        page = e.state.page;
+        id = e.state.id;
+    }
+
+    // Recarrega o conteúdo sem criar um novo item no histórico (evita loops)
+    if (typeof window.loadContent === 'function') {
+        window.loadContent(page, id, false);
+    }
+    updateVisualState(page);
+});
+
+/**
+ * --- UTILITÁRIOS ---
+ */
+
+// Sidebar (Desktop/Lateral)
+function toggleSidebar() {
+    const sidebar = document.getElementById('latNav');
+    const iconSvg = document.getElementById('toggle-icon');
+    if (!sidebar) return;
+
+    sidebar.classList.toggle('collapsed');
+
+    if (iconSvg) {
+        if (sidebar.classList.contains('collapsed')) {
+            iconSvg.innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
+        } else {
+            iconSvg.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline>';
         }
+    }
+}
 
-        function initializeRouting() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const pathname = window.location.pathname;
-            let page = urlParams.get('page') || 'home';
-            let id = urlParams.get('id') || null;
-            const pathParts = pathname.split('/').filter(p => p !== "" && !p.includes('.html') && p !== "index");
-            if (pathParts.length > 0 && !urlParams.has('page')) {
-                page = pathParts[0];
-                id = pathParts[1] || null;
-            }
-            if (!NAV_CONFIG.validPages.includes(page)) page = 'home';
-            if (typeof window.loadContent === 'function') {
-                window.loadContent(page, id, false); 
-            }
-            updateVisualState(page);
-        }
+/**
+ * --- INICIALIZAÇÃO EVENTOS ---
+ */
 
-        window.addEventListener('popstate', (e) => {
-            let page = 'home';
-            let id = null;
-            if (e.state && e.state.page) {
-                page = e.state.page;
-                id = e.state.id;
-            }
-            if (typeof window.loadContent === 'function') {
-                window.loadContent(page, id, false);
-            }
-            updateVisualState(page);
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Inicia as rotas
+    initializeRouting();
+    
+    // 2. Configura cliques nos links de navegação (Nav Bar)
+    const links = document.querySelectorAll('.nav-link');
+    links.forEach(link => {
+        link.addEventListener('click', handleNavigation);
+    });
+
+    // 3. Gerenciamento do Overlay de Loading (Opcional)
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+        window.addEventListener('load', () => {
+            loadingOverlay.classList.add('hidden');
+            setTimeout(() => loadingOverlay.style.display = 'none', 500);
         });
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('latNav');
-            const iconSvg = document.getElementById('toggle-icon');
-            if (!sidebar) return;
-            sidebar.classList.toggle('collapsed');
-            if (iconSvg) {
-                iconSvg.innerHTML = sidebar.classList.contains('collapsed') 
-                    ? '<polyline points="9 18 15 12 9 6"></polyline>' 
-                    : '<polyline points="15 18 9 12 15 6"></polyline>';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeRouting();
-            const links = document.querySelectorAll('.nav-link');
-            links.forEach(link => {
-                link.addEventListener('click', handleNavigation);
-            });
-
-            const loadingOverlay = document.getElementById('loading-overlay');
-            if (loadingOverlay) {
-                window.addEventListener('load', () => {
-                    loadingOverlay.classList.add('hidden');
-                    setTimeout(() => loadingOverlay.style.display = 'none', 500);
-                });
-            }
-        });
-
-        const slider = document.querySelector(".level");
-        if(slider) {
-            slider.min = 0;
-            slider.max = 100;
-            slider.value = 100;
-            slider.addEventListener("input", () => {
-                if (window.ytPlayer && typeof window.ytPlayer.setVolume === "function") {
-                    window.ytPlayer.setVolume(parseInt(slider.value));
-                }
-            });
-        }
+    }
+});
     </script>
-
+    
     <script type="module" src="/js/main.js"></script>
     <script type="module" src="/js/player.js"></script>
     <script type="module" src="/js/iflog.js"></script>
