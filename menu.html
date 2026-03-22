@@ -17,29 +17,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        @font-face {
+            font-family: 'Nationale Regular';
+            src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+                url('./fonts/Nationale-Regular.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
 
-@font-face {
-    font-family: 'Nationale Regular';
-    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
-         url('./fonts/Nationale-Regular.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-}
-@font-face {
-    font-family: 'Nationale Bold';
-    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
-         url('./fonts/Nationale-Bold.woff') format('woff');
-    font-weight: bold;
-    font-style: normal;
-}
-@font-face {
-    font-family: 'Nationale Black';
-    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
-         url('./fonts/Nationale-Black.woff') format('woff');
-    font-weight: bold;
-    font-style: normal;
-}
+        @font-face {
+            font-family: 'Nationale Bold';
+            src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+                url('./fonts/Nationale-Bold.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
 
+        @font-face {
+            font-family: 'Nationale Black';
+            src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+                url('./fonts/Nationale-Black.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
 
         /* Estilos para o Loading Overlay */
         #loading-overlay {
@@ -61,24 +61,18 @@
             opacity: 0;
             pointer-events: none;
         }
-        
-        /* ------------------------------------------- */
-        /* NOVO: Estilos para o Logo de Carregamento */
-        /* ------------------------------------------- */
+
         .logo-loading-content {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            /* Estilo para o texto "TUNE" */
-            font-size: 3.5rem; 
+            font-size: 3.5rem;
             font-weight: 900;
-            line-height: 1.2; /* Ajuste para espaçamento */
+            line-height: 1.2;
             letter-spacing: -0.05em;
             color: #ffffff;
-            /* Sombra suave para destacar o texto */
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2); 
-            /* Animação suave para indicar carregamento */
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
             animation: fade-in-pulse 2s infinite alternate;
         }
 
@@ -93,416 +87,337 @@
             to { opacity: 1.0; transform: scale(1.02); }
         }
 
-        /* IMPORTANTE: Adicionado o padding-bottom de 130px para mobile aqui, para evitar que o player e a nav-bar cubram o conteúdo no final da rolagem */
         @media (max-width: 768px) {
-
-            #latNav {
-                display: none !important;
-                /* Esconde a sidebar no mobile */
-            }
+            #latNav { display: none !important; }
         }
 
         body {
-    font-family: 'cy-grotesk-grand', sans-serif;
-    background-color: #000000;
-    color: #000000;
-    margin: 0;
-    display: flex;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden; /* Importante para não ter scroll lateral no body */
-}
-
-/* Container Principal da Sidebar */
-/* Container Sidebar */
-#latNav {
-    width: 250px;
-    min-width: 250px;
-    height: 100vh;
-    background-color: #000000;
-    padding: 15px;
-    display: flex;
-    flex-direction: column;
-    position: sticky;
-    top: 0;
-    left: 0;
-    font-family: 'Nationale Regular';
-    z-index: 1000;
-    border-right: 1px solid #121212;
-    transition: width 0.3s ease, min-width 0.3s ease;
-    overflow: hidden;
-}
-
-/* Quando estiver fechada */
-#latNav.collapsed {
-    width: 80px;
-    min-width: 80px;
-}
-
-.sidebar-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between; /* Logo na ponta esquerda, seta na direita */
-    padding: 10px 20px 30px 20px; /* Alinhado com os itens de baixo */
-    width: 100%;
-}
-
-.logo-img { width: 30px; }
-
-
-
-/* ALINHAMENTO DO LINK (O QUE VOCÊ PRECISA) */
-.sidebar-content .nav-link {
-    display: flex !important;
-    flex-direction: row !important; /* Ícone e texto lado a lado */
-    align-items: center !important; /* Centraliza verticalmente */
-    padding: 12px 15px;
-    color: #ffffff;
-    text-decoration: none;
-    border-radius: 10px;
-    margin-bottom: 4px;
-    transition: background 0.2s;
-    width: 100%;
-    opacity: 0.7;
-}
-
-/* Seus ícones originais (SVG e IMG) */
-.sidebar-content .nav-link svg, 
-.sidebar-content .nav-link img {
-    width: 24px !important;
-    height: 24px !important;
-    margin-right: 15px !important; /* Espaço entre ícone e texto */
-    flex-shrink: 0;
-}
-
-/* Texto ao lado */
-.sidebar-content .nav-link span {
-    font-size: 15px;
-    font-weight: 600;
-    white-space: nowrap; /* Evita que o texto quebre */
-    transition: opacity 0.2s;
-}
-
-/* Hover e Ativo (Estilo Tidal) */
-.sidebar-content .nav-link:hover,
-.sidebar-content .nav-link.ativo {
-    background-color: #262626;
-    opacity: 1;
-}
-
-/* Lógica de Esconder */
-#latNav.collapsed .nav-link span {
-    opacity: 0;
-    pointer-events: none;
-}
-
-#latNav.collapsed .logo-img {
-    display: none;
-}
-
-#latNav.collapsed .sidebar-header {
-    justify-content: center;
-}
-
-#music-player {
-    transition: background 0.6s ease;
-}
-
-#latNav.collapsed .nav-link svg, 
-#latNav.collapsed .nav-link img {
-    margin-right: 0 !important;
-}
-
-.sidebar-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between; /* Mantém logo na esquerda e botão na direita */
-    padding: 10px 14px 30px 14px;
-}
-
-.menu-toggle svg {
-    width: 20px !important;
-    height: 20px !important;
-    flex-shrink: 0; /* IMPEDE de esticar ou esmagar */
-    aspect-ratio: 1/1; /* Garante que seja sempre um quadrado */
-    display: block;
-}
-
-/* Garante que o container do botão também seja fixo */
-.menu-toggle {
-    width: 32px;
-    height: 32px;
-    min-width: 32px; /* Garante que o botão não mude de tamanho */
-    min-height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.menu-toggle:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
-}
-
-/* Garante que o botão fique centralizado quando a barra fechar */
-#latNav.collapsed .sidebar-header {
-    justify-content: center;
-}
-
-#feed {
-    flex-grow: 1;
-    background: #000000;
-    overflow-y: auto;
-    position: relative;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    
-    /* Isso garante que o conteúdo (como o Greeting) 
-       comece DEPOIS da barra de navegação */
-    padding-top: 85px; 
-    padding-bottom: 100px; /* Espaço para o player fixo no rodapé */
-}
-
-#content-area {
-    display: block; /* Mude de flex para block para testar */
-    width: 100%;
-    position: relative;
-}
-
-/* Garante que o primeiro elemento injetado (o header do artista) 
-   tenha um ponto de partida fixo */
-#content-area > div:first-child {
-    margin-top: 0; 
-    display: block;
-}
-
-
-
-#nav-top {
-    position: absolute; 
-    top: 0;
-    left: 0;
-    width: 100%;
-    z-index: 1000;
-    padding: 1rem 1.1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, transparent 100%);
-    box-sizing: border-box; 
-}
-        .custom-scrollbar::-webkit-scrollbar {
-            height: 8px;
-            width: 8px;
+            font-family: 'cy-grotesk-grand', sans-serif;
+            background-color: #000000;
+            color: #ffffff; /* Corrigido de 000000 para FFFFFF para visibilidade */
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
         }
 
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #292929;
+        /* Container Sidebar */
+        #latNav {
+            width: 250px;
+            min-width: 250px;
+            height: 100vh;
+            background-color: #000000;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            left: 0;
+            font-family: 'Nationale Regular';
+            z-index: 1000;
+            border-right: 1px solid #121212;
+            transition: width 0.3s ease, min-width 0.3s ease;
+            overflow: hidden;
+            align-items: flex-start; /* Garante alinhamento à esquerda */
+        }
+
+        #latNav.collapsed {
+            width: 80px;
+            min-width: 80px;
+            align-items: center;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px 30px 14px;
+            width: 100%;
+        }
+
+        .logo-img { width: 30px; }
+
+        .sidebar-content { width: 100%; }
+
+        .sidebar-content ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+        }
+
+        .sidebar-content .nav-link {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important; /* Força início à esquerda */
+            padding: 12px 15px;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 10px;
+            margin-bottom: 4px;
+            transition: background 0.2s;
+            width: 100%;
+            opacity: 0.7;
+        }
+
+        .sidebar-content .nav-link svg,
+        .sidebar-content .nav-link img {
+            width: 24px !important;
+            height: 24px !important;
+            margin-right: 15px !important;
+            flex-shrink: 0;
+        }
+
+        .sidebar-content .nav-link span {
+            font-size: 15px;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+
+        .sidebar-content .nav-link:hover,
+        .sidebar-content .nav-link.ativo {
+            background-color: #262626;
+            opacity: 1;
+        }
+
+        /* Lógica de Esconder quando colapsado */
+        #latNav.collapsed .nav-link span,
+        #latNav.collapsed .logo-img,
+        #latNav.collapsed .sidebar-promo-card {
+            display: none !important;
+        }
+
+        #latNav.collapsed .sidebar-header { justify-content: center; }
+        #latNav.collapsed .nav-link { justify-content: center !important; }
+        #latNav.collapsed .nav-link svg, 
+        #latNav.collapsed .nav-link img { margin-right: 0 !important; }
+
+        .menu-toggle {
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .menu-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 10px;
         }
 
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #121212;
-            border-radius: 10px;
+        #feed {
+            flex-grow: 1;
+            background: #000000;
+            overflow-y: auto;
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            padding-top: 85px;
+            padding-bottom: 100px;
         }
 
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #a7a7a7;
+        #nav-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 1.1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, transparent 100%);
+            box-sizing: border-box;
         }
 
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #292929; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #121212; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a7a7a7; }
 
-/* Container do Card */
-.sidebar-promo-card {
-    background-color: #121212; /* Fundo levemente mais claro que a sidebar */
-    border-radius: 12px;
-    padding: 16px;
-    margin: 20px 12px;
-    position: relative;
-    border: 1px solid #1a1a1a;
-    transition: opacity 0.3s, transform 0.3s;
-}
+        .sidebar-promo-card {
+            background-color: #121212;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 20px 12px;
+            position: relative;
+            border: 1px solid #1a1a1a;
+            transition: opacity 0.3s, transform 0.3s;
+        }
 
-/* Botão de Fechar (X) */
-.close-card {
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    background: none;
-    border: none;
-    color: #808080;
-    font-size: 18px;
-    cursor: pointer;
-}
+        .close-card {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #808080;
+            font-size: 18px;
+            cursor: pointer;
+        }
 
-.close-card:hover { color: white; }
+        .sidebar-promo-card h3 {
+            color: #ffffff;
+            font-size: 14px;
+            font-family: 'Nationale Bold';
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
 
-/* Título do Card */
-.sidebar-promo-card h3 {
-    color: #ffffff;
-    font-size: 14px;
-    font-family: 'Nationale Bold';
-    font-weight: 700;
-    margin-bottom: 8px;
-    padding-right: 15px; /* Espaço para o X */
-}
+        .sidebar-promo-card p {
+            color: #a0a0a0;
+            font-size: 12px;
+            line-height: 1.4;
+            margin-bottom: 16px;
+        }
 
-/* Texto descritivo */
-.sidebar-promo-card p {
-    color: #a0a0a0;
-    font-size: 12px;
-    line-height: 1.4;
-    margin-bottom: 16px;
-}
+        .btn-promo {
+            display: block;
+            background-color: #282828;
+            color: #ffffff !important;
+            text-align: center;
+            padding: 10px;
+            border-radius: 20px;
+            text-decoration: none !important;
+            font-size: 13px;
+            font-weight: 700;
+            transition: background 0.2s;
+            border: none;
+        }
 
-/* Botão "Comece já" / "Seguir agora" */
-.btn-promo {
-    display: block;
-    background-color: #282828; /* Cinza escuro como na imagem */
-    color: #ffffff !important; /* Força o texto branco */
-    text-align: center;
-    padding: 10px;
-    border-radius: 20px;
-    text-decoration: none !important; /* Tira o sublinhado azul */
-    font-size: 13px;
-    font-weight: 700;
-    transition: background 0.2s;
-    border: none;
-}
-
-.btn-promo:hover {
-    background-color: #333333;
-    color: #ffffff !important;
-}
-/* --- LÓGICA PARA QUANDO A SIDEBAR FECHAR --- */
-#latNav.collapsed .sidebar-promo-card {
-    display: none; /* Esconde o card totalmente quando a barra estiver pequena */
-}
-
-#share-preview-modal {
-    /* Valor maior que o do full-screen-player (9999999) */
-    z-index: 10000000 !important; 
-    background-color: rgba(0, 0, 0, 0.95);
-    backdrop-filter: blur(10px);
-}
-        
+        #share-preview-modal {
+            z-index: 10000000 !important;
+            background-color: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+        }
     </style>
 </head>
 
 <body>
-    <!-- NOVO: Overlay de carregamento em tela cheia COM O LOGO -->
     <div id="loading-overlay">
-
-        <!-- Substituído o .spinner pelo logo customizado -->
         <div class="logo-loading-content">
             <img src="/assets/logotunenew.png" alt="Logo TUNE">
         </div>
     </div>
 
-   <div id="latNav">
-    <div class="sidebar-header">
-        <img src="/assets/logotunenew.png" alt="TUNE" class="logo-img">
-        
-        <button class="menu-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()">
-    <svg id="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="15 18 9 12 15 6"></polyline>
-    </svg>
-</button>
+    <div id="latNav">
+        <div class="sidebar-header">
+            <img src="/assets/logotunenew.png" alt="TUNE" class="logo-img">
+            <button class="menu-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()">
+                <svg id="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <ul>
+                <li class="nav-item">
+                    <a href="#" class="nav-link ativo" data-page="home">
+                        <svg role="img" viewBox="0 0 24 24"><path fill="white" d="M13.5 1.515a3 3 0 00-3 0L3 5.845a2 2 0 00-1 1.732V21a1 1 0 001 1h6a1 1 0 001-1v-6h4v6a1 1 0 001 1h6a1 1 0 001-1V7.577a2 2 0 00-1-1.732l-7.5-4.33z"></path></svg>
+                        <span>Música</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="search">
+                        <svg role="img" viewBox="0 0 24 24"><path fill="white" d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 101.414-1.414l-4.344-4.344a9.157 9.157 0 002.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z"></path></svg>
+                        <span>Explorar</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-page="library">
+                        <img src="/assets/user-round (1).svg" alt="">
+                        <span>Coleção</span>
+                    </a>
+                </li>
+
+                <div class="sidebar-promo-card" id="insta-card">
+                    <button class="close-card" onclick="this.parentElement.style.display='none'"></button>
+                    <h3>Siga o Tune</h3>
+                    <p>Acompanhe as novidades, e muito mais pelo nosso Instagram.</p>
+                    <a href="https://instagram.com/tunedks" target="_blank" class="btn-promo">Seguir agora</a>
+                </div>
+            </ul>
+        </div>
     </div>
-
-    <div class="sidebar-content">
-        <ul>
-            <li class="nav-item">
-                <a href="#" class="nav-link ativo" data-page="home">
-                    <svg role="img" viewBox="0 0 24 24"><path fill="white" d="M13.5 1.515a3 3 0 00-3 0L3 5.845a2 2 0 00-1 1.732V21a1 1 0 001 1h6a1 1 0 001-1v-6h4v6a1 1 0 001 1h6a1 1 0 001-1V7.577a2 2 0 00-1-1.732l-7.5-4.33z"></path></svg>
-                    <span>Música</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="search">
-                    <svg role="img" viewBox="0 0 24 24"><path fill="white" d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 101.414-1.414l-4.344-4.344a9.157 9.157 0 002.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z"></path></svg>
-                    <span>Explorar</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-page="library">
-                    <img src="/assets/user-round (1).svg" alt="">
-                    <span>Coleção</span>
-                </a>
-            </li>
-
-            <div class="sidebar-promo-card" id="insta-card">
-    <button class="close-card" onclick="this.parentElement.style.display='none'"></button>
-    <h3>Siga o Tune</h3>
-    <p>Acompanhe as novidades, e muito mais pelo nosso Instagram.</p>
-    <a href="https://instagram.com/tunedks" target="_blank" class="btn-promo">Seguir agora</a>
-</div>
-            
-        </ul>
-    </div>
-</div>
-
 
     <div id="feed" class="custom-scrollbar">
         <nav id="nav-top">
-            <div class="flex justify-center gap-2">
-                
-            </div>
+            <div class="flex justify-center gap-2"></div>
             <div class="relative inline-block text-left">
                 <div id="user_profile_container_wrapper" class="relative inline-block text-left">
-                    
-                    <div id="user_profile_sidebar" class="hidden">
-    <button id="user-profile-button"
-    class="flex items-center space-x-2 p-1 rounded-full bg-black/30 hover:bg-black/50 transition-colors duration-200">
-    
-    <img src="./assets/artistpfp.png" alt="Foto do Usuário"
-        class="w-8 h-8 rounded-full">
-</button>
-  
-    
-                        <div id="user-dropdown-menu"
-                            class="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-[#282828] ring-1 ring-black ring-opacity-5 focus:outline-none hidden">
-                            <div id="user_dropdown_links" class="py-1" role="menu" aria-orientation="vertical"
-                                aria-labelledby="user-profile-button">
-            
-                               
+    <div id="user_profile_sidebar" class="hidden">
+        <button id="user-profile-button" class="flex items-center p-1 rounded-full bg-black/30 hover:bg-black/50 transition-colors duration-200">
+            <img src="./assets/artistpfp.png" alt="Foto do Usuário" class="w-8 h-8 rounded-full">
+        </button>
+    </div>
 
-                                <a id="artist-link" href="#"
-                                    class="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-[#3e3e3e] hover:text-white"
-                                    role="menuitem">
-                                    <img id="artist-link-icon" src="./assets/support-icon.svg" alt="Ícone de Suporte"
-                                        class="w-5 h-5 mr-3">
-                                    <span id="artist-link-text">Painel artist</span>
-                                </a>
-
-                                <a href="index.html" id="logout-link"
-                                    class="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-[#3e3e3e] hover:text-white"
-                                    role="menuitem">
-                                    Sair
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="guest_profile_sidebar" class="hidden">
-                        <button id="login-button"
-                            class="px-4 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                            Entrar
-                        </button>
-                    </div>
-
-                </div>
+    <div id="user-popup-overlay" class="popup-overlay hidden">
+        <div id="user-popup-card" class="popup-card">
+            <div class="popup-links">
+                <a href="#" id="artist-link" class="popup-item">
+                    <span>Perfil</span>
+                </a>
+                
+                <a href="#" class="popup-item flex justify-between">
+                    <span>Ajuda</span>
+                    <span class="material-symbols-outlined">chevron_right</span>
+                </a>
+                <a href="#" class="popup-item flex justify-between border-b border-white/10">
+                    <span>Termos de uso</span>
+                    <span class="material-symbols-outlined">chevron_right</span>
+                </a>
+                <a href="index.html" id="logout-link" class="popup-item text-red-500 font-semibold">
+                    Sair
+                </a>
+            </div>
+            <button id="close-popup-btn" class="popup-close-btn">Fechar</button>
+        </div>
+    </div>
+</div>
             </div>
         </nav>
         <main id="content-area" class="p-0"></main>
 
-  
+        <div class="tune-bottom-wrapper">
+            <div id="music-player">
+    <div class="player-main-content">
+        <div class="player-left">
+            <img id="mini-player-cover" src="assets/default-cover.png" alt="Capa" />
+            <div class="player-info">
+                <span id="player-title">Nenhuma música</span>
+                <span id="player-artist">Escolha algo para tocar</span>
+            </div>
+        </div>
 
+        <div class="player-right">
+            <button id="playpause-btn" class="mini-play-btn">
+                <img src="/assets/Group.png" alt="Play">
+            </button>
+        </div>
+    
 
+        
+    </div>
 
-
-<div id="mobile-nav-bar">
+    <div class="progress-bar-bottom">
+        <span id="current-time">0:00</span>
+        <div class="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+        <span id="total-time">0:00</span>
+    </div>
+    <audio id="player-audio" preload="auto"></audio>
+</div>
+            <div class="tune-nav-row">
+                <div id="mobile-nav-bar">
   <div class="nav-content">
     <div class="nav-indicator liquid"></div>
 
@@ -518,9 +433,74 @@
   </div>
 </div>
 
+        </div>
+    </div>
 
+    <audio id="player-audio" preload="auto"></audio>
 
-    <script>
+    <div id="full-screen-player" class="hidden">
+        <div id="fs-aurora-bg"></div>
+        <div id="fs-player-overlay"></div>
+        <button id="fs-player-close-btn" class="desktop-only">
+            <img src="/assets/x.svg" alt="Fechar">
+        </button>
+        <div class="fs-player-cover-container">
+            <img id="fs-player-cover" src="" alt="Capa">
+        </div>
+        <div class="fs-main-content">
+            <div class="fs-info-row">
+                <div class="fs-text-group">
+                    <h1 id="fs-player-title">Título da Música</h1>
+                    <p id="fs-player-artist">Nome do Artista</p>
+                </div>
+                <div class="fs-action-buttons">
+                    <button class="fs-icon-btn"><img src="./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg"></button>
+                    <button class="fs-icon-btn"><img src="./assets/share-2.svg"></button>
+                </div>
+            </div>
+            <div class="fs-progress-section">
+                <div id="fs-player-bar-container">
+                    <div id="fs-player-bar-fill"></div>
+                </div>
+                <div class="fs-time-info">
+                    <span id="fs-current-time">0:00</span>
+                    <span id="fs-total-time">-0:00</span>
+                </div>
+            </div>
+            <div class="fs-controls-row">
+                <button id="fs-prev-btn" class="fs-skip"><img src="/assets/backward.fill.png"></button>
+                <button id="fs-playpause-btn" class="fs-play-circle">
+                    <img id="fs-play-icon" src="/assets/Group.png">
+                    <img id="fs-pause-icon" src="/assets/pause.fill.png" class="hidden">
+                </button>
+                <button id="fs-next-btn" class="fs-skip"><img src="/assets/forward.fill.png"></button>
+            </div>
+            <div class="fs-footer-actions">
+                <button class="fs-footer-btn"><img src="./assets/mic-vocal (2).svg"></button>
+                <button class="fs-footer-btn"><img src="./assets/queue.svg"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="story-share-card" style="position: absolute; left: -9999px; width: 1080px; height: 1920px; background: #030303; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; overflow: hidden;">
+        <div id="story-bg-blur" style="position: absolute; inset: 0; opacity: 0.4; filter: blur(100px); background-size: cover; background-position: center; transform: scale(1.1);"></div>
+        <div style="position: relative; z-index: 10; text-align: center; width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <img id="story-cover" src="" style="width: 700px; height: 700px; border-radius: 12px; box-shadow: 0 40px 100px rgba(0,0,0,0.7); object-fit: cover;">
+            <div style="margin-top: 50px; width: 700px; text-align: left;">
+                <h1 id="story-title" style="font-size: 75px; color: white; margin: 0; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h1>
+                <p id="story-artist" style="font-size: 40px; color: rgba(255,255,255,0.6); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></p>
+            </div>
+            <div style="margin-top: 120px;">
+                <img src="/assets/tunelogoh2.png" style="width: 280px; height: auto; opacity: 0.8;">
+            </div>
+        </div>
+    </div>
+
+    <div id="youtube-embed-container" style="position: absolute; width: 1px; height: 1px; top: -1000px; opacity: 0;">
+        <div id="youtube-player"></div> 
+    </div>
+
+       <script>
 /**
  * --- CONFIGURAÇÕES E ESTADO GLOBAL ---
  */
@@ -679,134 +659,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
     </script>
-
-<div id="full-screen-player" class="hidden">
-    <div id="fs-aurora-bg"></div>
-    <div id="fs-player-overlay"></div>
-
- 
-
-    <button id="fs-player-close-btn" class="desktop-only">
-        <img src="/assets/x.svg" alt="Fechar">
-    </button>
-
-    <div class="fs-player-cover-container">
-        <img id="fs-player-cover" src="" alt="Capa">
-        
-
-    </div>
-
-    <div class="fs-main-content">
-        <div class="fs-info-row">
-            <div class="fs-text-group">
-                <h1 id="fs-player-title">Título da Música</h1>
-                <p id="fs-player-artist">Nome do Artista</p>
-            </div>
-            <div class="fs-action-buttons">
-                <button class="fs-icon-btn"><img src="./assets/heart_plus_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg"></button>
-                <button class="fs-icon-btn"><img src="./assets/share-2.svg"></button>
-            </div>
-        </div>
-
-        <div class="fs-progress-section">
-            <div id="fs-player-bar-container">
-                <div id="fs-player-bar-fill"></div>
-            </div>
-            <div class="fs-time-info">
-                <span id="fs-current-time">0:00</span>
-                <span id="fs-total-time">-0:00</span>
-            </div>
-        </div>
-
-        <div class="fs-controls-row">
-            <button id="fs-prev-btn" class="fs-skip">
-                <img src="/assets/backward.fill.png">
-            </button>
-            
-            <button id="fs-playpause-btn" class="fs-play-circle">
-                <img id="fs-play-icon" src="/assets/Group.png">
-                <img id="fs-pause-icon" src="/assets/pause.fill.png" class="hidden">
-            </button>
-            
-            <button id="fs-next-btn" class="fs-skip">
-                <img src="/assets/forward.fill.png">
-            </button>
-        </div>
-
-
-
-        <div class="fs-footer-actions">
-            <button class="fs-footer-btn"><img src="./assets/mic-vocal (2).svg"></button>
-
-            <button class="fs-footer-btn"><img src="./assets/queue.svg"></button>
-        </div>
-    </div>
-</div>
-<div id="music-player">
-    <div class="player-main-content">
-        <div class="player-left">
-            <img id="mini-player-cover" src="assets/default-cover.png" alt="Capa" />
-            <div class="player-info">
-                <span id="player-title">Nenhuma música</span>
-                <span id="player-artist">Escolha algo para tocar</span>
-            </div>
-        </div>
-
-        <div class="player-right">
-            <button id="playpause-btn" class="mini-play-btn">
-                <img src="/assets/Group.png" alt="Play">
-            </button>
-        </div>
     
-
-        
-    </div>
-
-    <div class="progress-bar-bottom">
-        <span id="current-time">0:00</span>
-        <div class="progress-bar">
-            <div id="progress-fill"></div>
-        </div>
-        <span id="total-time">0:00</span>
-    </div>
-    <audio id="player-audio" preload="auto"></audio>
-</div>
-
-<div id="story-share-card" style="position: absolute; left: -9999px; width: 1080px; height: 1920px; background: #030303; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; overflow: hidden;">
-    <div id="story-bg-blur" style="position: absolute; inset: 0; opacity: 0.4; filter: blur(100px); background-size: cover; background-position: center; transform: scale(1.1);"></div>
-    <div style="position: relative; z-index: 10; text-align: center; width: 100%; display: flex; flex-direction: column; align-items: center;">
-        <img id="story-cover" src="" style="width: 700px; height: 700px; border-radius: 12px; box-shadow: 0 40px 100px rgba(0,0,0,0.7); object-fit: cover;">
-        <div style="margin-top: 50px; width: 700px; text-align: left;">
-            <h1 id="story-title" style="font-size: 75px; color: white; margin: 0; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h1>
-            <p id="story-artist" style="font-size: 40px; color: rgba(255,255,255,0.6); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></p>
-        </div>
-        <div style="margin-top: 120px;">
-            <img src="/assets/tunelogoh2.png" style="width: 280px; height: auto; opacity: 0.8;">
-        </div>
-    </div>
-</div>
-
-        <div id="youtube-embed-container" style="position: absolute; width: 1px; height: 1px; top: -1000px; opacity: 0;">
-    <div id="youtube-player"></div> 
-    </div>
-
-<script>
-const slider = document.querySelector(".level");
-
-slider.min = 0;
-slider.max = 100;
-slider.value = 100;
-
-slider.addEventListener("input", () => {
-  if (window.ytPlayer && typeof window.ytPlayer.setVolume === "function") {
-    window.ytPlayer.setVolume(parseInt(slider.value));
-  }
-});
-</script>
-
-<script type="module" src="/js/main.js"></script>
-<script type="module" src="/js/player.js"></script>
-<script type="module" src="/js/iflog.js"></script>
-
+    <script type="module" src="/js/main.js"></script>
+    <script type="module" src="/js/player.js"></script>
+    <script type="module" src="/js/iflog.js"></script>
 </body>
 </html>

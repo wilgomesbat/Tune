@@ -10,7 +10,7 @@
 
 <body class="bg-main">
 
-        
+
 
 <header id="artist-header" class="artist-header">
     <div class="header-side-bg left-bg"></div>
@@ -20,9 +20,9 @@
 
     <div class="header-content">
         <h1 id="artist-name" class="artist-name-flex">
-    Nome do Artista 
-    <img src="/assets/verificado.png" class="verified-icon" title="Artista Verificado">
-</h1>
+            Nome do Artista 
+           
+        </h1>
         <p class="stats"><span id="total-streams">0</span> streams</p>
         
         <div class="action-bar">
@@ -30,71 +30,51 @@
                 <span class="material-symbols-outlined">play_arrow</span> Reproduzir
             </button>
             <button class="btn-seguir-pill" title="Seguir">
-        <span class="follow-text">Seguir</span>
-        <img src="/assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="icon-asset">
-    </button>
-            
+                <span class="follow-text">Seguir</span>
+                <img src="/assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="icon-asset">
+            </button>
         </div>
     </div>
 </header>
-
-
-
-
 
 <section class="artist-pick-section">
     <h2 class="section-title">Escolha do artista</h2>
     <div id="artist-pick-container"></div>
 </section>
 
-<div class="section">
-    <h2 class="section-title">Singles e EPs</h2>
-    <div class="section-scroll">
-        <button id="singles-scroll-left" class="scroll-btn left">
-            <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
-        </button>
-        
-        <div class="card-row" id="artist-singles-list">
-            </div>
+<div class="artist-discography-container">
+    <h2 class="discography-title">Discografia</h2>
 
-        <button id="singles-scroll-right" class="scroll-btn right">
-            <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
-        </button>
+    <div class="discography-filters">
+        <button class="filter-btn active" data-target="albums">Álbuns</button>
+        <button class="filter-btn" data-target="singles">Singles e EPs</button>
+        <button class="filter-btn" data-target="sessions">Station</button>
+    </div>
+
+    <div id="section-albums" class="section artist-section">
+        <div class="section-scroll">
+            <button id="albums-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+            <div class="card-row" id="artist-albums-list"></div>
+            <button id="albums-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+        </div>
+    </div>
+
+    <div id="section-singles" class="section artist-section" style="display: none;">
+        <div class="section-scroll">
+            <button id="singles-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+            <div class="card-row" id="artist-singles-list"></div>
+            <button id="singles-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+        </div>
+    </div>
+
+    <div id="section-sessions" class="section artist-section" style="display: none;">
+        <div class="section-scroll">
+            <button id="stations-scroll-left" class="scroll-btn left"><img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+            <div class="card-row" id="artist-stations-list"></div>
+            <button id="stations-scroll-right" class="scroll-btn right"><img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"></button>
+        </div>
     </div>
 </div>
-
-
-<div class="section">
-    <h2 class="section-title">Álbuns</h2>
-    <div class="section-scroll">
-        <button id="albums-scroll-left" class="scroll-btn left">
-            <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
-        </button>
-        
-        <div class="card-row" id="artist-albums-list">
-            </div>
-
-        <button id="albums-scroll-right" class="scroll-btn right">
-            <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
-        </button>
-    </div>
-</div>
-
-<div class="section">
-    <h2 class="section-title">Aparece em</h2>
-    <div class="section-scroll">
-        <button id="stations-scroll-left" class="scroll-btn left">
-            <img src="/assets/chevron_left_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
-        </button>
-        
-        <div class="card-row" id="artist-stations-list">
-            </div>
-
-        <button id="stations-scroll-right" class="scroll-btn right">
-            <img src="/assets/chevron_forward_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png">
-        </button>
-    </div>
-</div> 
 
 <section class="about-section">
     <h2 class="section-title">Sobre</h2>
@@ -105,7 +85,6 @@
         </div>
         <div class="about-content">
             <p id="artist-monthly-listeners" class="monthly-listeners">0 ouvintes mensais</p>
-            
             <div class="bio-click-wrapper">
                 <p id="artist-bio-text" class="artist-bio-preview clickable-bio" title="Clique para ler mais"></p>
             </div>
@@ -113,18 +92,15 @@
     </div>
 </section>
 
-<div id="bio-modal" class="bio-modal-overlay hidden" onclick="fecharModalBioExterno(event)">
+<div id="bio-modal" class="bio-modal-overlay hidden" onclick="window.fecharModalBioExterno(event)">
     <div class="bio-modal-card">
         <div class="modal-header">
             <h3 id="modal-artist-name-bio">Sobre o Artista</h3>
-            <button class="close-modal-btn" onclick="fecharModalBio()">&times;</button>
+            <button class="close-modal-btn" onclick="window.fecharModalBio()">&times;</button>
         </div>
-        <div id="full-bio-content" class="modal-body">
-            </div>
+        <div id="full-bio-content" class="modal-body"></div>
     </div>
 </div>
-
-
 
 </body>
 </html>

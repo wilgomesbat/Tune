@@ -77,11 +77,59 @@ body, html {
     background-position: center;
     display: block; /* No mobile não é grid */
     overflow: hidden;
+}/* Título Discografia */
+.discography-title {
+    margin-left: 20px;
+    margin-bottom: 0px;
+     margin-top: 30px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -0.5px;
 }
 
-/* Esconde as extensões no mobile */
-.header-side-bg {
-    display: none;
+/* Container dos Filtros */
+.discography-filters {
+    display: flex;
+    gap: 10px;
+    margin-left: 20px;
+    padding: 10px 0 0px 0; /* Ajuste no padding para não afastar demais os cards */
+}
+
+/* Botões Estilo Pill */
+.filter-btn {
+    background: #1f1f1f; /* Fundo escuro como na imagem */
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 500px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+    background: #2a2a2a;
+}
+
+/* Estado Ativo (Invertido) */
+.filter-btn.active {
+    background: white;
+    color: black;
+}
+
+/* Ajustes de Seção */
+.artist-section {
+    padding: 0 20px;
+    width: 100%;
+}
+
+/* Mobile: Esconde extensões de fundo */
+@media (max-width: 768px) {
+    .header-side-bg {
+        display: none;
+    }
 }
 
 /* Garante que a imagem central ocupe tudo no mobile */

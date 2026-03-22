@@ -152,19 +152,7 @@ function initializeRouting() {
 }
 
 
-async function verificarManutencao() {
-    const docRef = doc(db, "config", "status");
-    try {
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists() && docSnap.data().manutencao) {
-            window.location.href = "main";
-        }
-    } catch (e) {
-        console.error("Erro ao verificar status de manutenção: ", e);
-    }
-}
-verificarManutencao();
+
 
 onAuthStateChanged(auth, async (user) => {
     // 1. SEGURANÇA IMEDIATA (Multi-tab e Bots)
@@ -461,6 +449,21 @@ async function populateUserProfile(user) {
     }
 }
 
+
+async function verificarManutencao() {
+    const docRef = doc(db, "config", "status");
+    try {
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().manutencao) {
+            window.location.href = "main";
+        }
+    } catch (e) {
+        console.error("Erro ao verificar status de manutenção: ", e);
+    }
+}
+verificarManutencao();
+
 // === SISTEMA DE FILA DE REPRODUÇÃO ===
 
 // Array global da fila
@@ -738,8 +741,15 @@ function formatNumber(num) {
 export async function setupArtistPage(artistUid) {
     if (!artistUid) return;
 
+    // 1. LOCALIZA E MOSTRA O OVERLAY DE LOADING
+    const loader = document.getElementById('loading-overlay');
+    if (loader) {
+        loader.classList.remove('hidden');
+        loader.style.display = 'flex';
+    }
+
     try {
-        // 1. CARREGAR DADOS DO FIREBASE
+        // 2. CARREGAR DADOS BÁSICOS DO ARTISTA
         const artistDoc = await getDoc(doc(db, "usuarios", artistUid));
         
         if (artistDoc.exists()) {
@@ -755,7 +765,7 @@ export async function setupArtistPage(artistUid) {
                 if (isVerified) {
                     artistNameEl.innerHTML = `
                         ${nomeBase} 
-                        <img src="/assets/verificado.png" class="verified-icon" title="Artista Verificado">
+                        
                     `;
                 } else {
                     artistNameEl.innerText = nomeBase;
@@ -764,17 +774,14 @@ export async function setupArtistPage(artistUid) {
 
             // --- LÓGICA DA BIO CLICÁVEL (SOBRE) ---
             const bioTextEl = document.getElementById('artist-bio-text');
-            const limit = 170; // Limite de caracteres para a prévia no card
+            const limit = 170; 
 
             if (bioTextEl) {
-                // Trunca o texto para a prévia
                 if (bioCompleta.length > limit) {
                     bioTextEl.innerText = bioCompleta.substring(0, limit) + "...";
                 } else {
                     bioTextEl.innerText = bioCompleta;
                 }
-
-                // Torna o texto da bio clicável para abrir o Pop-up
                 bioTextEl.style.cursor = "pointer";
                 bioTextEl.onclick = () => window.abrirModalBio(nomeBase, bioCompleta);
             }
@@ -826,7 +833,7 @@ export async function setupArtistPage(artistUid) {
                 aboutCard.style.backgroundImage = `url('${data.foto}')`;
             }
 
-            // --- 2. CÁLCULO DE NÚMEROS (Ouvintes e Streams) ---
+            // --- CÁLCULO DE NÚMEROS (Ouvintes e Streams) ---
             const musicasRef = collection(db, "musicas");
             const qArtistMusics = query(musicasRef, where("artist", "==", artistUid));
             const artistMusicsSnap = await getDocs(qArtistMusics);
@@ -850,20 +857,68 @@ export async function setupArtistPage(artistUid) {
                 monthlyEl.innerText = `${formatNumber(totalAllTimeStreams)} streams no total`;
             }
 
-            // --- 3. RANKING E CARREGAMENTO DE OBRAS ---
-            await calculateGlobalRanking(artistUid);
-
+            // --- 3. CARREGAMENTO EM MASSA (RANKING, MÚSICAS, ÁLBUNS, SINGLES) ---
             await Promise.all([
+                calculateGlobalRanking(artistUid),
                 loadTopSongs(artistUid),
                 loadArtistAlbums(artistUid),
                 loadArtistSingles(artistUid),
                 loadArtistStations(artistUid),
                 checkFollowStatus(artistUid)
             ]);
+
+            // --- 4. CONFIGURAÇÃO DOS FILTROS E ESTADO INICIAL ---
+            initDiscographyLogic();
+            
+            // Define visibilidade inicial
+            document.getElementById('section-albums').style.display = 'block';
+            document.getElementById('section-singles').style.display = 'none';
+            document.getElementById('section-sessions').style.display = 'none';
+
+            // --- 5. FINALIZA O LOADING (FADE OUT) ---
+            setTimeout(() => {
+                if (loader) {
+                    loader.classList.add('hidden');
+                    // Opcional: remover do DOM após a animação de opacidade
+                    setTimeout(() => { loader.style.display = 'none'; }, 500);
+                }
+            }, 600); 
+
         }
     } catch (error) {
         console.error("Erro no setup da página do artista:", error);
+        // Garante que o usuário não fique preso no loading se der erro
+        if (loader) loader.classList.add('hidden');
     }
+}
+
+function initDiscographyLogic() {
+    const buttons = document.querySelectorAll('.filter-btn');
+    const sections = {
+        albums: document.getElementById('section-albums'),
+        singles: document.getElementById('section-singles'),
+        sessions: document.getElementById('section-sessions')
+    };
+
+    buttons.forEach(btn => {
+        btn.onclick = () => { // Usando onclick direto para evitar duplicados
+            const target = btn.getAttribute('data-target');
+
+            // Atualiza botões
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Esconde todas e mostra a selecionada
+            for (let key in sections) {
+                if (sections[key]) {
+                    sections[key].style.display = (key === target) ? 'block' : 'none';
+                }
+            }
+            
+            // Log para debug no console se necessário
+            console.log("Mostrando seção:", target);
+        };
+    });
 }
 
 /**
@@ -1152,6 +1207,8 @@ async function loadArtistAlbums(artistUid) {
     } catch (e) { console.error("Erro Álbuns:", e); }
 }
 
+
+
 // Exemplo para Singles na Página do Artista
 async function loadArtistSingles(artistUid) {
     const container = document.getElementById('artist-singles-list');
@@ -1226,30 +1283,28 @@ async function toggleFollow(artistUid) {
     const user = auth.currentUser;
     if (!user) return alert("Inicia sessão para seguir!");
 
-    // Referência do documento na subcoleção 'seguindo' do usuário logado
-    const followRef = doc(db, `usuarios/${user.uid}/seguindo`, artistUid);
+    console.log("Tentando seguir artista:", artistUid); // LOG 1
+
+    const followRef = doc(db, "usuarios", user.uid, "seguindo", artistUid);
     
     try {
         const docSnap = await getDoc(followRef);
 
         if (docSnap.exists()) {
-            // Se já segue, remove
             await deleteDoc(followRef);
-            console.log("Deixou de seguir");
+            console.log("Deixou de seguir com sucesso"); // LOG 2
         } else {
-            // Se não segue, adiciona
             await setDoc(followRef, { 
                 artistId: artistUid, 
-                dataSeguida: serverTimestamp() 
+                dataSeguida: new Date() // Teste com Date simples primeiro
             });
-            console.log("Começou a seguir");
+            console.log("Começou a seguir com sucesso"); // LOG 3
         }
 
-        // CHAMA A ATUALIZAÇÃO VISUAL APÓS A MUDANÇA
         await checkFollowStatus(artistUid);
 
     } catch (error) {
-        console.error("Erro ao seguir artista:", error);
+        console.error("ERRO FIREBASE:", error); // Esse log vai te dizer o erro real
     }
 }
 
@@ -1421,24 +1476,30 @@ if (isAutomaticTop) {
         
         // --- 2. LÓGICA PARA OS CHARTS (Top 50 World, Brasil, Today, etc) ---
         else {
-            // JANELA DE TEMPO: 82 Horas para os Logs
-            const oitentaEDuasHorasAtras = new Date();
-            oitentaEDuasHorasAtras.setHours(oitentaEDuasHorasAtras.getHours() - 82);
+    // 82 Horas em MILISSEGUNDOS (exatamente como no seu banco)
+    const agora = Date.now();
+    const oitentaEDuasHorasAtras = agora - (82 * 60 * 60 * 1000);
 
-            // Busca de Logs: Obter IDs das músicas ouvidas recentemente
-            const logsRef = collection(db, "logs_atividades");
-            const qLogs = query(
-                logsRef,
-                where("timestamp", ">=", oitentaEDuasHorasAtras),
-                where("type", "==", "play_20s_valid")
-            );
+    const logsRef = collection(db, "stream_logs");
+    
+    // IMPORTANTE: Use o número puro na query
+    const qLogs = query(
+        logsRef,
+        where("type", "==", "play_valid"),
+        where("timestamp", ">=", oitentaEDuasHorasAtras)
+    );
 
-            const logsSnap = await getDocs(qLogs);
-            const logCounts = {};
-            logsSnap.forEach(doc => {
-                const log = doc.data();
-                if (log.itemId) logCounts[log.itemId] = (logCounts[log.itemId] || 0) + 1;
-            });
+    const logsSnap = await getDocs(qLogs);
+    const logCounts = {};
+    
+    logsSnap.forEach(doc => {
+        const log = doc.data();
+        // CORREÇÃO: No seu print o campo é 'trackId', não 'itemId'
+        const id = log.trackId; 
+        if (id) {
+            logCounts[id] = (logCounts[id] || 0) + 1;
+        }
+    });
 
             // Busca de Músicas: Base para o ranking
             const qMusicas = query(collection(db, "musicas"), orderBy("streamsMensal", "desc"), limit(250));
@@ -1457,7 +1518,7 @@ if (isAutomaticTop) {
                 // CÁLCULO 50/50
                 const logScore = clicks / maxLogs;
                 const monthlyScore = sMensal / maxStreamsMensal;
-                const hybridScore = (logScore * 0.2) + (monthlyScore * 0.5);
+                const hybridScore = (logScore * 0.7) + (monthlyScore * 0.5);
 
                 rawTracks.push({ id: d.id, ...data, hybridScore, clicks82h: clicks });
             });
@@ -2833,33 +2894,50 @@ function createPlaylistCard(playlist, playlistId) {
     card.setAttribute('data-navigate', 'playlist');
     card.setAttribute('data-id', playlistId);
 
-    // Prioriza a capa estática. Se não existir, usa a cover (mesmo que seja gif, ficará estática)
     const displayCover = playlist.staticCover || playlist.cover || '/assets/default-cover.png';
+    const animatedCover = playlist.animatedCover || ''; 
+    const activeColor = playlist.activeColor || '#535353'; // Cor para o brilho de fundo
 
     card.innerHTML = `
-        <div class="relative w-full aspect-square mb-3 flex-shrink-0 bg-[#282828] rounded-md overflow-hidden">
-            <img src="${displayCover}" 
-                 class="w-full h-full object-cover rounded-md shadow-lg pointer-events-none">
+        <div class="relative w-full aspect-square mb-3 bg-[#1a1a1a] rounded-md overflow-hidden shadow-lg">
+            <img src="${displayCover}" class="w-full h-full object-cover pointer-events-none">
             
-            <div class="absolute bottom-2 right-2 bg-[#1ed760] w-10 h-10 rounded-full flex items-center justify-center shadow-xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-                <i class='bx bx-play text-black text-2xl ml-0.5'></i>
+            ${animatedCover ? `
+                <video src="${animatedCover}" 
+                       class="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-[1]" 
+                       autoplay loop muted playsinline></video>
+            ` : ''}
+            
+            <div class="play-button-tidal">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
             </div>
         </div>
 
         <div class="w-full">
-            <h3 class="text-white text-[14px] truncate leading-tight mb-[4px]"
-                style="font-family: 'Nationale Bold', sans-serif; font-weight: 700;">
+            <h3 class="text-white text-[14px] truncate leading-tight mb-[4px] font-bold"
+                style="font-family: 'Nationale Bold', sans-serif;">
                 ${playlist.name}
             </h3>
-            <p class="text-[#b3b3b3] text-[12px] truncate"
+            <p class="text-[#b3b3b3] text-[12px] truncate uppercase"
                style="font-family: 'Nationale Regular', sans-serif;">
-                ${playlist.genres?.join(', ') || 'Playlist'}
+                ${playlist.artist || 'TIDAL'}
             </p>
         </div>
     `;
+
+
+
+    card.addEventListener('mouseleave', () => {
+        const section = card.closest('.section');
+        if (section) {
+            section.style.background = 'transparent';
+        }
+    });
+
     return card;
 }
-
 function createAlbumCard(album, albumId) {
     const card = document.createElement('div');
     card.className = 'flex flex-col items-start cursor-pointer group transition-transform duration-300 hover:scale-[1.02] flex-shrink-0';
@@ -2869,30 +2947,45 @@ function createAlbumCard(album, albumId) {
     card.setAttribute('data-navigate', 'album');
     card.setAttribute('data-id', albumId);
 
-    // Mesma lógica: Prioriza imagem que não se mexe
     const displayCover = album.staticCover || album.cover || '/assets/default-cover.png';
+    const animatedCover = album.animatedCover || ''; 
+    const activeColor = album.activeColor || '#333333';
 
     card.innerHTML = `
-        <div class="relative w-full aspect-square mb-3 flex-shrink-0 bg-[#282828] rounded-md overflow-hidden">
-            <img src="${displayCover}" 
-                 class="w-full h-full object-cover rounded-md shadow-lg pointer-events-none">
+        <div class="relative w-full aspect-square mb-3 bg-[#1a1a1a] rounded-md overflow-hidden shadow-lg">
+            <img src="${displayCover}" class="w-full h-full object-cover pointer-events-none">
             
-            <div class="absolute bottom-2 right-2 bg-[#1ed760] w-10 h-10 rounded-full flex items-center justify-center shadow-xl opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-                <i class='bx bx-play text-black text-2xl ml-0.5'></i>
+            ${animatedCover ? `
+                <video src="${animatedCover}" 
+                       class="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-[1]" 
+                       autoplay loop muted playsinline></video>
+            ` : ''}
+            
+            <div class="play-button-tidal">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="black">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
             </div>
         </div>
 
         <div class="w-full">
-            <h3 class="text-white text-[14px] truncate leading-tight mb-[4px]"
-                style="font-family: 'Nationale Bold', sans-serif; font-weight: 700;">
+            <h3 class="text-white text-[14px] truncate leading-tight mb-[4px] font-bold"
+                style="font-family: 'Nationale Bold', sans-serif;">
                 ${album.album}
             </h3>
-            <p class="text-[#b3b3b3] text-[12px] truncate"
-               style="font-family: 'Nationale Regular', sans-serif;">
+            <p class="text-[#b3b3b3] text-[12px] truncate uppercase"
+                style="font-family: 'Nationale Regular', sans-serif;">
                 ${album.artist}
             </p>
         </div>
     `;
+
+
+
+    card.addEventListener('mouseleave', () => {
+        const section = card.closest('.section');
+        if (section) section.style.background = 'transparent';
+    });
 
     card.addEventListener('click', () => {
         if (typeof trackAlbumDayStream === 'function') trackAlbumDayStream(albumId);

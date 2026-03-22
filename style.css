@@ -1098,6 +1098,69 @@ body {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
 
+/* Faz a transição do fundo da seção ser suave */
+.section {
+    transition: background 0.5s ease-in-out;
+    position: relative;
+}
+
+/* Container da imagem com tamanho fixo e overflow */
+.card-image-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1/1;
+    overflow: hidden;
+    border-radius: 4px;
+}
+
+/* Estilo do vídeo/gif animado */
+.animated-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+}
+
+.group:hover .animated-cover {
+    opacity: 1;
+}
+
+.play-button-tidal {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background-color: #ffffff;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10; /* Garante que fique acima do vídeo */
+    
+    /* Estado inicial (escondido) */
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+box-shadow: rgba(0, 0, 0, 0.834) 0px 22px 70px 4px;
+}
+
+/* Revela no hover do card (group) */
+.group:hover .play-button-tidal {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Ajuste do SVG dentro do círculo */
+.play-button-tidal svg {
+    margin-left: 2px; /* Centraliza visualmente o triângulo */
+}
+
 .card-image img {
     width: 100%;
     height: 100%;
@@ -3128,3 +3191,172 @@ font-family: 'Nationale Black';
     flex-direction: column; /* Coloca a foto acima do texto igual ao Spotify */
     align-items: flex-start;
 }
+
+/* Container que centraliza tudo no rodapé */
+.tune-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px; /* Espaço entre player e menu */
+  z-index: 9999;
+  width: 100%;
+  max-width: 400px; /* Garante que não estique demais */
+}
+
+/* Estilo Base (Vidro) */
+.tune-player, .nav-pill, .search-btn {
+  background: rgba(15, 15, 15, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+/* PLAYER */
+.tune-player {
+  width: 90%;
+  height: 55px;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+}
+
+.player-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  height: 100%;
+}
+
+.song-info { display: flex; align-items: center; gap: 10px; }
+.song-info img { width: 38px; height: 38px; border-radius: 6px; }
+.song-details { color: white; display: flex; flex-direction: column; }
+#player-title { font-size: 0.85rem; font-weight: bold; }
+#player-artist { font-size: 0.7rem; opacity: 0.6; }
+
+.play-btn { background: none; border: none; cursor: pointer; padding: 0; }
+.play-btn img { width: 22px; }
+
+/* LINHA DE BAIXO (Pílula + Lupa) */
+.nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Pílula do Menu */
+.nav-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  width: 160px; /* Largura fixa para os 2 ícones */
+  height: 60px;
+  border-radius: 30px;
+}
+
+/* Lupa Separada */
+.search-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Ícones */
+.nav-link img, .search-btn img {
+  width: 26px;
+  height: 26px;
+  opacity: 0.5;
+  transition: 0.2s;
+}
+
+.nav-link.active img {
+  opacity: 1;
+
+}
+
+/* Progresso */
+.progress-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+}
+#progress-fill { height: 100%; background: #fff; width: 0%; }
+
+/* Fundo escurecido */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+/* Card centralizado */
+.popup-card {
+    background-color: #282828;
+    width: 90%;
+    max-width: 320px;
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: popupFade 0.3s ease-out;
+}
+
+.popup-links {
+    display: flex;
+    flex-direction: column;
+}
+
+.popup-item {
+    padding: 15px 10px;
+    color: white;
+    font-size: 16px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.2s;
+}
+
+.popup-item:active {
+    opacity: 0.5;
+}
+
+/* Botão Fechar igual ao da imagem */
+.popup-close-btn {
+    margin-top: 15px;
+    width: 100%;
+    padding: 14px;
+    background-color: #3e3e3e;
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+@keyframes popupFade {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.hidden { display: none !important; }
