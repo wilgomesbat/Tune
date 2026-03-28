@@ -109,6 +109,20 @@ if (window.currentUserUid) {
 }
 }
 
+async function verificarManutencao() {
+    const docRef = doc(db, "config", "status");
+    try {
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().manutencao) {
+            window.location.href = "main";
+        }
+    } catch (e) {
+        console.error("Erro ao verificar status de manutenção: ", e);
+    }
+}
+verificarManutencao();
+
 const BLACKLIST_UIDS = [
   "5aZ74tlIUzcVjjrUBHdw1rLQPRF2"
 ];
@@ -450,19 +464,6 @@ async function populateUserProfile(user) {
 }
 
 
-async function verificarManutencao() {
-    const docRef = doc(db, "config", "status");
-    try {
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists() && docSnap.data().manutencao) {
-            window.location.href = "main";
-        }
-    } catch (e) {
-        console.error("Erro ao verificar status de manutenção: ", e);
-    }
-}
-verificarManutencao();
 
 // === SISTEMA DE FILA DE REPRODUÇÃO ===
 
@@ -599,40 +600,120 @@ document.addEventListener("click", (e) => {
     }
 });
 
+/**
+ * Função para converter RGB para HSL (útil para verificar luminosidade)
+ */
+function rgL(r, g, b) {
+    r /= 255, g /= 255, b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
 
-
-// --- Funções de Ajuda e Utilitários ---
-
-function applyDominantColorToHeader(imgElement, headerElement) {
-    if (!imgElement || !headerElement) {
-        console.warn("Elementos de imagem ou cabeçalho não fornecidos para extração de cor.");
-        return;
-    }
-    if (!imgElement.complete) {
-        return;
-    }
-    try {
-        if (typeof ColorThief === 'undefined') {
-            console.error("ColorThief não está carregado. Certifique-se de que a CDN está no seu HTML.");
-            headerElement.style.background = 'linear-gradient(to bottom, #1a1a1a, #121212)';
-            return;
+    if (max === min) { h = s = 0; }
+    else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
         }
-        const colorThief = new ColorThief();
-        const dominantColor = colorThief.getColor(imgElement);
-        if (dominantColor) {
-            const color1 = `rgb(${dominantColor[0]}, ${dominantColor[1]}, ${dominantColor[2]})`;
-            const darkerColor = `rgb(${Math.floor(dominantColor[0] * 0.5)}, ${Math.floor(dominantColor[1] * 0.5)}, ${Math.floor(dominantColor[2] * 0.5)})`;
-            headerElement.style.background = `linear-gradient(to bottom, ${color1}, ${darkerColor}, #121212 85%)`;
-        } else {
-            console.warn("Não foi possível extrair cores da imagem. Usando gradiente padrão.");
-            headerElement.style.background = 'linear-gradient(to bottom, #1a1a1a, #121212)';
-        }
-    } catch (e) {
-        console.error("Erro ao usar ColorThief:", e);
-        headerElement.style.background = 'linear-gradient(to bottom, #1a1a1a, #121212)';
+        h /= 6;
     }
+    return [h * 360, s * 100, l * 100];
 }
 
+/**
+ * Função inteligente que ajusta cores escuras e aplica o gradiente no body.
+ */
+function applyColorToArtistBackground(imageUrl) {
+    if (!imageUrl) return;
+
+    const img = new Image();
+    img.crossOrigin = "Anonymous"; 
+    img.src = imageUrl;
+
+    img.onload = () => {
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Aumentamos um pouco a amostra para pegar cores vizinhas
+            const sampleHeight = 50; 
+            canvas.width = img.naturalWidth;
+            canvas.height = sampleHeight;
+
+            ctx.drawImage(
+                img, 
+                0, img.naturalHeight - sampleHeight, img.naturalWidth, sampleHeight,
+                0, 0, canvas.width, sampleHeight
+            );
+
+            const colorThief = new ColorThief();
+            let rgb = colorThief.getColor(canvas);
+
+            if (rgb) {
+                // 1. Verifica a luminosidade da cor extraída (HSL)
+                const hsl = rgL(rgb[0], rgb[1], rgb[2]);
+                const luminosity = hsl[2];
+
+                // 2. Lógica "Anti-Preto"
+                // Se a luminosidade for menor que 20%, aumentamos para 35% e a saturação para 60%
+                // para forçar a cor a aparecer.
+                if (luminosity < 20) {
+                    const adjustedH = hsl[0];
+                    const adjustedS = Math.max(hsl[1], 60); // Pelo menos 60% de saturação
+                    const adjustedL = 35; // Aumenta a luminosidade
+                    // Substitui o RGB original por uma versão mais vibrante
+                    rgb = hslToRgb(adjustedH, adjustedS, adjustedL);
+                }
+
+                // 3. Cria o Gradiente
+                const colorMain = `rgb(${Math.floor(rgb[0])}, ${Math.floor(rgb[1])}, ${Math.floor(rgb[2])})`;
+                // Cria uma versão bem mais escura para o final
+                const colorDark = `rgb(${Math.floor(rgb[0] * 0.15)}, ${Math.floor(rgb[1] * 0.15)}, ${Math.floor(rgb[2] * 0.15)})`;
+
+                // Aplica o Gradiente no BODY
+                // Começa na cor ajustada e vai para preto total em 800px
+                const gradient = `linear-gradient(to bottom, ${colorMain} 0px, ${colorDark} 400px, #000000 800px)`;
+                
+                document.body.style.setProperty('background-image', gradient, 'important');
+                document.body.style.setProperty('background-attachment', 'fixed', 'important');
+                document.body.style.setProperty('background-color', '#000000', 'important');
+                document.body.style.setProperty('background-repeat', 'no-repeat', 'important');
+                
+                console.log("Gradiente final aplicado no body (ajustado):", colorMain);
+            }
+        } catch (e) {
+            console.error("Erro ColorThief:", e);
+            document.body.style.setProperty('background-image', 'linear-gradient(to bottom, #1a1a1a, #000000) fixed', 'important');
+        }
+    };
+}
+
+/**
+ * Função para converter HSL de volta para RGB
+ */
+function hslToRgb(h, s, l) {
+    h /= 360, s /= 100, l /= 100;
+    let r, g, b;
+    if (s === 0) { r = g = b = l; }
+    else {
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return [r * 255, g * 255, b * 255];
+}
 /**
  * Calcula a soma total de streams de todas as músicas de um artista.
  * @param {string} artistId O UID do artista.
@@ -761,6 +842,11 @@ export async function setupArtistPage(artistUid) {
             const artistNameEl = document.getElementById('artist-name');
             const isVerified = data.verificado === true || data.verificado === "true";
 
+if (data.foto) {
+        // Agora aplicamos no BODY, não no header
+        applyColorToArtistBackground(data.foto);
+    }
+
             if (artistNameEl) {
                 if (isVerified) {
                     artistNameEl.innerHTML = `
@@ -785,6 +871,8 @@ export async function setupArtistPage(artistUid) {
                 bioTextEl.style.cursor = "pointer";
                 bioTextEl.onclick = () => window.abrirModalBio(nomeBase, bioCompleta);
             }
+
+            
 
             // --- ESCOLHA DO ARTISTA (ARTIST PICK) ---
             const pickContainer = document.getElementById('artist-pick-container');
@@ -822,11 +910,15 @@ export async function setupArtistPage(artistUid) {
                 pickSection.style.display = 'none';
             }
 
-            // --- BACKGROUNDS DO HEADER E CARD SOBRE ---
-            const headerEl = document.getElementById('artist-header');
-            if (headerEl && data.foto) {
-                headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
-            }
+// Ache essa parte e substitua:
+const headerEl = document.getElementById('artist-header');
+if (headerEl && data.foto) {
+    // 1. Define a imagem nas variáveis CSS para as colunas aparecerem
+    headerEl.style.setProperty('--bg-img', `url('${data.foto}')`);
+    
+    // 2. Chama a função do gradiente passando APENAS a URL da foto
+    applyColorToArtistBackground(data.foto);
+}
 
             const aboutCard = document.getElementById('artist-about-card');
             if (aboutCard && data.foto) {
@@ -1120,7 +1212,7 @@ async function loadTopSongs(artistUid) {
             // Se mudou de artista no meio do loop, para tudo
             if (executionId !== lastExecutionId) return;
 
-            if (validSongsCount >= 5) break; 
+            if (validSongsCount >= 3) break; 
 
             const song = d.data();
             let isLocked = false;
@@ -1145,7 +1237,7 @@ async function loadTopSongs(artistUid) {
             
             htmlBuffer += `
                 <div class="song-item" onclick="playMusic('${d.id}')">
-                    <div class="song-index">${validSongsCount}</div>
+
                     <img src="${song.cover}" class="song-cover">
                     <div class="song-info-main">
                         <span class="song-title">${song.title}</span>
@@ -1502,7 +1594,7 @@ if (isAutomaticTop) {
     });
 
             // Busca de Músicas: Base para o ranking
-            const qMusicas = query(collection(db, "musicas"), orderBy("streamsMensal", "desc"), limit(250));
+            const qMusicas = query(collection(db, "musicas"), orderBy("streamsMensal", "desc"),);
             const musSnap = await getDocs(qMusicas);
             let rawTracks = [];
 
@@ -1518,7 +1610,7 @@ if (isAutomaticTop) {
                 // CÁLCULO 50/50
                 const logScore = clicks / maxLogs;
                 const monthlyScore = sMensal / maxStreamsMensal;
-                const hybridScore = (logScore * 0.7) + (monthlyScore * 0.5);
+                const hybridScore = (logScore * 0.5) + (monthlyScore * 0.5);
 
                 rawTracks.push({ id: d.id, ...data, hybridScore, clicks82h: clicks });
             });
