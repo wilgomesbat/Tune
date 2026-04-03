@@ -1,0 +1,1225 @@
+/* 1. SEMPRE OS @FONT-FACE NO TOPO */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('/fonts/SpotifyMix-Medium.woff2') format('woff2'),
+         url('/fonts/SpotifyMix-Medium.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap; /* Ajuda a carregar mais rápido */
+}
+
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('/fonts/Nationale-Bold.woff2') format('woff2'),
+         url('/fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('/fonts/SpotifyMix-Black.woff2') format('woff2'),
+         url('/fonts/SpotifyMix-Black.woff') format('woff');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Garante que o player suma completamente */
+#music-player.hidden {
+    display: none !important;
+}
+
+/* Opcional: Animação para aparecer suavemente */
+#music-player {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+#music-player {
+    font-family: 'Nationale Regular';
+   position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    /* Valor astronômico para passar a sidebar */
+  
+     display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 300px;
+    z-index: 1000 !important;
+    color: white;
+    
+    /* O JS vai controlar a background-color agora */
+    background: rgb(18, 18, 18); /* Fundo escuro igual ao Tidal */
+
+    transition: background-color 0.8s ease; 
+    overflow: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+
+/* Garante que o conteúdo fique acima do vidro */
+.player-main-content, 
+.progress-bar-bottom {
+    position: relative;
+    z-index: 5;
+}
+
+@media (max-width: 768px) {
+    #music-player {
+        bottom: 100px !important; /* Valor maior para ficar acima da barra de navegação */
+        width: calc(100% - 30px) !important;
+        margin: 0 15px !important;
+
+        position: fixed !important;
+    }
+}
+
+/* Dark Mode Adaptation */
+@media (prefers-color-scheme: dark) {
+    #music-player {
+        --glass-bg: rgba(0, 0, 0, 0.4);
+        --glass-shimmer: rgba(255, 255, 255, 0.05);
+    }
+}
+
+body.fs-active #full-screen-player {
+    opacity: 1; 
+    /* ⭐️ POSIÇÃO FINAL: 0 significa no topo da tela */
+    transform: translateY(0); 
+
+}
+
+/* Mini Player */
+body.fs-active #music-player {
+    opacity: 0; 
+    transform: translateY(100%); 
+
+}
+
+/* Estilo do botão à direita */
+.player-right {
+    display: flex;
+    align-items: center;
+}
+
+/* Container para a primeira linha (Capa, Controles, Volume) */
+.player-main-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    z-index: 9999 !important;
+    height: 70px; /* Espaço para o conteúdo principal */
+}
+
+/* LADO ESQUERDO: Capa e Info */
+.player-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+    width: 25%;
+    margin-top: 1%;
+}
+.player-left img {
+    width: 50px;
+    height: 50px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+.player-info {
+
+    overflow: hidden;
+    white-space: nowrap; /* Impede a quebra de linha do texto */
+}
+
+/* Garante que o texto rolável esteja no mesmo nível */
+#player-title, #player-artist {
+    display: block; /* Para garantir que o span ocupe a largura total */
+}
+
+.player-info {
+    /* MANTENHA estas três regras CRUCIAIS: */
+    max-width: 150px; /* <--- GARANTA ESTE VALOR FIXO OU AJUSTE */
+    overflow: hidden;
+    white-space: nowrap; 
+
+    /* 🛑 REMOVIDO: O mask-image PADRÃO FOI REMOVIDO DAQUI */
+    /* Ele será aplicado através da nova classe .fade-active */
+}
+
+/* NOVO: Classe que aplica o Efeito Fade SOMENTE quando o texto rola */
+.player-info.fade-active {
+    /* O gradiente que cria o efeito de fade nas laterais */
+    -webkit-mask-image: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0) 0%,      /* Início (Fade esquerdo) */
+        rgba(0, 0, 0, 1) 10%,     /* Transição para visível */
+        rgba(0, 0, 0, 1) 90%,     /* Transição para invisível */
+        rgba(0, 0, 0, 0) 100%     /* Fim (Fade direito) */
+    );
+    mask-image: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 1) 10%,
+        rgba(0, 0, 0, 1) 90%,
+        rgba(0, 0, 0, 0) 100%
+    );
+}
+
+/* 2. TEXTO e ANIMAÇÃO (mantido, mas com a correção de calc) */
+#player-title, #player-artist {
+    display: block; 
+    white-space: nowrap;
+}
+
+/* ANIMAÇÃO: Ativa o scroll quando a classe 'scrolling' é adicionada pelo JS */
+#player-title.scrolling,
+#player-artist.scrolling {
+    animation: text-scroll 8s linear infinite alternate; 
+}
+
+/* Define a animação de scroll (baseado no max-width de 150px) */
+@keyframes text-scroll {
+    0% { transform: translateX(0); }
+    100% { 
+        /* AJUSTE ESTE VALOR (150px) para ser IGUAL ao max-width do .player-info */
+        transform: translateX(calc(-100% + 150px)); 
+    }
+}
+
+.player-info span {
+    font-family: 'Nationale Regular';
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9rem;
+}
+.player-info #player-title {
+    font-weight: bold;
+    font-family: 'Nationale Bold';
+    font-size: 1rem;
+    color: white;
+}
+#player-artist {
+    font-family: 'Nationale Regular';
+    color: #b3b3b3;
+    font-size: 0.8rem;
+}
+
+/* CENTRO: Controles */
+.player-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1; /* Ocupa o espaço central restante */
+}
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.controls button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    transition: background 0.2s, opacity 0.2s;
+}
+.controls button img {
+    width: 28px;
+    height: 28px;
+    /* CORREÇÃO: Removido filter: invert(1); para ícones já brancos */
+    filter: none;
+}
+.controls button:hover {
+    background: rgba(255, 255, 255, 0.117);
+    opacity: 1;
+}
+
+.play-btn {
+    background: white;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    transition: transform 0.1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.play-btn:hover {
+    transform: scale(1.1);
+}
+.play-btn img {
+    width: 40px;
+    height: 40px;
+    /* ICONE PRETO: O botão de play é branco, então o ícone deve ser preto para contraste */
+    filter: none;
+}
+
+/* DIREITA: Volume e Fila */
+.player-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 25%;
+    margin-top: 1%;
+    min-width: 150px;
+    gap: 10px;
+}
+.player-right button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+.player-right button:hover {
+    opacity: 1;
+}
+.player-right button img {
+    width: 20px;
+    height: 20px;
+    /* CORREÇÃO: Removido filter: invert(1); para ícones já brancos */
+    filter: none;
+}
+#volume-slider {
+    width: 90px;
+    accent-color: #ffffff;
+}
+
+.fs-volume-section {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    z-index: 50; /* Garante que fique acima do fundo aurora */
+}
+
+.speaker {
+    width: 30x;
+    height: 0px;
+}
+
+.vlCtrl {
+    width: 100%;
+    max-width: 280px;
+    height: 27px;
+    cursor: pointer;
+    touch-action: none; /* Desativa gestos padrão do navegador nesta área */
+}
+
+.volElem {
+    fill: none;
+    stroke-width: 6; /* Aumentado para facilitar o toque no mobile */
+    stroke-linecap: round;
+}
+
+/* BARRA DE PROGRESSO (NOVA POSIÇÃO INFERIOR) */
+.progress-bar-bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 90%; /* Ocupa a maior parte da largura no PC */
+    max-width: 900px;
+    margin-bottom: 5px;
+}
+.progress-bar {
+    flex: 1;
+    height: 5px;
+    background: #ffffff6d;
+    border-radius: 3px;
+    overflow: hidden;
+    cursor: pointer;
+}
+#progress-fill {
+    width: 0%;
+    height: 100%;
+    background: #ffffff;
+    transition: width 0.1s linear;
+}
+#current-time, #total-time {
+    font-size: 12px;
+    color: #ccc;
+    white-space: nowrap;
+}
+
+/* IFRAME INVISÍVEL */
+#yt-player {
+    display: none;
+}
+/* * --------------------------------------------------------
+ * --- MEDIA QUERY: ADAPTAÇÃO PARA MOBILE (MAX 768px) ---
+ * --------------------------------------------------------
+ */
+@media (max-width: 768px) {
+    #music-player {
+        /* Ocupa a largura total com margens laterais de 15px */
+       bottom: 100px !important; /* Valor maior para ficar acima da barra de navegação */
+        width: calc(100% - 30px) !important;
+        margin: 0 15px !important;
+        z-index: 2147483647 !important;
+        border-radius: 8px;
+        position: fixed;
+        transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        /* CORREÇÃO: Remove o padding vertical para compactar */
+        padding: 0 12px;
+        height: auto; /* Deixa a altura ser definida pelo conteúdo */
+    }
+
+    /* ----------------------------------------------------------------- */
+    /* CONTEÚDO PRINCIPAL (Capa, Título, Controles) */
+    /* ----------------------------------------------------------------- */
+    .player-main-content {
+        /* CORREÇÃO: Remove altura fixa e usa padding para respiro. */
+        height: auto;
+        padding: 9px 0; /* Adiciona respiro vertical (topo e base) de 8px */
+
+        /* O alinhamento central vertical (align-items: center) deve ser herdado
+           do seu CSS base e garante que a capa e os botões fiquem alinhados. */
+    }
+
+    /* OCULTA VOLUME E SLIDER NO MOBILE */
+    .player-right {
+        /* O botão de Fila está no .player-right, então precisamos alinhá-lo */
+        justify-content: flex-end; /* Garante que fique no canto direito */
+        width: auto; /* Deixa a largura ser definida pelo conteúdo */
+        min-width: 0;
+        margin-top: 1%;
+        gap: 0; /* Não há gap necessário se tiver apenas 1 botão visível */
+        /* Ajuste a margem para criar o espaço entre o Play/Pause e o Fila */
+        margin-left: 8px; 
+    }
+    .desktop-only-icon,
+    .desktop-only-slider {
+        display: none !important;
+    }
+
+    /* NOVO: OCULTA O BOTÃO 'PULAR ANTERIOR' */
+    #prev-btn {
+        display: none !important;
+    }
+
+    .player-left {
+        /* Aumenta a largura para compensar a remoção do botão 'Previous' */
+        width: 70%; /* Aumentado de 65% para dar mais espaço */
+    }
+    .player-left img {
+        margin-bottom: 2%; /* Pode ser ajustado para 0 se o padding no .player-main-content for suficiente */
+        width: 40px;
+        height: 40px;
+    }
+
+    .player-info #player-title {
+        margin-bottom: 2%; /* Pode ser ajustado para 0 */
+        font-size: 0.85rem;
+    }
+    #player-artist {
+        font-size: 0.7rem;
+    }
+
+    /* Player Centro (Controles de Skip e Play/Pause) */
+    .player-center {
+        /* Garante que o centro não ocupe espaço desnecessário */
+        flex-grow: 0;
+        /* Remove o padding-right para que os botões de controle fiquem na direita do player central */
+        padding-right: 0; 
+    }
+
+    .controls {
+        gap: 8px; /* Espaço entre os botões */
+        /* Novo: Adicionado flex-grow para empurrar o botão de Fila no .player-right para o canto */
+        flex-grow: 1;
+        /* NOVO: Mova os botões para o final (Play/Pause e Skip Next) */
+        justify-content: flex-end;
+    }
+
+    /* Botões Pequenos (Skip Next) - AUMENTADOS */
+    .controls button {
+        width: 36px; /* AUMENTADO */
+        height: 36px; /* AUMENTADO */
+    }
+    .controls button img {
+        width: 24px; /* AUMENTADO */
+        height: 24px; /* AUMENTADO */
+        filter: none;
+    }
+
+    /* Botão Play/Pause - AUMENTADO */
+    .play-btn {
+        width: 48px; /* AUMENTADO */
+        height: 48px; /* AUMENTADO */
+    }
+    .play-btn img {
+        width: 34px; /* AUMENTADO */
+        height: 34px; /* AUMENTADO */
+        /* ICONE PRETO: O botão de play é branco, então o ícone deve ser preto para contraste */
+        filter: none;
+    }
+    .play-btn:hover {
+        transform: scale(1.05);
+    }
+
+    /* ----------------------------------------------------------------- */
+    /* BARRA DE PROGRESSO NO MOBILE */
+    /* ----------------------------------------------------------------- */
+    .progress-bar-bottom {
+        width: 100%;
+        max-width: none;
+        height: 5px; /* Altura do container para a barra */
+        margin-bottom: 0;
+
+        /* CORREÇÃO: Puxa a barra para cima, colando no .player-main-content */
+        margin-top: -3px;
+    }
+
+    #current-time, #total-time {
+        display: none;
+    }
+    .progress-bar {
+        height: 3px;
+    }
+}
+
+/* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
+         url('./fonts/Nationale-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
+         url('./fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
+         url('./fonts/Nationale-Black.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+}
+/* --- DEFINIÇÕES DE FONTES (MANTIDAS) --- */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2');
+    font-weight: normal;
+}
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2');
+    font-weight: bold;
+}
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('./fonts/Nationale-Black.woff2') format('woff2');
+    font-weight: 900;
+}
+
+/* ============================================================
+   PLAYER TELA CHEIA (FULL SCREEN) - DESIGN FINAL
+   ============================================================ */
+
+#full-screen-player {
+    position: fixed;
+    inset: 0;
+    z-index: 9999999;
+    background-color: #000; /* Fundo sólido para evitar transparência no slide */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 50px 32px 40px 39px;
+    transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1);
+    transform: translateY(100%); /* Escondido por padrão no mobile */
+    overflow: hidden;
+    touch-action: none;
+    color: white;
+    font-family: 'Nationale Regular', sans-serif;
+    touch-action: pan-y; /* Habilita o gesto de fechar */
+}
+
+body.fs-active #full-screen-player {
+    transform: translateY(0);
+}
+
+/* --- FUNDO AURORA E OVERLAY --- */
+#fs-aurora-bg {
+     backdrop-filter: blur(20px);
+    position: absolute;
+    inset: -50%;
+    background: radial-gradient(circle at center, var(--artist-dominant-color, #333), #000);
+    filter: blur(80px);
+    z-index: 0;
+    animation: rotateAurora 20s linear infinite;
+}
+
+@keyframes rotateAurora {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+#fs-player-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.7) 100%);
+    z-index: 1;
+}
+
+/* --- ELEMENTOS DE TOPO --- */
+.fs-top-bar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    z-index: 20;
+}
+.fs-grabber {
+    width: 36px;
+    height: 5px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+}
+
+#fs-player-close-btn {
+    display: none; /* Escondido no mobile, controlado via Media Query */
+}
+
+/* --- ÁREA DA CAPA E VÍDEO --- */
+.fs-player-cover-container {
+    width: 100%;
+    max-width: 330px;
+    aspect-ratio: 1;
+    margin: 40px 0 40px 0;
+    z-index: 10;
+    transition: opacity 0.3s ease-in-out; /* Suaviza a entrada do efeito */
+    position: relative;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+.fs-player-cover-container.has-canvas {
+    opacity: 0;
+}
+
+#fs-player-cover, #youtube-embed-container {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    object-fit: cover;
+
+}
+
+/* --- TEXTOS E INFORMAÇÕES (ALINHADOS À ESQUERDA) --- */
+.fs-main-content {
+    width: 100%;
+    max-width: 400px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+}
+
+.fs-info-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.fs-text-group { text-align: left; max-width: 70%; }
+#fs-player-title { font-size: 1.5rem; font-family: 'Nationale Bold'; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#fs-player-artist { font-size: 1.3rem; opacity: 0.6; margin: 2px 0 0 0; }
+
+.fs-action-buttons { display: flex; gap: 12px; }
+.fs-icon-btn { 
+    background: rgba(255,255,255,0.1); border: none; 
+    width: 36px; height: 36px; border-radius: 50%; 
+    display: flex; align-items: center; justify-content: center; 
+}
+.fs-icon-btn img { width: 20px; }
+
+/* --- BARRA DE PROGRESSO --- */
+.fs-progress-section { width: 100%; margin-bottom: 35px; }
+#fs-player-bar-container { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 10px; margin-bottom: 12px; }
+#fs-player-bar-fill { height: 100%; background: #fff; width: 0%; border-radius: 10px; opacity: 0.9; }
+.fs-time-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); font-weight: bold; }
+
+/* --- CONTROLES (SEM CÍRCULO BRANCO - ÍCONES DIRETOS) --- */
+.fs-controls-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    margin-bottom: 50px;
+}
+
+.fs-play-btn-transparent {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+/* Ajuste dos ícones PNG */
+.fs-play-btn-transparent img {
+    width: 48px; /* Destaque maior para o Play central */
+    height: auto;
+}
+
+.fs-skip { background: none; border: none; cursor: pointer; }
+.fs-skip img { width: 38px; height: auto; }
+
+/* --- BARRA DE VOLUME (EQUALIZADA) --- */
+.fs-volume-section {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 60px;
+    padding: 0 10px;
+}
+
+.vol-icon {
+    height: 18px; /* Altura fixa igual para ambos os ícones */
+    width: auto;
+    opacity: 0.5;
+}
+
+
+#fs-player-close-btn {
+        display: flex !important;
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        background: rgba(255,255,255,0.1);
+        border: none;
+        border-radius: 50%;
+        padding: 10px;
+        cursor: pointer;
+        z-index: 100;
+    }
+.fs-vol-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 10px; }
+.fs-vol-fill { width: 50%; height: 100%; background: white; border-radius: 10px; }
+
+/* --- FOOTER ACTIONS --- */
+.fs-footer-actions { width: 100%; display: flex; justify-content: space-around; }
+.fs-footer-btn { background: none; border: none; margin-top: 50px; }
+.fs-footer-btn img { width: 24px; }
+
+.fs-repeat-btn { background: none; border: none; margin-top: 50px; }
+.fs-repeat-btn img { width: 26px; }
+
+/* ============================================================
+   MEDIA QUERIES - ADAPTAÇÃO PC (DESKTOP)
+   ============================================================ */
+@media (min-width: 1025px) {
+    #full-screen-player {
+        transform: translateY(0) !important;
+        opacity: 0;
+        pointer-events: none;
+        flex-direction: row;
+        justify-content: center;
+        padding: 0 10%;
+        gap: 100px;
+    }
+
+    body.fs-active #full-screen-player {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .fs-player-cover-container {
+        flex: 0 0 400px; /* Tamanho fixo menor para não esmagar o texto */
+        max-width: 400px;
+        margin: 0;
+        aspect-ratio: 1 / 1;
+        display: flex; /* Garante que a imagem preencha o container */
+        align-items: center;
+        justify-content: center;
+    }
+
+    #fs-player-cover {
+        width: 100%;
+        height: 100%;
+        border-radius: 20px; /* Bordas mais suaves no PC */
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.135); /* Sombra mais profunda no PC */
+    }
+
+    
+
+    #fs-player-close-btn img { width: 20px; }
+    .fs-top-bar { display: none; }
+    .fs-player-cover-container { flex: 0 0 450px; max-width: 450px; margin: 0; }
+    .fs-main-content { max-width: 500px; justify-content: center; }
+    #fs-player-title { font-size: 3rem; white-space: normal; }
+    #fs-player-artist { font-size: 1.8rem; }
+}
+
+.hidden { display: none !important; }
+
+/* From Uiverse.io by Galahhad */ 
+/* level settings 👇 */
+
+.slider {
+  /* slider */
+  --slider-width: 100%;
+  --slider-height: 6px;
+  --slider-bg: rgba(255, 255, 255, 0.248);
+  --slider-border-radius: 999px;
+  /* level */
+  --level-color: #fff;
+  --level-transition-duration: .1s;
+  /* icon */
+  --icon-margin: 15px;
+  --icon-color: var(--slider-bg);
+  --icon-size: 25px;
+}
+
+.slider {
+  cursor: pointer;
+  display: -webkit-inline-box;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-orient: horizontal;
+  -webkit-box-direction: reverse;
+  -ms-flex-direction: row-reverse;
+  flex-direction: row-reverse;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+.slider .volume {
+  display: inline-block;
+  vertical-align: top;
+  margin-right: var(--icon-margin);
+  color: var(--icon-color);
+  width: var(--icon-size);
+  height: auto;
+}
+
+.slider .level {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: var(--slider-width);
+  height: var(--slider-height);
+  background: var(--slider-bg);
+  overflow: hidden;
+  border-radius: var(--slider-border-radius);
+  -webkit-transition: height var(--level-transition-duration);
+  -o-transition: height var(--level-transition-duration);
+  transition: height var(--level-transition-duration);
+  cursor: inherit;
+}
+
+.slider .level::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 0;
+  height: 0;
+  -webkit-box-shadow: -200px 0 0 200px var(--level-color);
+  box-shadow: -200px 0 0 200px var(--level-color);
+}
+
+.slider:hover .level {
+  height: calc(var(--slider-height) * 2);
+}
+
+/* From Uiverse.io by waleedlh10 */ 
+.con-like {
+  --red: rgb(255, 50, 50);
+  position: relative;
+  width: 50px;
+  height: 50px;
+}
+
+.con-like {
+    --red: #ff3232;
+    position: relative;
+    width: 38px; /* Ajustado para caber na fs-info-row */
+    height: 38px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.con-like .checkmark {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.con-like .outline {
+    fill: none;
+    stroke: var(--red);
+    stroke-width: 2px;
+}
+
+.con-like .outline,
+.con-like .filled {
+  fill: var(--red);
+  position: absolute;
+}
+
+.con-like .filled {
+  animation: kfr-filled 0.5s;
+  display: none;
+}
+
+.con-like .celebrate {
+  position: absolute;
+  animation: kfr-celebrate 0.5s;
+  animation-fill-mode: forwards;
+  display: none;
+}
+
+.con-like .poly {
+  stroke: var(--red);
+  fill: var(--red);
+}
+
+.con-like .like:checked ~ .checkmark .filled {
+  display: block
+}
+
+.con-like .like:checked ~ .checkmark .celebrate {
+  display: block
+}
+
+@keyframes kfr-filled {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes kfr-celebrate {
+  0% {
+    transform: scale(0);
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+    display: none;
+  }
+}
+
+
+#fs-canvas-bg-container {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    overflow: hidden;
+    pointer-events: none; /* Bloqueia interação com o vídeo */
+}
+
+#fs-canvas-player {
+    width: 100%;
+    height: 100%;
+    opacity: 0; /* Começa invisível e o JS revela */
+    transition: opacity 1.2s ease-in-out;
+}
+
+#fs-canvas-bg-container iframe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw;
+    height: 100vh;
+    /* Scale 1.8 esconde as bordas pretas que o YT coloca em vídeos verticais */
+    transform: translate(-50%, -50%) scale(1.8); 
+    pointer-events: none;
+}
+
+#fs-aurora-bg {
+    transition: opacity 1s ease;
+}
+
+#fs-canvas-bg-container {
+    position: absolute;
+    inset: 0;
+    z-index: 5; /* Atrás dos controles, mas à frente da Aurora */
+    background: #000;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+#fs-canvas-bg-container iframe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw;
+    height: 100vh;
+    transform: translate(-50%, -50%) scale(1.5); /* Zoom para cobrir as bordas */
+    pointer-events: none;
+}
+
+.canvas-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.466));
+    z-index: 2;
+}
+
+.fs-content-wrapper {
+    position: relative;
+    z-index: 10; /* Na frente do vídeo */
+}
+
+.fs-lyrics-container {
+    background: rgba(255, 255, 255, 0.1); /* Vidro translúcido */
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 30px;
+    width: 100%;
+    max-height: 350px; /* Altura do card "retraído" */
+    overflow: hidden;
+    position: relative;
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fs-lyrics-container.expanded {
+    max-height: 80vh; /* Expande para quase toda a tela */
+    overflow-y: auto;
+}
+
+.lyrics-text {
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 1.8rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: pre-wrap; /* Preserva quebras de linha do banco */
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
+.fs-lyrics-container.expanded .lyrics-text {
+    mask-image: none;
+}
+
+.lyrics-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+}
+
+.lyrics-full-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+    /* O background será injetado pelo JS via style.background */
+    background-size: cover; 
+}
+
+#fs-main-scroll-area {
+    position: relative;
+    z-index: 10;
+    padding: 40px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px; /* Espaço entre capa, controles e letra */
+    width: 100%;
+    overflow-y: auto;
+}
+
+/* Garante que os blocos internos não sumam nem colapsem */
+.fs-main-content, 
+.fs-lyrics-container {
+    width: 100%;
+    max-width: 450px; /* Limita a largura para não ficar esticado no PC */
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* Impede que o flex esmague o conteúdo */
+}
+
+/* --- CONTROLO DE CANVAS PC vs MOBILE --- */
+
+/* 1. Esconde o container do vídeo por padrão (Mobile e PC) */
+#fs-canvas-bg-container {
+    display: none;
+    pointer-events: none;
+}
+
+/* 2. Só permite a exibição em ecrãs pequenos (Mobile) */
+@media (max-width: 768px) {
+    /* Se a música tiver a classe que indica presença de canvas */
+    #fs-cover-wrapper.has-canvas + #fs-canvas-bg-container,
+    #fs-canvas-bg-container:not(.hidden) {
+        display: block !important;
+    }
+}
+
+/* --- AJUSTE DE LETRAS PARA PC --- */
+
+/* Container do Card de Letras em Ecrã Total */
+#fs-lyrics-card, 
+#fs-lyrics-overlay {
+    padding: 20px; /* Padding padrão para Mobile */
+    transition: background 0.6s ease, padding 0.4s ease;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Quando a tela for de PC (Desktop) */
+@media (min-width: 769px) {
+    #fs-lyrics-card, 
+    #fs-lyrics-overlay {
+        /* Adiciona margem à esquerda para não bater na sidebar preta */
+        padding-left: 100px !important; 
+        padding-right: 50px !important;
+
+    }
+
+}
+
+/* 3. No PC, garantimos que a Aurora (gradiente) tenha sempre opacidade 1 */
+@media (min-width: 769px) {
+    #fs-aurora-bg {
+        opacity: 1 !important;
+        display: block !important;
+    }
+    
+    /* Força o container do vídeo a ficar escondido no PC */
+    #fs-canvas-bg-container {
+        display: none !important;
+    }
+    
+    /* Garante que a capa não fique transparente no PC */
+    #fs-cover-wrapper.has-canvas {
+        opacity: 1 !important;
+    }
+}
+
+#lyrics-content {
+    width: 100%;
+    color: rgba(255, 255, 255, 0.9);
+    text-align: left; /* Alinha as linhas de texto à direita */
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 1.3rem;
+    line-height: 1.5;
+    display: block;
+}
+
+
+
+.fs-main-content {
+    width: 100%;
+}
+
+/* O container que tem o scroll da letra (Overlay Full Screen) */
+.lyrics-scrollable-text {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 40px; /* Padding nas laterais */
+    padding-top: 20px; /* Espaço pro fade do topo não cortar a primeira linha */
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 1.5rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.894);
+
+    /* ⭐ O SEGREDO DO FADE ESTÁ AQUI ⭐ */
+    /* Cria um degradê: Transparente (topo) -> Preto -> Preto -> Transparente (base) */
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 15%, /* Começa a ficar visível a 15% do topo */
+        black 85%, /* Começa a sumir a 85% do topo (15% da base) */
+        transparent 100%
+    );
+    
+    /* Prefixo para navegadores Webkit (Chrome, Safari, Edge) */
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 15%,
+        black 85%,
+        transparent 100%
+    );
+
+    /* Garante que o fade funcione bem em scroll */
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    
+    /* Esconde a barra de rolagem para ficar mais limpo */
+    scrollbar-width: none; /* Firefox */
+}
+
+/* Esconde a barra de rolagem no Chrome/Safari */
+.lyrics-scrollable-text::-webkit-scrollbar {
+    display: none;
+}
+
+/* Quando está ativa, ela sobe */
+.lyrics-full-screen.active {
+    transform: translateY(0);
+}
+
+/* Quando está hidden, ela some de vez do processamento */
+.lyrics-full-screen.hidden {
+    display: none !important;
+}
+
+.lyrics-header-fixed {
+    padding: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fs-lyrics-container {
+    cursor: pointer;
+    transition: transform 0.2s active;
+}
+.fs-lyrics-container:active {
+    transform: scale(0.98); /* Efeito de clique */
+}
+
+.lyrics-mini-info { display: flex; gap: 15px; align-items: center; }
+.lyrics-mini-info img { width: 50px; height: 50px; border-radius: 4px; }
+.lyrics-mini-info h4 { margin: 0; font-size: 1rem; }
+.lyrics-mini-info p { margin: 0; opacity: 0.6; font-size: 0.8rem; }
+
+
+
+#close-lyrics-overlay { background: rgba(255,255,255,0.1); border: none; border-radius: 50%; padding: 10px; }
