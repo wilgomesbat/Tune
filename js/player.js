@@ -1047,8 +1047,7 @@ const uidsReduzidos = [
 
 if (uidsReduzidos.includes(currentUser.uid)) {
     valorFinal = Math.floor(valorFinal * 0.30); // Reduz 70%, mantém apenas 30%
-    console.log(`⚠️ UID com restrição detectado. Redução de 70% aplicada. Valor: ${valorFinal}`);
-}
+    }
 
         if (valorFinal <= 0) {
             window.isProcessingStream = false;
