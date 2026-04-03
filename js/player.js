@@ -1466,131 +1466,128 @@ let fsCanvasPlayer = null;
  * Atualiza o fundo do Player em Ecrã Total.
  * Se houver Canvas E for Mobile, remove a capa e ativa o vídeo em loop.
  */
+/**
+ * ATUALIZAÇÃO COMPLETA: Aurora Mixed Paint + Canvas Loop + Glass UI
+ */
+/**
+ * ATUALIZAÇÃO BLINDADA: Aurora Mixed Paint + Canvas Loop + Anti-Tela Preta
+ */
+/**
+ * SISTEMA DE FUNDO TUNE: Correção de persistência de Canvas
+ */
 async function updateFullScreenBackground(track) {
     const auroraLegacy = document.getElementById("fs-aurora-bg");
-    const auroraCanvas = document.getElementById("aurora-canvas"); // Canvas para os Blobs
     const canvasContainer = document.getElementById("fs-canvas-bg-container");
-    const coverWrapper = document.getElementById("fs-cover-wrapper"); 
+    const canvasElement = document.getElementById("fs-canvas-player");
+    const coverWrapper = document.getElementById("fs-cover-wrapper");
     const lyricsCard = document.getElementById('fs-lyrics-card');
     
-    // 1. Verificação de Dispositivo
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
-    const canvasId = track.canvasUrl ? parseTuneCanvasID(track.canvasUrl) : null;
+    // Tenta obter o ID, mas garante que seja null se a URL estiver vazia ou inválida
+    const canvasId = (track.canvasUrl && track.canvasUrl.trim() !== "") ? parseTuneCanvasID(track.canvasUrl) : null;
 
-    // 2. LÓGICA DE EXIBIÇÃO (Canvas Vídeo vs Aurora Mixed Paint)
+    // --- 1. EXTRAÇÃO DE CORES (Sempre para as letras e Aurora) ---
+    if (track.cover) {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+            try {
+                const colorThief = new ColorThief();
+                const palette = colorThief.getPalette(img, 7);
+                const best = palette.map(rgb => ({ rgb, hsl: rgbToHsl(rgb[0], rgb[1], rgb[2]) }))
+                                    .filter(c => c.hsl.l > 0.15 && c.hsl.l < 0.85)
+                                    .sort((a, b) => b.hsl.s - a.hsl.s)[0];
+
+                const finalRgb = best ? best.rgb : palette[0];
+                let { h, s, l } = rgbToHsl(finalRgb[0], finalRgb[1], finalRgb[2]);
+                
+                // UI DAS LETRAS: Fundo de vidro
+                const glassColor = `hsla(${h * 360}, ${Math.max(s, 0.6) * 100}%, 12%, 0.75)`; 
+                if (lyricsCard) {
+                    lyricsCard.style.background = `linear-gradient(180deg, ${glassColor}, rgba(0,0,0,0.95))`;
+                    lyricsCard.style.backdropFilter = "blur(35px) saturate(160%)";
+                }
+
+                // FUNDO AURORA (Sempre atualiza o gradiente da nova capa)
+                if (auroraLegacy) {
+                    auroraLegacy.style.background = `radial-gradient(circle at 50% 30%, hsl(${h*360},${s*100}%,${l*100}%) 0%, #000 85%)`;
+                }
+
+                // Se for PC, roda a animação de Blobs
+                if (!isMobile && typeof window.startAuroraAnimation === 'function') {
+                    window.startAuroraAnimation(palette);
+                }
+            } catch (e) { console.warn("Erro cores:", e); }
+        };
+        img.src = `${track.cover}?t=${Date.now()}`;
+    }
+
+    // --- 2. LÓGICA DE DECISÃO: VÍDEO OU CAPA ---
     if (canvasId && isMobile) {
-        // --- MODO CANVAS ATIVO (SÓ MOBILE) ---
-        if (auroraLegacy) auroraLegacy.style.opacity = "0";
-        if (auroraCanvas) auroraCanvas.style.opacity = "0";
+        // --- CASO TENHA CANVAS ---
+        if (coverWrapper) coverWrapper.style.opacity = "0"; // Esconde a capa quadrada
         
+        if (auroraLegacy) {
+            auroraLegacy.style.opacity = "1"; // "Cortina" colorida ativa
+            auroraLegacy.style.zIndex = "1";
+        }
+
         if (canvasContainer) {
             canvasContainer.classList.remove("hidden");
             canvasContainer.style.display = "block";
+            canvasContainer.style.zIndex = "2";
         }
-        if (coverWrapper) coverWrapper.classList.add("has-canvas");
 
         if (window.fsCanvasPlayer && typeof window.fsCanvasPlayer.loadVideoById === 'function') {
-            // Reaproveita o player para evitar recarregamento pesado
             window.fsCanvasPlayer.loadVideoById({
                 videoId: canvasId,
                 startSeconds: 0,
-                suggestedQuality: 'small' // Qualidade baixa para carregar instantâneo (fundo com blur)
+                suggestedQuality: 'small'
             });
+            // Mostra o vídeo após o buffer
+            setTimeout(() => {
+                if (auroraLegacy) auroraLegacy.style.opacity = "0";
+                if (canvasElement) canvasElement.style.opacity = "1";
+            }, 1200);
         } else {
-            // Inicializa o Player com travas de interface e loop
+            // Inicialização do Player pela primeira vez
             window.fsCanvasPlayer = new YT.Player("fs-canvas-player", {
                 videoId: canvasId,
-                playerVars: {
-                    autoplay: 1,
-                    controls: 0,          // Remove botões de play/pause/repeat do YT
-                    loop: 1,              // Habilita loop
-                    playlist: canvasId,   // OBRIGATÓRIO para o loop funcionar na API
-                    mute: 1,
-                    modestbranding: 1,    // Tenta esconder o logo do YouTube
-                    rel: 0,               // Não mostra vídeos relacionados ao pausar
-                    iv_load_policy: 3,    // Remove anotações e cards de inscrição
-                    disablekb: 1,         // Desativa atalhos de teclado
-                    playsinline: 1        // Impede abertura automática em ecrã total nativo do iOS
-                },
+                playerVars: { autoplay: 1, controls: 0, loop: 1, playlist: canvasId, mute: 1, modestbranding: 1, playsinline: 1 },
                 events: {
                     onReady: (e) => e.target.playVideo(),
-                    onStateChange: (event) => {
-                        // REFORÇO DE LOOP: Se o parâmetro playlist falhar, força o play ao acabar
-                        if (event.data === YT.PlayerState.ENDED) {
-                            event.target.playVideo();
+                    onStateChange: (e) => {
+                        if (e.data === YT.PlayerState.PLAYING) {
+                            if (auroraLegacy) auroraLegacy.style.opacity = "0";
+                            if (canvasElement) canvasElement.style.opacity = "1";
                         }
-                        // Sincroniza ícones de Play/Pause da sua interface
-                        if (typeof window.syncPlayPauseState === 'function') {
-                            window.syncPlayPauseState();
-                        }
+                        if (e.data === YT.PlayerState.ENDED) e.target.playVideo();
                     }
                 }
             });
         }
     } else {
-        // --- MODO AURORA MIXED PAINT (PC OU SEM CANVAS) ---
+        // --- CASO NÃO TENHA CANVAS (OU SEJA PC) ---
+        // 1. Limpa o vídeo anterior
         if (canvasContainer) {
-            canvasContainer.classList.add("hidden");
             canvasContainer.style.display = "none";
+            canvasContainer.classList.add("hidden");
         }
-        
         if (window.fsCanvasPlayer && typeof window.fsCanvasPlayer.stopVideo === 'function') {
             window.fsCanvasPlayer.stopVideo();
         }
-        
-        if (coverWrapper) coverWrapper.classList.remove("has-canvas");
-        
-        // Ativa visibilidade do Aurora
-        if (auroraLegacy) auroraLegacy.style.opacity = "1";
-        if (auroraCanvas) auroraCanvas.style.opacity = "1";
+        if (canvasElement) {
+            canvasElement.style.opacity = "0";
+        }
 
-        if (track.cover) {
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.onload = () => {
-                try {
-                    const colorThief = new ColorThief();
-                    const palette = colorThief.getPalette(img, 7);
-
-                    // 1. Dispara a animação das Blobs (Efeito Mixed Paint)
-                    if (typeof window.startAuroraAnimation === 'function') {
-                        window.startAuroraAnimation(palette);
-                    }
-
-                    // 2. Extração de cores para gradientes das letras e fallback
-                    const best = palette.map(rgb => ({ rgb, hsl: rgbToHsl(rgb[0], rgb[1], rgb[2]) }))
-                                        .filter(c => c.hsl.l > 0.15 && c.hsl.l < 0.85)
-                                        .sort((a, b) => b.hsl.s - a.hsl.s)[0];
-
-                    const finalRgb = best ? best.rgb : palette[0];
-                    let { h, s, l } = rgbToHsl(finalRgb[0], finalRgb[1], finalRgb[2]);
-                    s = Math.max(s, 0.7); 
-                    l = 0.45;
-
-                    // 3. Ajuste de Letras e Margem para PC (Sidebar)
-                    if (lyricsCard) {
-                        // Gradiente de fundo do card de letras
-                        lyricsCard.style.background = `linear-gradient(135deg, hsl(${h*360},${s*100}%,${(l*100)-10}%), hsl(${h*360},${s*100}%,${(l*100)-20}%))`;
-                        
-                        // CORREÇÃO DE PC: Adiciona margem lateral para não cortar
-                        if (!isMobile) {
-                            lyricsCard.style.paddingLeft = "120px";
-                            lyricsCard.style.paddingRight = "60px";
-                        } else {
-                            lyricsCard.style.paddingLeft = "32px"; // Reset mobile
-                        }
-                    }
-
-                    // Fundo Aurora estático (Fallback)
-                    if (auroraLegacy) {
-                        auroraLegacy.style.background = `radial-gradient(circle at 50% 30%, hsl(${h*360},${s*100}%,${l*100}%) 0%, rgba(0,0,0,0.9) 85%)`;
-                    }
-
-                } catch (e) { 
-                    console.warn("Erro ao processar fundo Aurora:", e);
-                }
-            };
-            img.src = `${track.cover}?t=${Date.now()}`;
+        // 2. Garante que a capa e aurora apareçam
+        if (coverWrapper) {
+            coverWrapper.style.opacity = "1"; 
+            coverWrapper.style.display = "block";
+        }
+        if (auroraLegacy) {
+            auroraLegacy.style.opacity = "1";
+            auroraLegacy.style.zIndex = "0";
         }
     }
 }
