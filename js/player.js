@@ -1462,19 +1462,7 @@ function startAuroraAnimation(palette) {
 }
 
 let fsCanvasPlayer = null;
-/**
- * Atualiza o fundo do Player em Ecrã Total.
- * Se houver Canvas E for Mobile, remove a capa e ativa o vídeo em loop.
- */
-/**
- * ATUALIZAÇÃO COMPLETA: Aurora Mixed Paint + Canvas Loop + Glass UI
- */
-/**
- * ATUALIZAÇÃO BLINDADA: Aurora Mixed Paint + Canvas Loop + Anti-Tela Preta
- */
-/**
- * SISTEMA DE FUNDO TUNE: Correção de persistência de Canvas
- */
+
 async function updateFullScreenBackground(track) {
     const auroraLegacy = document.getElementById("fs-aurora-bg");
     const canvasContainer = document.getElementById("fs-canvas-bg-container");
@@ -1483,83 +1471,81 @@ async function updateFullScreenBackground(track) {
     const lyricsCard = document.getElementById('fs-lyrics-card');
     
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
-    // Tenta obter o ID, mas garante que seja null se a URL estiver vazia ou inválida
     const canvasId = (track.canvasUrl && track.canvasUrl.trim() !== "") ? parseTuneCanvasID(track.canvasUrl) : null;
 
-    // --- 1. EXTRAÇÃO DE CORES (Sempre para as letras e Aurora) ---
+    // --- 1. PROCESSO DE CORES (Sempre atualiza para as letras) ---
     if (track.cover) {
         const img = new Image();
         img.crossOrigin = "Anonymous";
         img.onload = () => {
-            try {
-                const colorThief = new ColorThief();
-                const palette = colorThief.getPalette(img, 7);
-                const best = palette.map(rgb => ({ rgb, hsl: rgbToHsl(rgb[0], rgb[1], rgb[2]) }))
-                                    .filter(c => c.hsl.l > 0.15 && c.hsl.l < 0.85)
-                                    .sort((a, b) => b.hsl.s - a.hsl.s)[0];
+            const colorThief = new ColorThief();
+            const palette = colorThief.getPalette(img, 5);
+            const best = palette.map(rgb => ({ rgb, hsl: rgbToHsl(rgb[0], rgb[1], rgb[2]) }))
+                                .sort((a, b) => b.hsl.s - a.hsl.s)[0];
 
-                const finalRgb = best ? best.rgb : palette[0];
-                let { h, s, l } = rgbToHsl(finalRgb[0], finalRgb[1], finalRgb[2]);
-                
-                // UI DAS LETRAS: Fundo de vidro
-                const glassColor = `hsla(${h * 360}, ${Math.max(s, 0.6) * 100}%, 12%, 0.75)`; 
-                if (lyricsCard) {
-                    lyricsCard.style.background = `linear-gradient(180deg, ${glassColor}, rgba(0,0,0,0.95))`;
-                    lyricsCard.style.backdropFilter = "blur(35px) saturate(160%)";
-                }
+            const finalRgb = best ? best.rgb : palette[0];
+            let { h, s, l } = rgbToHsl(finalRgb[0], finalRgb[1], finalRgb[2]);
+            
+            if (lyricsCard) {
+                const glassColor = `hsla(${h * 360}, ${s * 100}%, 15%, 0.8)`; 
+                lyricsCard.style.background = `linear-gradient(180deg, ${glassColor}, rgba(0,0,0,0.95))`;
+                lyricsCard.style.backdropFilter = "blur(30px) saturate(150%)";
+            }
 
-                // FUNDO AURORA (Sempre atualiza o gradiente da nova capa)
-                if (auroraLegacy) {
-                    auroraLegacy.style.background = `radial-gradient(circle at 50% 30%, hsl(${h*360},${s*100}%,${l*100}%) 0%, #000 85%)`;
-                }
-
-                // Se for PC, roda a animação de Blobs
-                if (!isMobile && typeof window.startAuroraAnimation === 'function') {
-                    window.startAuroraAnimation(palette);
-                }
-            } catch (e) { console.warn("Erro cores:", e); }
+            if (auroraLegacy) {
+                auroraLegacy.style.background = `radial-gradient(circle at 50% 30%, hsl(${h*360},${s*100}%,${l*100}%) 0%, #000 85%)`;
+            }
         };
         img.src = `${track.cover}?t=${Date.now()}`;
     }
 
-    // --- 2. LÓGICA DE DECISÃO: VÍDEO OU CAPA ---
+    // --- 2. LÓGICA DE EXIBIÇÃO ---
     if (canvasId && isMobile) {
-        // --- CASO TENHA CANVAS ---
-        if (coverWrapper) coverWrapper.style.opacity = "0"; // Esconde a capa quadrada
-        
+        // MODO CANVAS
+        if (coverWrapper) coverWrapper.style.opacity = "0";
         if (auroraLegacy) {
-            auroraLegacy.style.opacity = "1"; // "Cortina" colorida ativa
+            auroraLegacy.style.opacity = "1"; // Mostra a capa como fundo inicial
             auroraLegacy.style.zIndex = "1";
         }
-
         if (canvasContainer) {
-            canvasContainer.classList.remove("hidden");
             canvasContainer.style.display = "block";
+            canvasContainer.classList.remove("hidden");
             canvasContainer.style.zIndex = "2";
         }
 
         if (window.fsCanvasPlayer && typeof window.fsCanvasPlayer.loadVideoById === 'function') {
+            // Se já existe, recarrega
             window.fsCanvasPlayer.loadVideoById({
                 videoId: canvasId,
                 startSeconds: 0,
                 suggestedQuality: 'small'
             });
-            // Mostra o vídeo após o buffer
+            window.fsCanvasPlayer.mute(); // Essencial para o autoplay não falhar
+            window.fsCanvasPlayer.playVideo();
+
+            // FALLBACK: Mostra o vídeo em 1.5s mesmo que o evento de State não dispare
             setTimeout(() => {
-                if (auroraLegacy) auroraLegacy.style.opacity = "0";
                 if (canvasElement) canvasElement.style.opacity = "1";
-            }, 1200);
+                if (auroraLegacy) auroraLegacy.style.opacity = "0.3"; // Deixa um brilho da capa por trás
+            }, 1500);
+
         } else {
-            // Inicialização do Player pela primeira vez
+            // Criação inicial
             window.fsCanvasPlayer = new YT.Player("fs-canvas-player", {
                 videoId: canvasId,
-                playerVars: { autoplay: 1, controls: 0, loop: 1, playlist: canvasId, mute: 1, modestbranding: 1, playsinline: 1 },
+                playerVars: {
+                    autoplay: 1, controls: 0, loop: 1, playlist: canvasId,
+                    mute: 1, modestbranding: 1, rel: 0, playsinline: 1, iv_load_policy: 3
+                },
                 events: {
-                    onReady: (e) => e.target.playVideo(),
+                    onReady: (e) => {
+                        e.target.mute();
+                        e.target.playVideo();
+                    },
                     onStateChange: (e) => {
                         if (e.data === YT.PlayerState.PLAYING) {
-                            if (auroraLegacy) auroraLegacy.style.opacity = "0";
                             if (canvasElement) canvasElement.style.opacity = "1";
+                            if (auroraLegacy) auroraLegacy.style.opacity = "0.3";
                         }
                         if (e.data === YT.PlayerState.ENDED) e.target.playVideo();
                     }
@@ -1567,8 +1553,7 @@ async function updateFullScreenBackground(track) {
             });
         }
     } else {
-        // --- CASO NÃO TENHA CANVAS (OU SEJA PC) ---
-        // 1. Limpa o vídeo anterior
+        // MODO SEM CANVAS (Reset Total)
         if (canvasContainer) {
             canvasContainer.style.display = "none";
             canvasContainer.classList.add("hidden");
@@ -1576,13 +1561,9 @@ async function updateFullScreenBackground(track) {
         if (window.fsCanvasPlayer && typeof window.fsCanvasPlayer.stopVideo === 'function') {
             window.fsCanvasPlayer.stopVideo();
         }
-        if (canvasElement) {
-            canvasElement.style.opacity = "0";
-        }
-
-        // 2. Garante que a capa e aurora apareçam
+        if (canvasElement) canvasElement.style.opacity = "0";
         if (coverWrapper) {
-            coverWrapper.style.opacity = "1"; 
+            coverWrapper.style.opacity = "1";
             coverWrapper.style.display = "block";
         }
         if (auroraLegacy) {
