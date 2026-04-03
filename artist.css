@@ -821,3 +821,152 @@ body, html {
 /* Custom Scrollbar para a Bio */
 .modal-body::-webkit-scrollbar { width: 6px; }
 .modal-body::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+.btn-copy {
+    --button-bg: rgba(255, 255, 255, 0.1);
+    --button-hover-bg: rgba(255, 255, 255, 0.2);
+    --button-text-color: #ffffff;
+    --button-hover-text-color: #ffffff;
+    --button-border-radius: 50%; /* Mantido circular para o seu design */
+    --button-diameter: 40px;
+    --tooltip-bg: #ffffff;
+    --toolptip-border-radius: 8px;
+    --tooltip-font-family: 'Inter', sans-serif;
+    --tooltip-font-size: 11px;
+    --tootip-text-color: #000000;
+    --tooltip-padding-x: 10px;
+    --tooltip-padding-y: 8px;
+    --tooltip-offset: 12px;
+    --tooltip-transition-duration: 0.3s;
+
+    box-sizing: border-box;
+    width: var(--button-diameter);
+    height: var(--button-diameter);
+    border-radius: var(--button-border-radius);
+    background-color: var(--button-bg);
+    color: var(--button-text-color);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    position: relative;
+    outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-copy .cp-tooltip {
+    position: absolute;
+    opacity: 0;
+    visibility: hidden;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font: 700 var(--tooltip-font-size) var(--tooltip-font-family);
+    color: var(--tootip-text-color);
+    background: var(--tooltip-bg);
+    padding: var(--tooltip-padding-y) var(--tooltip-padding-x);
+    border-radius: var(--toolptip-border-radius);
+    pointer-events: none;
+    transition: all var(--tooltip-transition-duration) cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 100;
+}
+
+.btn-copy .cp-tooltip::before {
+    content: attr(data-text-initial);
+}
+
+.btn-copy .cp-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    width: 10px;
+    height: 10px;
+    background: inherit;
+    left: 50%;
+    transform: translateX(-50%) translateY(-50%) rotate(45deg);
+}
+
+.btn-copy svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.3s ease;
+}
+
+.cp-check-mark { display: none; color: #ffffff; }
+
+/* Estados ao Pairar (Hover) */
+.btn-copy:hover .cp-tooltip {
+    opacity: 1;
+    visibility: visible;
+    bottom: calc(100% + var(--tooltip-offset));
+}
+
+.btn-copy:hover { background-color: var(--button-hover-bg); }
+
+/* Classe ativada pelo JavaScript ao clicar */
+.btn-copy.copied .cp-tooltip::before { content: attr(data-text-end); }
+.btn-copy.copied .cp-clipboard { display: none; }
+.btn-copy.copied .cp-check-mark { display: block; }
+
+/* Menu flutuante injetado no body */
+.tune-dropdown-portal {
+    position: fixed; /* Fixado na tela para ignorar overflows do header */
+    z-index: 9999999;
+    background-color: #282828;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    min-width: 220px;
+    padding: 5px 0;
+    animation: menuFadeIn 0.2s ease-out;
+}
+
+@keyframes menuFadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tune-dropdown-item {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    color: #eaeaea;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+    text-align: left;
+}
+
+.tune-dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tune-dropdown-divider {
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.1);
+    margin: 5px 0;
+}
+
+#story-inner-card {
+    width: 850px;
+    background: #202020; /* um pouco mais claro que o fundo */
+    border-radius: 48px;
+    padding: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    /* sombra mais controlada */
+    box-shadow: 
+        0 30px 80px rgba(0,0,0,0.6);
+
+    border: none;
+}

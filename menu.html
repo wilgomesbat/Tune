@@ -433,16 +433,38 @@
 
     <audio id="player-audio" preload="auto"></audio>
 
-    <div id="full-screen-player" class="hidden">
-        <div id="fs-aurora-bg"></div>
-        <div id="fs-player-overlay"></div>
-        <button id="fs-player-close-btn" class="desktop-only">
-            <img src="/assets/x.svg" alt="Fechar">
-        </button>
-        <div class="fs-player-cover-container">
+<div id="full-screen-player" class="hidden">
+    <div id="fs-aurora-bg"></div> <div id="fs-canvas-bg-container" class="hidden" style="position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none;">
+        <div id="fs-canvas-player"></div> <div class="canvas-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 2;"></div>
+    </div>
+
+   <div id="fs-lyrics-overlay" class="lyrics-full-screen hidden">
+    <div class="lyrics-header-fixed">
+        <div class="lyrics-mini-info">
+            <img id="lyrics-mini-cover" src="" alt="Capa"> 
+            <div>
+                <h4 id="lyrics-mini-title">Título</h4>
+                <p id="lyrics-mini-artist">Artista</p>
+            </div>
+        </div>
+        <button id="close-lyrics-overlay"><img src="/assets/x.svg" alt="Fechar"></button>
+    </div>
+    
+    <div id="lyrics-scroll-body" class="lyrics-scrollable-text">
+        </div>
+</div>
+    <button id="fs-player-close-btn" class="desktop-only" style="z-index: 100 !important;">
+        <img src="/assets/x.svg" alt="Fechar">
+    </button>
+
+    <div id="fs-main-scroll-area" style="position: absolute; inset: 0; z-index: 10; overflow-y: auto; padding: 60px 20px 40px; scroll-behavior: smooth;">
+        
+        <div id="fs-cover-wrapper" class="fs-player-cover-container">
             <img id="fs-player-cover" src="" alt="Capa">
         </div>
+
         <div class="fs-main-content">
+            
             <div class="fs-info-row">
                 <div class="fs-text-group">
                     <h1 id="fs-player-title">Título da Música</h1>
@@ -453,6 +475,7 @@
                     <button class="fs-icon-btn"><img src="./assets/share-2.svg"></button>
                 </div>
             </div>
+
             <div class="fs-progress-section">
                 <div id="fs-player-bar-container">
                     <div id="fs-player-bar-fill"></div>
@@ -462,6 +485,7 @@
                     <span id="fs-total-time">-0:00</span>
                 </div>
             </div>
+
             <div class="fs-controls-row">
                 <button id="fs-prev-btn" class="fs-skip"><img src="/assets/backward.fill.png"></button>
                 <button id="fs-playpause-btn" class="fs-play-circle">
@@ -470,13 +494,26 @@
                 </button>
                 <button id="fs-next-btn" class="fs-skip"><img src="/assets/forward.fill.png"></button>
             </div>
+
             <div class="fs-footer-actions">
                 <button class="fs-footer-btn"><img src="./assets/mic-vocal (2).svg"></button>
                 <button class="fs-footer-btn"><img src="./assets/queue.svg"></button>
             </div>
         </div>
-    </div>
 
+        <div id="fs-lyrics-card" class="fs-lyrics-container hidden">
+            <div class="lyrics-header">
+                <span>LYRICS</span>
+                <button id="expand-lyrics-btn"><img src="/assets/open_in_full_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg"></button>
+            </div>
+            <div id="lyrics-content" class="lyrics-text">
+                </div>
+            <div class="lyrics-footer">
+                <button id="view-full-lyrics">Show more</button>
+            </div>
+        </div>
+    </div>
+</div>
     <div id="story-share-card" style="position: absolute; left: -9999px; width: 1080px; height: 1920px; background: #030303; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; overflow: hidden;">
         <div id="story-bg-blur" style="position: absolute; inset: 0; opacity: 0.4; filter: blur(100px); background-size: cover; background-position: center; transform: scale(1.1);"></div>
         <div style="position: relative; z-index: 10; text-align: center; width: 100%; display: flex; flex-direction: column; align-items: center;">

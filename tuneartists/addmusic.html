@@ -40,6 +40,46 @@
             font-family: 'Nationale Regular';
         }
 
+.btn-continue, .btn-submit-collab {
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.2s;
+    padding: 10px 20px;
+    border-radius: 100px;
+    background: #cfef00;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    color: black;
+    text-decoration: none;
+}
+
+.btn-continue:hover, .btn-submit-collab:hover {
+    background: #c4e201;
+}
+
+.btn-continue svg {
+    width: 34px;
+    margin-left: 10px;
+    transition: transform 0.3s ease-in-out;
+}
+
+.btn-continue:hover svg {
+    transform: translateX(5px);
+}
+
+.btn-continue:active, .btn-submit-collab:active {
+    transform: scale(0.95);
+}
+
+/* Ajuste para o botão de verificar que estava com estilo inline conflitando */
+.btn-submit-collab {
+    width: fit-content;
+    padding: 0 20px;
+    height: 45px;
+}
+
         .main-container {
             min-height: 100vh;
             padding: 40px 20px;
@@ -142,6 +182,8 @@
     gap: 10px;
 }
 
+
+
 .toast {
     min-width: 250px;
     padding: 15px 20px;
@@ -183,7 +225,7 @@
 }
 
 .tune-logo-img {
-    width: 108px;
+    width: 125px;
     height: auto;
     display: block;
 }
@@ -248,97 +290,112 @@
 @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
     </style>
- <div id="toast-container" class="toast-container"></div>
+<div id="toast-container" class="toast-container"></div>
 
 <div class="main-container">
     <div class="max-w-5xl mx-auto" style="max-width: 1000px; margin: 0 auto;">
+        <div class="top-header">
+            <div class="top-header-left">
+                <img src="../assets/logoartiststuneblack.png" alt="Tune" class="tune-logo-img">
+            </div>
+            <div class="top-header-right">
+                <h2>Singles</h2>
+            </div>
+        </div>
+    </div>
+
+    <form id="mainReleaseForm" onsubmit="window.handleReleaseSubmission(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
         
-<div class="top-header">
-    <div class="top-header-left">
-        <img src="../assets/tunelogohblack.png" alt="Tune" class="tune-logo-img">
-    </div>
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="glass-panel">
+                <span class="label-noir">Capa do Lançamento</span>
+                <label for="relCover" class="upload-zone">
+                    <img id="preview-img" src="" alt="Preview" style="display: none;">
+                    <div style="text-align: center;">
+                        <span style="font-size: 24px;">+</span>
+                        <p style="font-size: 9px; font-weight: 700; margin-top: 10px;">ADICIONAR ARTE</p>
+                    </div>
+                    <input type="file" id="relCover" accept="image/*" style="display: none;" onchange="window.handleImagePreview(this)">
+                </label>
+            </div>
 
-    <div class="top-header-right">
-        <h2>Singles</h2>
-
-    </div>
-</div>
-
-
-
-        </div>
-
-<form id="mainReleaseForm" onsubmit="window.handleReleaseSubmission(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
-    
-    <div style="display: flex; flex-direction: column; gap: 20px;">
-        <div class="glass-panel">
-            <span class="label-noir">Capa do Lançamento</span>
-            <label for="relCover" class="upload-zone">
-                <img id="preview-img" src="" alt="Preview">
-                <div style="text-align: center;">
-                    <span style="font-size: 24px;">+</span>
-                    <p style="font-size: 9px; font-weight: 700; margin-top: 10px;">ADICIONAR ARTE</p>
+            <div class="glass-panel" style="display: flex; gap: 15px; align-items: center;">
+                <div style="flex: 1;">
+                    <span class="label-noir">Duração (mm:ss)</span>
+                    <input type="text" id="relDuration" placeholder="03:45" class="input-noir">
                 </div>
-                <input type="file" id="relCover" accept="image/*" style="display: none;" onchange="handleImagePreview(this)">
-            </label>
-        </div>
-
-        <div class="glass-panel" style="display: flex; gap: 15px; align-items: center;">
-            <div style="flex: 1;">
-                <span class="label-noir">Duração (mm:ss)</span>
-                <input type="text" id="relDuration" placeholder="03:45" class="input-noir" v-mask="'##:##'">
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px; margin-top: 15px;">
-                <input type="checkbox" id="relExplicit" style="width: 18px; height: 18px; accent-color: #000;">
-                <span class="label-noir" style="margin-bottom: 0;">Explícito?</span>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 15px;">
+                    <input type="checkbox" id="relExplicit" style="width: 18px; height: 18px; accent-color: #000;">
+                    <span class="label-noir" style="margin-bottom: 0;">Explícito?</span>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="glass-panel" style="display: flex; flex-direction: column; gap: 20px;">
-        <div>
-            <span class="label-noir">Título da Música</span>
-            <input type="text" id="relTitle" placeholder="Ex: Nome da Música" required class="input-noir">
+        <div class="glass-panel" style="display: flex; flex-direction: column; gap: 20px;">
+            <div>
+                <span class="label-noir">Título da Música</span>
+                <input type="text" id="relTitle" placeholder="Ex: Nome da Música" required class="input-noir">
+            </div>
+
+            <div>
+                <span class="label-noir">Gênero Musical</span>
+                <select id="relGenre" class="input-noir">
+                    <option value="Pop">Pop</option>
+                    <option value="Funk">Funk</option>
+                    <option value="Rap">Rap/Trap</option>
+                    <option value="Eletrônica">Eletrônica</option>
+                    <option value="R&B">R&B</option>
+                    <option value="Outro">Outro</option>
+                </select>
+            </div>
+
+            <div id="audioSection">
+                <span class="label-noir">Link do YouTube</span>
+                <input type="url" id="relAudioLink" placeholder="https://www.youtube.com/watch?v=..." class="input-noir" required>
+            </div>
+
+            <div>
+                <span class="label-noir">Status de Lançamento</span>
+                <select id="relStatus" class="input-noir" onchange="window.toggleDateInfo(this.value)">
+                    <option value="publico">Lançar Agora (Público)</option>
+                    <option value="agendado">Agendar Lançamento</option>
+                    <option value="arquivado">Privado (Rascunho)</option>
+                </select>
+            </div>
+
+            <div id="dateField" style="display: none;">
+                <span class="label-noir">Data e Horário do Lançamento</span>
+                <input type="datetime-local" id="relReleaseDate" class="input-noir">
+            </div>
+
+            <div class="glass-panel" style="border: 1px solid rgba(0,0,0,0.05);">
+                <span class="label-noir">Adicionar Colaborador (UID)</span>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="collab-uid-input" placeholder="Cole o UID do artista..." class="input-noir">
+                    <button type="button" onclick="window.validarArtistaPorUID()" class="btn-submit" style="background: #000; color: #fff; padding: 0 15px; border-radius: 10px;">
+                        Verificar
+                    </button>
+                </div>
+
+                <div id="collab-preview" style="display: none; align-items: center; gap: 15px; background: rgba(0,0,0,0.0); padding: 10px; border-radius: 15px;">
+                    <img id="collab-preview-img" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
+                    <div style="flex: 1;">
+                        <p id="collab-preview-name" style="margin: 0; font-weight: bold; font-size: 14px; color: #000;"></p>
+                        <p style="margin: 0; font-size: 10px; color: #606060;">Artista Confirmado</p>
+                    </div>
+                    <button type="button" onclick="window.cancelarCollab()" style="background:none; border:none; color:#ff4b4b; cursor:pointer;">✕</button>
+                </div>
+            </div>
+
+            <div class="btn-wrapper">
+                <button type="submit" id="btnSubmit" class="btn-continue">
+                    <span>Enviar para o perfil</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 74 74" height="34" width="34">
+                        <circle stroke-width="3" stroke="black" r="35.5" cy="37" cx="37"></circle>
+                        <path fill="black" d="M25 35.5C24.1716 35.5 23.5 36.1716 23.5 37C23.5 37.8284 24.1716 38.5 25 38.5V35.5ZM49.0607 38.0607C49.6464 37.4749 49.6464 36.5251 49.0607 35.9393L39.5147 26.3934C38.9289 25.8076 37.9792 25.8076 37.3934 26.3934C36.8076 26.9792 36.8076 27.9289 37.3934 28.5147L45.8787 37L37.3934 45.4853C36.8076 46.0711 36.8076 47.0208 37.3934 47.6066C37.9792 48.1924 38.9289 48.1924 39.5147 47.6066L49.0607 38.0607ZM25 38.5L48 38.5V35.5L25 35.5V38.5Z"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
-
-        <div>
-            <span class="label-noir">Gênero Musical</span>
-            <select id="relGenre" class="input-noir">
-                <option value="Pop">Pop</option>
-                <option value="Funk">Funk</option>
-                <option value="Rap">Rap/Trap</option>
-                <option value="Eletrônica">Eletrônica</option>
-                <option value="R&B">R&B</option>
-                <option value="Outro">Outro</option>
-            </select>
-        </div>
-
-        <div id="audioSection">
-            <span class="label-noir">Link do YouTube</span>
-            <input type="url" id="relAudioLink" placeholder="https://www.youtube.com/watch?v=..." class="input-noir">
-        </div>
-
-        <div>
-    <span class="label-noir">Status de Lançamento</span>
-    <select id="relStatus" class="input-noir" onchange="toggleDateInfo(this.value)">
-        <option value="publico">Lançar Agora (Público)</option>
-        <option value="agendado">Agendar Lançamento</option>
-        <option value="arquivado">Privado (Rascunho)</option>
-    </select>
+    </form>
 </div>
-
-<div id="dateField" style="display: none;">
-    <span class="label-noir">Data e Horário do Lançamento</span>
-    <input type="datetime-local" id="relReleaseDate" class="input-noir">
-    <p style="font-size: 9px; color: #666; margin-top: 5px;">
-        A música ficará disponível automaticamente neste horário.
-    </p>
-</div>
-
-        <div style="margin-top: auto; padding-top: 20px;">
-            <button type="submit" id="btnSubmit" class="btn-submit">
-                Publicar Single
-            </button>
-        </div>
-    </div>
-</form>

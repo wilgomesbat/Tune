@@ -42,8 +42,8 @@
 <div class="py-10 px-6 sm:px-8 lg:px-10 bg-white text-black min-h-full">
     
     <header class="mb-8 border-b border-gray-200 pb-4">
-        <h1 class="text-3xl sm:text-4xl font-bold text-black">Gerenciamento de Lançamentos</h1>
-        <p class="text-gray-500 mt-5">Visualize, edite e adicione seus álbuns e músicas.</p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-black">Music</h1>
+
     </header>
 
     <div class="flex border-b border-gray-300 mb-8 max-w-4xl mx-auto md:mx-0">
@@ -75,56 +75,474 @@
 
     
     </div>
-<div id="modal-editar-lancamento" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4" style="background-color: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center;">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" style="background: white; padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto;">
+<div id="modal-editar-lancamento" class="fixed inset-0 z-[999] hidden flex items-center justify-center bg-black/80 backdrop-blur-md p-0 md:p-6 transition-all" style="display: none;">
+    
+    <div class="studio-container bg-white flex flex-col md:flex-row overflow-hidden shadow-2xl transition-transform h-full md:h-[650px] md:w-[950px]">
         
-        <h2 id="modal-edit-title" class="text-xl font-bold mb-4" style="color: #000 !important; margin-bottom: 16px;">Editar Lançamento</h2>
-        
-        <div class="space-y-4" style="display: flex; flex-direction: column; gap: 16px;">
-            <div>
-                <label class="block text-xs font-bold uppercase mb-1" style="display: block; font-size: 10px; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Nome / Título</label>
-                <input type="text" id="edit-item-title-input" class="w-full border border-gray-300 p-2 rounded-lg outline-none focus:border-black" 
-                    style="width: 100%; border: 1px solid #d1d5db; padding: 10px; border-radius: 8px; color: #000 !important; background: #fff !important;">
+        <nav class="studio-nav flex-shrink-0">
+            <div class="top-header" style="width: 100%; display: flex; justify-content: center; padding-bottom: 20px;">
+        <div class="top-header-left">
+            <img src="/assets/panelbetapng.png" alt="Tune" class="tune-logo-img" style="height: 35px; width: auto;">
+        </div>
+        <hr class="rounded">
+    </div>
+
+   
+
+            <div id="edit-tabs-wrapper" class="nav-pills-wrapper">
+                <button onclick="window.switchEditTab('geral', this)" class="nav-pill active">
+    <img src="/assets/edit_note_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="pill-icon">
+    <span class="pill-text">Geral</span>
+</button>
+                <button onclick="window.switchEditTab('visual', this)" class="nav-pill">
+                    <img src="/assets/animated_images_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="pill-icon">
+                    <span class="pill-text">Visual</span>
+                </button>
+                <button onclick="window.switchEditTab('letras', this)" class="nav-pill">
+                    <img src="/assets/lyrics_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="pill-icon">
+                    <span class="pill-text">Letras</span>
+                </button>
             </div>
 
-            <div id="div-edit-date">
-                <label class="block text-xs font-bold uppercase mb-1" style="display: block; font-size: 10px; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Data de Lançamento</label>
-                <input type="date" id="edit-item-date-input" class="w-full border border-gray-300 p-2 rounded-lg outline-none" 
-                    style="width: 100%; border: 1px solid #d1d5db; padding: 10px; border-radius: 8px; color: #000 !important; background: #fff !important;">
+            <div class="nav-footer hidden md:flex">
+                <button id="btn-salvar-edicao-pc" class="btn-save">Salvar</button>
+                <button onclick="window.hideModalEdicao()" class="btn-cancel">Cancelar</button>
+            </div>
+            
+        </nav>
+        
+
+        <main class="studio-main flex-1 overflow-y-auto">
+            
+            <section id="edit-tab-geral" class="tab-pane active">
+                <h3 class="pane-title">Dados Gerais</h3>
+                <div class="input-grid space-y-6">
+                    <div class="field">
+                        <label>TÍTULO DO LANÇAMENTO</label>
+                        <input type="text" id="edit-item-title-input" placeholder="Ex: Moonlight">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="field">
+                            <label>DATA DE LANÇAMENTO</label>
+                            <input type="date" id="edit-item-date-input">
+                        </div>
+                        <div class="field">
+                            <label>GÊNERO</label>
+                            <select id="edit-item-genre-input">
+                                <option value="Pop">Pop</option>
+                                <option value="Trap">Trap</option>
+                                <option value="Funk">Funk</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+<section id="edit-tab-visual" class="tab-pane active">
+    <h3 class="pane-title">Visual</h3>
+    
+    <div class="display-mode-selector">
+        <label class="field-label">Modo de Exibição no Player</label>
+        <div class="pill-group">
+            <label class="mode-option">
+                <input type="radio" name="displayMode" value="cover" class="hidden peer">
+                <div class="pill-btn">Capa</div>
+            </label>
+            <label class="mode-option">
+                <input type="radio" name="displayMode" value="canvas" class="hidden peer">
+                <div class="pill-btn">Canvas</div>
+            </label>
+        </div>
+    </div>
+
+    <div class="visual-settings-container">
+        
+        <div id="area-upload-cover" class="upload-box">
+            <label class="field-label">Imagem da Capa</label>
+            <div class="image-preview-target" onclick="document.getElementById('input-edit-cover').click()">
+                <img id="preview-edit-cover" src="/assets/default-cover.png">
+                <div class="image-overlay">Alterar</div>
+            </div>
+            <input type="file" id="input-edit-cover" class="hidden" accept="image/*" onchange="window.previewEditImage(this)">
+        </div>
+        
+        <div id="area-upload-canvas" class="upload-box hidden">
+            <label class="field-label">URL do YouTube</label>
+            <div class="canvas-input-row">
+                <input type="text" id="edit-item-canvas-url" placeholder="https://youtube.com/shorts/...">
+                <button type="button" onclick="window.updateCanvasPreview()" class="btn-sync">Sync</button>
+            </div>
+            
+            <div class="canvas-helper-text">
+                <p>O Canvas deve ser obrigatoriamente um link de <strong>YouTube Shorts</strong> para garantir a exibição vertical correta no player.</p>
             </div>
 
-            <div id="div-edit-genre">
-                <label class="block text-xs font-bold uppercase mb-1" style="display: block; font-size: 10px; text-transform: uppercase; color: #6b7280; margin-bottom: 4px;">Gênero</label>
-                <select id="edit-item-genre-input" class="w-full border border-gray-300 p-2 rounded-lg outline-none" 
-                    style="width: 100%; border: 1px solid #d1d5db; padding: 10px; border-radius: 8px; color: #000 !important; background: #fff !important;">
-                    <option value="Trap">Trap</option>
-                    <option value="Funk">Funk</option>
-                    <option value="Rap">Rap</option>
-                    <option value="Sertanejo">Sertanejo</option>
-                    <option value="Pop">Pop</option>
-                    <option value="Reggae">Reggae</option>
-                </select>
+            <div id="canvas-preview-container" class="preview-frame-vertical hidden">
+                <iframe id="canvas-iframe" frameborder="0"></iframe>
             </div>
         </div>
+    </div>
+</section>
 
-        <div class="flex flex-col gap-3 mt-6" style="display: flex; flex-direction: column; gap: 10px; margin-top: 24px;">
-            <button id="btn-salvar-edicao" class="w-full bg-black text-white py-3 rounded-xl font-bold hover:opacity-90 transition" 
-                style="background: #000 !important; color: #fff !important; padding: 12px; border-radius: 12px; font-weight: bold; border: none; cursor: pointer;">
-                Salvar Alterações
-            </button>
-            
-            
-            
-            <button onclick="document.getElementById('modal-editar-lancamento').style.display = 'none'" class="w-full text-gray-500 py-1 text-sm" 
-                style="background: transparent; border: none; color: #6b7280 !important; cursor: pointer; text-align: center;">
-                Cancelar
-            </button>
+            <section id="edit-tab-letras" class="tab-pane">
+                <h3 class="pane-title">Letras</h3>
+                <textarea id="edit-item-lyrics" class="lyrics-textarea" placeholder="Cole a letra da música aqui..."></textarea>
+            </section>
+        </main>
+
+        <div class="mobile-actions">
+            <button id="btn-salvar-edicao-mob" class="btn-save">Salvar</button>
+            <button onclick="window.hideModalEdicao()" class="btn-cancel">Cancelar</button>
         </div>
     </div>
 </div>
 
-
 <style>
+
+    /* 1. SEMPRE OS @FONT-FACE NO TOPO */
+@font-face {
+    font-family: 'Nationale Regular';
+    src: url('/fonts/SpotifyMix-Medium.woff2') format('woff2'),
+         url('/fonts/SpotifyMix-Medium.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap; /* Ajuda a carregar mais rápido */
+}
+
+@font-face {
+    font-family: 'Nationale Bold';
+    src: url('/fonts/Nationale-Bold.woff2') format('woff2'),
+         url('/fonts/Nationale-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Nationale Black';
+    src: url('/fonts/SpotifyMix-Black.woff2') format('woff2'),
+         url('/fonts/SpotifyMix-Black.woff') format('woff');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+.btn-save, .btn-cancel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 13px;
+    
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    outline: none;
+    user-select: none;
+}
+
+/* Botão Salvar (Padrão Preto) */
+.btn-save {
+    background-color: #000000;
+    color: #ffffff;
+    height: 48px;
+    padding: 0 30px;
+    border-radius: 200px;
+
+}
+
+.btn-save:hover {
+    background-color: #7f7f7f;
+    transform: translateY(-2px); /* Efeito de flutuar */
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.btn-save:active {
+    transform: translateY(0) scale(0.96); /* Efeito de clique físico */
+    background-color: #333333;
+}
+
+/* Botão Cancelar (Sutil) */
+.btn-cancel {
+    background-color: transparent;
+    color: #6a6a6a;
+    height: 40px;
+    margin-bottom: 60px;
+    padding: 0 20px;
+    font-weight: bold;
+}
+
+.btn-cancel:hover {
+    color: #000000;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 50px;
+}
+
+.btn-cancel:active {
+    transform: scale(0.95);
+    opacity: 0.7;
+}
+
+/* --- COMPORTAMENTO DE VISIBILIDADE (FIX DOS DOIS BOTÕES) --- */
+
+/* No Desktop: Esconde o painel mobile */
+.mobile-actions {
+    display: none;
+}
+
+/* No Desktop: Ajusta a margem do rodapé da nav lateral */
+.nav-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: auto; /* Joga para o final da sidebar */
+}
+
+/* Responsividade Mobile */
+@media (max-width: 768px) {
+    /* Esconde os botões originais da barra lateral */
+    .nav-footer {
+        display: none !important;
+    }
+
+    /* Mostra o painel fixo no rodapé branco */
+    .mobile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 20px;
+        background-color: #ffffff;
+        border-top: 1px solid #f0f0f0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Botão Salvar Mobile ocupa a largura toda */
+    #btn-salvar-edicao-mob {
+        width: 100%;
+        height: 52px; /* Um pouco maior para o polegar */
+        font-size: 14px;
+    }
+
+    /* Botão Cancelar Mobile */
+    .mobile-actions .btn-cancel {
+        width: 100%;
+        height: 44px;
+        color: #a0a0a0;
+    }
+}
+
+/* Estado Desativado (Saving/Sincronizando) */
+.btn-save:disabled {
+    background-color: #cccccc !important;
+    color: #888888 !important;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* TIPO E CORES GERAIS */
+.studio-container h1, .studio-container h2, .studio-container h3, .studio-container p, .studio-container span {
+    color: #000 !important;
+    font-family: sans-serif; /* Mude para sua fonte Nationale se tiver */
+}
+
+/* CONTAINER PRINCIPAL RESPONSIVO */
+.studio-container {
+     font-family: 'Nationale Regular';
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+}
+
+@media (min-width: 768px) {
+    .studio-container {
+        border-radius: 2rem;
+        height: 650px;
+        width: 950px;
+    }
+}
+
+/* NAVEGAÇÃO E TABS PÍLULA */
+.studio-nav {
+    background: #FFF;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-bottom: 1px solid #EEE;
+}
+
+@media (min-width: 768px) {
+    .studio-nav {
+        background: #F9F9F9;
+        padding: 2.5rem;
+        align-items: start;
+        border-right: 1px solid #EEE;
+        border-bottom: none;
+        width: 280px;
+    }
+}
+
+/* Wrapper das Pílulas */
+.nav-pills-wrapper {
+    display: flex;
+    gap: 8px;
+    margin-top: 1rem;
+}
+
+@media (min-width: 768px) {
+    .nav-pills-wrapper {
+        flex-direction: column;
+        width: 100%;
+        margin-top: 2rem;
+    }
+}
+
+/* Trilho onde as pílulas ficam (Cinza clarinho) */
+.nav-pills-container {
+    display: flex;
+    gap: 8px;
+    background: #EEEEEE; 
+    padding: 6px;
+    border-radius: 100px;
+    width: fit-content;
+    margin: 1rem auto;
+}
+
+@media (min-width: 768px) {
+    .nav-pills-container {
+        flex-direction: column;
+        background: transparent;
+        width: 100%;
+        padding: 0;
+    }
+}
+
+/* Pílula Padrão (Fundo Transparente / Texto Preto) */
+.nav-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 24px;
+    border-radius: 100px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.nav-pill .pill-text {
+     font-family: 'Nationale Regular';
+    color: #000000 !important;
+   
+    font-size: 14px;
+}
+
+.nav-pill .pill-icon {
+    width: 18px;
+    height: 18px;
+    filter: brightness(0); /* Ícone Preto */
+}
+
+/* --- ESTADO ATIVO: A PÍLULA FICA PRETA --- */
+/* Se você quer que a pílula ativa seja PRETA e as outras CINZAS: */
+.nav-pill.active {
+    background: #000000 !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.nav-pill.active .pill-text {
+    color: #FFFFFF !important; /* Texto Branco na pílula preta */
+}
+
+.nav-pill.active .pill-icon {
+    filter: brightness(0) invert(1) !important; /* Ícone Branco na pílula preta */
+}
+
+/* CENTRALIZAÇÃO TOTAL DO MODAL */
+#modal-editar-lancamento {
+    position: fixed;
+    inset: 0;
+    display: none; /* Controlado via JS */
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+/* REMOVER SCROLLS */
+.studio-main, .lyrics-textarea {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.studio-main::-webkit-scrollbar, .lyrics-textarea::-webkit-scrollbar {
+    display: none;
+}
+
+/* Estilos de Header do Studio */
+.studio-tag { font-size: 10px; font-weight: 900; color: #999; letter-spacing: 1.5px; }
+.studio-title { font-size: 1.2rem; font-weight: 900; margin-top: 2px; color: #000; }
+
+/* CONTEÚDO PRINCIPAL (REMOVER SCROLLS VISÍVEIS) */
+.studio-main {
+    padding: 1.5rem;
+    background: #FFF;
+}
+@media (min-width: 768px) { .studio-main { padding: 3rem; } }
+
+/* Esconde barras de rolagem nativas */
+.studio-main::-webkit-scrollbar, .lyrics-textarea::-webkit-scrollbar {
+    display: none;
+}
+.studio-main, .lyrics-textarea {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.tab-pane { display: none; animation: fadeInPane 0.3s ease; }
+.tab-pane.active { display: block; }
+.pane-title { font-size: 1.5rem;font-family: 'Nationale Bold';  margin-bottom: 2rem; }
+
+/* INPUTS PROFISSIONAIS */
+.field label { font-size: 10px; font-weight: 800; color: #777; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+.field input, .field select, .sync-input-group input {
+    width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid #EEE;
+    background: #FAFAFA; font-weight: 600; color: #000; outline: none; transition: 0.2s;
+}
+.field input:focus, .sync-input-group input:focus { border-color: #000; background: #FFF; }
+
+/* Upload de Capa */
+.cover-preview-box {
+    position: relative;
+    border-radius: 1.5rem;
+    overflow: hidden;
+    border: 2px dashed #EEE;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.cover-preview-box:hover { border-color: #000; }
+.cover-preview-box img { width: 100%; height: 100%; object-fit: cover; }
+.cover-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); color: #FFF; display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s; font-weight: 800; font-size: 12px; }
+.cover-preview-box:hover .cover-overlay { opacity: 1; }
+.cover-preview-box input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Canvas Preview Stories 9:16 */
+.sync-btn { background: #000; color: #FFF; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 800; cursor: pointer; }
+.canvas-preview-holder { margin-top: 1.5rem; width: 170px; aspect-ratio: 9/16; background: #000; border-radius: 1rem; overflow: hidden; border: 4px solid #FFF; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.canvas-preview-holder iframe { width: 100%; height: 100%; pointer-events: none; }
+
+/* Textarea Letras */
+.lyrics-textarea { width: 100%; height: 350px; background: #FAFAFA; border: 1px solid #EEE; border-radius: 1rem; p: 20px; font-size: 14px; line-height: 1.6; color: #000; outline: none; resize: none; transition: 0.2s; }
+.lyrics-textarea:focus { background: #FFF; border-color: #000; }
+
+/* BOTÕES GERAIS */
+.btn-save { background: #000; color: #FFF; padding: 16px; border-radius: 14px; font-weight: 900; border: none; cursor: pointer; width: 100%; }
+.btn-cancel { background: transparent; color: #999; padding: 10px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; width: 100%; }
+
+/* ANIMAÇÃO */
+@keyframes fadeInPane { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
 .tab-button {
     padding: 10px 15px;
     font-weight: 600;

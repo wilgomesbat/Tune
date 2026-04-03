@@ -563,6 +563,7 @@ body.fs-active #full-screen-player {
 
 /* --- FUNDO AURORA E OVERLAY --- */
 #fs-aurora-bg {
+     backdrop-filter: blur(20px);
     position: absolute;
     inset: -50%;
     background: radial-gradient(circle at center, var(--artist-dominant-color, #333), #000);
@@ -609,8 +610,13 @@ body.fs-active #full-screen-player {
     aspect-ratio: 1;
     margin: 40px 0 40px 0;
     z-index: 10;
+    transition: opacity 0.3s ease-in-out; /* Suaviza a entrada do efeito */
     position: relative;
         box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+.fs-player-cover-container.has-canvas {
+    opacity: 0;
 }
 
 #fs-player-cover, #youtube-embed-container {
@@ -721,6 +727,9 @@ body.fs-active #full-screen-player {
 .fs-footer-actions { width: 100%; display: flex; justify-content: space-around; }
 .fs-footer-btn { background: none; border: none; margin-top: 50px; }
 .fs-footer-btn img { width: 24px; }
+
+.fs-repeat-btn { background: none; border: none; margin-top: 50px; }
+.fs-repeat-btn img { width: 26px; }
 
 /* ============================================================
    MEDIA QUERIES - ADAPTAÇÃO PC (DESKTOP)
@@ -928,3 +937,256 @@ body.fs-active #full-screen-player {
     display: none;
   }
 }
+
+
+
+#fs-canvas-bg-container {
+    position: absolute;
+    inset: 0;
+    z-index: 1; /* Atrás de tudo */
+    overflow: hidden;
+}
+
+#fs-canvas-bg-container iframe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw;
+    height: 100vh;
+    transform: translate(-50%, -50%) scale(1.5); /* Zoom para cobrir as bordas */
+    pointer-events: none;
+}
+
+.canvas-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.466));
+    z-index: 2;
+}
+
+.fs-content-wrapper {
+    position: relative;
+    z-index: 10; /* Na frente do vídeo */
+}
+
+.fs-lyrics-container {
+    background: rgba(255, 255, 255, 0.1); /* Vidro translúcido */
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 30px;
+    width: 100%;
+    max-height: 350px; /* Altura do card "retraído" */
+    overflow: hidden;
+    position: relative;
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fs-lyrics-container.expanded {
+    max-height: 80vh; /* Expande para quase toda a tela */
+    overflow-y: auto;
+}
+
+.lyrics-text {
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 1.8rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: pre-wrap; /* Preserva quebras de linha do banco */
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
+.fs-lyrics-container.expanded .lyrics-text {
+    mask-image: none;
+}
+
+.lyrics-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+}
+
+.lyrics-full-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+    /* O background será injetado pelo JS via style.background */
+    background-size: cover; 
+}
+
+#fs-main-scroll-area {
+    position: relative;
+    z-index: 10;
+    padding: 40px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px; /* Espaço entre capa, controles e letra */
+    width: 100%;
+    overflow-y: auto;
+}
+
+/* Garante que os blocos internos não sumam nem colapsem */
+.fs-main-content, 
+.fs-lyrics-container {
+    width: 100%;
+    max-width: 450px; /* Limita a largura para não ficar esticado no PC */
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* Impede que o flex esmague o conteúdo */
+}
+
+/* --- CONTROLO DE CANVAS PC vs MOBILE --- */
+
+/* 1. Esconde o container do vídeo por padrão (Mobile e PC) */
+#fs-canvas-bg-container {
+    display: none;
+    pointer-events: none;
+}
+
+/* 2. Só permite a exibição em ecrãs pequenos (Mobile) */
+@media (max-width: 768px) {
+    /* Se a música tiver a classe que indica presença de canvas */
+    #fs-cover-wrapper.has-canvas + #fs-canvas-bg-container,
+    #fs-canvas-bg-container:not(.hidden) {
+        display: block !important;
+    }
+}
+
+/* --- AJUSTE DE LETRAS PARA PC --- */
+
+/* Container do Card de Letras em Ecrã Total */
+#fs-lyrics-card, 
+#fs-lyrics-overlay {
+    padding: 20px; /* Padding padrão para Mobile */
+    transition: padding 0.3s ease;
+}
+
+/* Quando a tela for de PC (Desktop) */
+@media (min-width: 769px) {
+    #fs-lyrics-card, 
+    #fs-lyrics-overlay {
+        /* Adiciona margem à esquerda para não bater na sidebar preta */
+        padding-left: 100px !important; 
+        padding-right: 50px !important;
+
+    }
+
+}
+
+/* 3. No PC, garantimos que a Aurora (gradiente) tenha sempre opacidade 1 */
+@media (min-width: 769px) {
+    #fs-aurora-bg {
+        opacity: 1 !important;
+        display: block !important;
+    }
+    
+    /* Força o container do vídeo a ficar escondido no PC */
+    #fs-canvas-bg-container {
+        display: none !important;
+    }
+    
+    /* Garante que a capa não fique transparente no PC */
+    #fs-cover-wrapper.has-canvas {
+        opacity: 1 !important;
+    }
+}
+
+#lyrics-content {
+    width: 100%;
+    color: rgba(255, 255, 255, 0.9);
+    text-align: left; /* Alinha as linhas de texto à direita */
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 1.3rem;
+    line-height: 1.5;
+    display: block;
+}
+
+
+
+.fs-main-content {
+    width: 100%;
+}
+
+/* O container que tem o scroll da letra (Overlay Full Screen) */
+.lyrics-scrollable-text {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 40px; /* Padding nas laterais */
+    padding-top: 20px; /* Espaço pro fade do topo não cortar a primeira linha */
+    font-family: 'Nationale Bold', sans-serif;
+    font-size: 1.5rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.894);
+
+    /* ⭐ O SEGREDO DO FADE ESTÁ AQUI ⭐ */
+    /* Cria um degradê: Transparente (topo) -> Preto -> Preto -> Transparente (base) */
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 15%, /* Começa a ficar visível a 15% do topo */
+        black 85%, /* Começa a sumir a 85% do topo (15% da base) */
+        transparent 100%
+    );
+    
+    /* Prefixo para navegadores Webkit (Chrome, Safari, Edge) */
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 15%,
+        black 85%,
+        transparent 100%
+    );
+
+    /* Garante que o fade funcione bem em scroll */
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    
+    /* Esconde a barra de rolagem para ficar mais limpo */
+    scrollbar-width: none; /* Firefox */
+}
+
+/* Esconde a barra de rolagem no Chrome/Safari */
+.lyrics-scrollable-text::-webkit-scrollbar {
+    display: none;
+}
+
+/* Quando está ativa, ela sobe */
+.lyrics-full-screen.active {
+    transform: translateY(0);
+}
+
+/* Quando está hidden, ela some de vez do processamento */
+.lyrics-full-screen.hidden {
+    display: none !important;
+}
+
+.lyrics-header-fixed {
+    padding: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fs-lyrics-container {
+    cursor: pointer;
+    transition: transform 0.2s active;
+}
+.fs-lyrics-container:active {
+    transform: scale(0.98); /* Efeito de clique */
+}
+
+.lyrics-mini-info { display: flex; gap: 15px; align-items: center; }
+.lyrics-mini-info img { width: 50px; height: 50px; border-radius: 4px; }
+.lyrics-mini-info h4 { margin: 0; font-size: 1rem; }
+.lyrics-mini-info p { margin: 0; opacity: 0.6; font-size: 0.8rem; }
+
+
+
+#close-lyrics-overlay { background: rgba(255,255,255,0.1); border: none; border-radius: 50%; padding: 10px; }

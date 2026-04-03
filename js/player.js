@@ -27,6 +27,7 @@ import {
 
 import { auth, db } from './firebase-config.js';
 
+window.repeatMode = false; // Estado inicial: desligado
 // Define no window para o player.js enxergar
 window.getFunctions = getFunctions;
 window.httpsCallable = httpsCallable;
@@ -212,9 +213,22 @@ function getPlayerElements() {
     return {
         musicPlayer: document.getElementById("music-player"),
         coverImg: document.getElementById("fs-player-cover"),
+        // Player Pequeno (Mini Player)
+
+        // Player Tela Cheia (Full Screen)
+        fsPlayPauseBtn: document.getElementById("fs-playpause-btn"),
+        fsPlayIcon: document.getElementById("fs-play-icon"),
+        fsPauseIcon: document.getElementById("fs-pause-icon"),
+        
+        // Player Pequeno (Mini Player)
         playBtn: document.getElementById("playpause-btn"),
-        playIcon: document.getElementById("play-icon"),
-        pauseIcon: document.getElementById("pause-icon"),
+        playIcon: document.querySelector("#playpause-btn img"), // Pega a imagem dentro do botão mini
+
+        // Player Tela Cheia (Full Screen)
+        fsPlayPauseBtn: document.getElementById("fs-playpause-btn"),
+        fsPlayIcon: document.getElementById("fs-play-icon"),
+        fsPauseIcon: document.getElementById("fs-pause-icon"),
+        
         miniPlayerCover: document.getElementById('mini-player-cover'),
         playerInfoContainer: document.querySelector('.player-info'), 
         playerTitle: document.getElementById("player-title"),
@@ -312,19 +326,32 @@ function fecharPlayerFullScreen() {
         animation.cancel();
     };
 }
-
-// --- 2. GESTO DE SLIDE (SWIPE DOWN) ---
+// --- 2. GESTO DE SLIDE (SWIPE DOWN) CORRIGIDO ---
 let touchStartY = 0;
+
 function setupSwipeToClose() {
     const fsPlayer = document.getElementById('full-screen-player');
-    if (!fsPlayer) return;
+    const scrollArea = document.getElementById('fs-main-scroll-area'); // O container que criamos com scroll
+    
+    if (!fsPlayer || !scrollArea) return;
 
     fsPlayer.addEventListener('touchstart', (e) => {
+        // Registra o início do toque
         touchStartY = e.touches[0].clientY;
     }, { passive: true });
 
     fsPlayer.addEventListener('touchmove', (e) => {
-        const deltaY = e.touches[0].clientY - touchStartY;
+        const touchCurrentY = e.touches[0].clientY;
+        const deltaY = touchCurrentY - touchStartY;
+
+        // ⭐ TRAVA DE SEGURANÇA: ⭐
+        // Se a área de scroll não estiver no topo (0) OU se o usuário estiver deslizando para CIMA,
+        // interrompemos a lógica de fechar para permitir o scroll natural da letra.
+        if (scrollArea.scrollTop > 0 || deltaY < 0) {
+            return; 
+        }
+
+        // Se estiver no topo e deslizando para BAIXO, anima a descida do player
         if (deltaY > 0) {
             fsPlayer.style.transform = `translateY(${deltaY}px)`;
             fsPlayer.style.transition = 'none';
@@ -333,10 +360,20 @@ function setupSwipeToClose() {
 
     fsPlayer.addEventListener('touchend', (e) => {
         const deltaY = e.changedTouches[0].clientY - touchStartY;
+        const scrollArea = document.getElementById('fs-main-scroll-area');
+
+        // Se o scroll não estava no topo, não faz nada no final
+        if (scrollArea.scrollTop > 0) return;
+
         fsPlayer.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
         
-        if (deltaY > 150) fecharPlayerFullScreen();
-        else fsPlayer.style.transform = 'translateY(0)';
+        // Se o arraste foi longo o suficiente e estava no topo, fecha
+        if (deltaY > 150) {
+            fecharPlayerFullScreen();
+        } else {
+            // Caso contrário, volta para a posição original
+            fsPlayer.style.transform = 'translateY(0)';
+        }
     });
 }
 
@@ -514,6 +551,7 @@ async function loadTrack(track) {
     // 3. ATUALIZA CORES E SLIDE (O que tinha parado)
     // Chamamos as funções locais
     updateFullScreenBackground(track);
+    updateLyricsDisplay(track);
     updateMiniPlayerBackground(track);
     checkCurrentTrackLikedState(track.id);
     if (typeof updateArtistLabels === "function") {
@@ -783,7 +821,6 @@ window.loadYoutubeVideo = function(urlRecebida) {
 
 // Função principal para dar Play/Pause
 function togglePlay() {
-    // Resolve o erro: Uncaught ReferenceError: user is not defined
     const user = typeof auth !== 'undefined' ? auth.currentUser : null;
 
     if (!window.currentTrack) {
@@ -791,19 +828,25 @@ function togglePlay() {
         return;
     }
 
-    // Se o player do YouTube já existe e está pronto
     if (window.ytPlayer && typeof window.ytPlayer.getPlayerState === 'function') {
         const state = window.ytPlayer.getPlayerState();
         
-        if (state === 1) { // Está tocando -> Pausa
+        if (state === 1) { // 1 = YT.PlayerState.PLAYING
             window.ytPlayer.pauseVideo();
-            console.log("⏸️ Pausado por usuário:", user ? user.displayName : "Anônimo");
-        } else { // Está pausado ou parado -> Toca
+            console.log("⏸️ Pausado");
+        } else { 
             window.ytPlayer.playVideo();
-            console.log("▶️ Tocando por usuário:", user ? user.displayName : "Anônimo");
+            console.log("▶️ Tocando");
         }
+
+        // 🌟 ADICIONE ISSO: Pequeno delay para o YouTube processar o estado e o ícone mudar
+        setTimeout(() => {
+            if (typeof window.syncPlayPauseState === 'function') {
+                window.syncPlayPauseState();
+            }
+        }, 100);
+
     } else {
-        // Se o player não existe (primeiro clique), carrega a track
         console.log("🚀 Inicializando track pela primeira vez...");
         if (typeof window.loadTrack === 'function') {
             window.loadTrack(window.currentTrack);
@@ -865,56 +908,39 @@ function formatarTempo(segundos) {
 window.onPlayerStateChange = function(event) {
     const state = event.data;
     const el = typeof getPlayerElements === 'function' ? getPlayerElements() : {};
+    
+    // Caminhos das imagens (conforme seu HTML)
     const iconPlay = "/assets/Group.png";
     const iconPause = "/assets/pause.fill.png";
 
-    // 1. Detectar troca de música para resetar os marcos de tempo
+    // 1. Reset de música (manteve igual)
     if (window.currentTrack && window.idDaMusicaAtualNoPlayer !== window.currentTrack.id) {
         window.idDaMusicaAtualNoPlayer = window.currentTrack.id;
         window.streamEntregueNestaExecucao = false;
-        window.bonusEntregue30s = false;
-        window.bonusEntregue60s = false;
         window.streamStartTime = null;
         limparTodosOsTimers();
     }
 
-    // 2. Lógica por Estado
     if (state === 1) { // --- TOCANDO ---
-        if (!window.streamStartTime) window.streamStartTime = Date.now();
+        // Mini Player: Troca o SRC da imagem única
+        if (el.playIcon) el.playIcon.src = iconPause;
+
+        // Full Screen: Esconde o ícone de Play e mostra o de Pause
+        if (el.fsPlayIcon) el.fsPlayIcon.classList.add('hidden');
+        if (el.fsPauseIcon) el.fsPauseIcon.classList.remove('hidden');
+
         if (typeof startYoutubeTracking === 'function') startYoutubeTracking();
-
-        // Atualiza ícones da interface
-        if (el.playBtn) el.playBtn.querySelector('img').src = iconPause;
-        if (el.fsPlayPauseBtn) {
-            const fsImg = el.fsPlayPauseBtn.querySelector('img');
-            if (fsImg) fsImg.src = iconPause;
-        }
-
-        // AGENDAMENTO DE STREAMS (Escada de tempo)
-        // Marco 20s (100k)
-        if (!window.streamEntregueNestaExecucao && !window.streamTimer) {
-            window.streamTimer = setTimeout(() => validarStreamOficial(window.currentTrack), 20000);
-        }
-
-        // Marco 30s (500k)
-        if (!window.bonusEntregue30s && !window.bonusTimer30s) {
-            window.bonusTimer30s = setTimeout(() => validarStreamOficial(window.currentTrack), 30000);
-        }
-
-        // Marco 60s (1M a 2M)
-        if (!window.bonusEntregue60s && !window.bonusTimer60s) {
-            window.bonusTimer60s = setTimeout(() => validarStreamOficial(window.currentTrack), 60000);
-        }
     } 
-    else { // --- PAUSADO, BUFFERING OU FIM ---
+    else { // --- PAUSADO OU PARADO ---
+        // Mini Player: Volta para o ícone de Play
+        if (el.playIcon) el.playIcon.src = iconPlay;
+
+        // Full Screen: Mostra o ícone de Play e esconde o de Pause
+        if (el.fsPlayIcon) el.fsPlayIcon.classList.remove('hidden');
+        if (el.fsPauseIcon) el.fsPauseIcon.classList.add('hidden');
+
         if (typeof stopYoutubeTracking === 'function') stopYoutubeTracking();
         
-        // Volta ícone para Play
-        if (el.playBtn) el.playBtn.querySelector('img').src = iconPlay;
-        
-        limparTodosOsTimers();
-
-        // Se a música acabou (Estado 0), pula para a próxima
         if (state === 0 && typeof window.pularParaProxima === "function") {
             window.pularParaProxima();
         }
@@ -977,6 +1003,8 @@ async function validarStreamOficial(track) {
             window.isProcessingStream = false;
             return false;
         }
+
+        
 
         // 2. BUSCA DADOS ATUAIS DA MÚSICA (Para evitar negativar)
         const musicRef = doc(db, "musicas", track.id);
@@ -1305,69 +1333,269 @@ function handleProgressClick(e, progressBar, progressFill) {
         audio.currentTime = newTime;
     }
 }
-async function updateFullScreenBackground(track) {
-    const elements = getPlayerElements();
-    const fsPlayer = elements.fullScreenPlayer;
-    if (!fsPlayer) return;
 
-    let aurora = document.getElementById("fs-aurora-bg");
-    if (!aurora) {
-        aurora = document.createElement("div");
-        aurora.id = "fs-aurora-bg";
-        fsPlayer.prepend(aurora);
-    }
-
-    const oldBg = document.querySelector("#fs-player-canvas-bg");
-    if (oldBg) oldBg.remove();
-
-    if (track.canvas) {
-        aurora.style.opacity = "0";
-        // ... (lógica do mediaElement para vídeo permanece igual)
-        return;
-    }
-
-    aurora.style.opacity = "1";
+window.parseTuneCanvasID = function(url) {
+    if (!url || typeof url !== 'string') return null;
     
-    const imgForColor = new Image();
-    imgForColor.crossOrigin = "Anonymous";
-imgForColor.onload = function() {
-    try {
-        const colorThief = new ColorThief();
-        // Pegamos uma paleta de 5 cores para ter opções
-        const palette = colorThief.getPalette(imgForColor, 5); 
-        
-        // Transformamos a paleta RGB em HSL e filtramos a melhor
-        const bestColor = palette
-            .map(rgb => {
-                const hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
-                return { rgb, hsl };
-            })
-            .filter(c => c.hsl.l > 0.15 && c.hsl.l < 0.85) // Ignora quase preto ou quase branco
-            .sort((a, b) => b.hsl.s - a.hsl.s)[0]; // Escolhe a cor mais SATURADA (viva)
-
-        const finalRgb = bestColor ? bestColor.rgb : palette[0];
-        let { h, s, l } = rgbToHsl(finalRgb[0], finalRgb[1], finalRgb[2]);
-
-        // Ajustes finos para o FullScreen (Aurora Effect)
-        s = Math.max(s, 0.7); // Garante vivacidade
-        l = 0.45; // Brilho fixo para consistência no fundo escuro
-
-        const strongColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%)`;
-        const glowColor = `hsl(${h * 360}, ${s * 100}%, ${l * 100}%, 0.4)`;
-
-        aurora.style.background = `radial-gradient(circle at 50% 30%, 
-            ${strongColor} 0%, 
-            ${glowColor} 40%, 
-            rgba(0,0,0,0.9) 85%, 
-            #000 100%)`;
-
-    } catch (e) {
-        console.warn("Erro ao extrair cor:", e);
-        aurora.style.background = "#121212";
+    // Se já for um ID de 11 caracteres puro
+    const trimmed = url.trim();
+    if (trimmed.length === 11 && !trimmed.includes('/') && !trimmed.includes('?')) {
+        return trimmed;
     }
+
+    // Regex para extrair ID de: Shorts, Links normais, Embeds e Mobile
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
+    const match = trimmed.match(regExp);
+
+    if (match && match[2].length === 11) {
+        return match[2];
+    }
+
+    return null;
 };
 
-    imgForColor.src = track.cover ? `${track.cover}?t=${new Date().getTime()}` : "assets/10.png";
+// --- LÓGICA MIXED PAINT (AURORA DINÂMICO) ---
+
+class ColorBlob {
+    constructor(colors) {
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+        this.size = Math.random() * (700 - 350) + 350;
+        this.speedX = Math.random() * (0.05 - 0.02) + 0.02;
+        this.speedY = Math.random() * (0.05 - 0.02) + 0.02;
+        this.phaseX = Math.random() * Math.PI * 2;
+        this.phaseY = Math.random() * Math.PI * 2;
+    }
+
+    draw(ctx, width, height, time) {
+        // Cálculo de posição senoidal igual ao seu código Swift
+        const x = width * 0.5 + Math.sin(time * this.speedX + this.phaseX) * (width * 0.5);
+        const y = height * 0.5 + Math.cos(time * this.speedY + this.phaseY) * (height * 0.5);
+
+        ctx.beginPath();
+        ctx.fillStyle = this.color;
+        ctx.arc(x, y, this.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+let auroraBlobs = [];
+let animationFrameId = null;
+
+function startAuroraAnimation(palette) {
+    const canvas = document.getElementById('aurora-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Converte a paleta do ColorThief para strings de cor
+    const colors = palette.map(c => `rgb(${c[0]}, ${c[1]}, ${c[2]})`);
+    
+    // Cria 7 blobs como na sua struct
+    auroraBlobs = Array.from({ length: 7 }, () => new ColorBlob(colors));
+
+    function animate(time) {
+        const t = time * 0.001; // Converte para segundos
+        
+        // Ajusta tamanho do canvas para o container
+        if (canvas.width !== canvas.offsetWidth) {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Modo de mesclagem para parecer "tinta misturada"
+        ctx.globalCompositeOperation = 'screen'; 
+        
+        auroraBlobs.forEach(blob => blob.draw(ctx, canvas.width, canvas.height, t));
+        
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    animate(0);
+}
+
+let fsCanvasPlayer = null;
+/**
+ * Atualiza o fundo do Player em Ecrã Total.
+ * Se houver Canvas E for Mobile, remove a capa e ativa o vídeo em loop.
+ */
+async function updateFullScreenBackground(track) {
+    const elements = getPlayerElements();
+    const aurora = document.getElementById("fs-aurora-bg");
+    const canvasContainer = document.getElementById("fs-canvas-bg-container");
+    const coverWrapper = document.getElementById("fs-cover-wrapper"); 
+    
+    // Verifica se é um dispositivo móvel
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+    // Tenta obter o ID do vídeo
+    const canvasId = track.canvasUrl ? parseTuneCanvasID(track.canvasUrl) : null;
+    
+    // ⭐ CONDIÇÃO ALTERADA: Só ativa se houver ID E for Mobile
+    if (canvasId && isMobile) {
+        // --- MODO CANVAS ATIVO (SÓ MOBILE) ---
+        if (aurora) aurora.style.opacity = "0"; 
+        if (canvasContainer) canvasContainer.classList.remove("hidden"); 
+        
+        if (coverWrapper) coverWrapper.classList.add("has-canvas");
+
+        if (fsCanvasPlayer && typeof fsCanvasPlayer.loadVideoById === 'function') {
+            fsCanvasPlayer.loadVideoById({
+                videoId: canvasId,
+                startSeconds: 0,
+                suggestedQuality: 'small'
+            });
+        } else {
+            fsCanvasPlayer = new YT.Player("fs-canvas-player", {
+                videoId: canvasId,
+                playerVars: {
+                    autoplay: 1,
+                    controls: 0,
+                    loop: 1,
+                    playlist: canvasId,
+                    mute: 1,
+                    modestbranding: 1,
+                    rel: 0,
+                    playsinline: 1
+                },
+                // Onde você cria o player (new YT.Player)
+events: {
+    'onStateChange': (event) => {
+        // Toda vez que o vídeo der play ou pause no YouTube, o ícone do seu site atualiza
+        if (typeof window.syncPlayPauseState === 'function') {
+            window.syncPlayPauseState();
+        }
+
+        if (event.data === YT.PlayerState.ENDED) {
+            if (typeof window.nextTrack === 'function') window.nextTrack();
+        }
+    }
+}
+            });
+        }
+    } else {
+        // --- MODO SEM CANVAS OU PC (AURORA) ---
+        // Se estiver no PC, ele cairá aqui mesmo que a música tenha Canvas
+        if (canvasContainer) canvasContainer.classList.add("hidden");
+        
+        if (fsCanvasPlayer && typeof fsCanvasPlayer.stopVideo === 'function') {
+            fsCanvasPlayer.stopVideo();
+        }
+        
+        if (coverWrapper) coverWrapper.classList.remove("has-canvas");
+        if (aurora) aurora.style.opacity = "1";
+
+        if (track.cover) {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => {
+                try {
+                    const colorThief = new ColorThief();
+                    const palette = colorThief.getPalette(img, 5);
+                    const best = palette.map(rgb => ({ rgb, hsl: rgbToHsl(rgb[0], rgb[1], rgb[2]) }))
+                                        .filter(c => c.hsl.l > 0.15 && c.hsl.l < 0.85)
+                                        .sort((a, b) => b.hsl.s - a.hsl.s)[0];
+
+                    const finalRgb = best ? best.rgb : palette[0];
+                    let { h, s, l } = rgbToHsl(finalRgb[0], finalRgb[1], finalRgb[2]);
+                    
+                    s = Math.max(s, 0.7); 
+                    l = 0.45;
+
+                    const generatedGradient = `radial-gradient(circle at 50% 30%, hsl(${h*360},${s*100}%,${l*100}%) 0%, rgba(0,0,0,0.9) 85%)`;
+
+                    aurora.style.background = generatedGradient;
+
+                    const lyricsCard = document.getElementById('fs-lyrics-card');
+                    if (lyricsCard) {
+                        lyricsCard.style.background = `linear-gradient(135deg, hsl(${h*360},${s*100}%,${(l*100)-10}%), hsl(${h*360},${s*100}%,${(l*100)-20}%))`;
+                    }
+
+                    const lyricsOverlay = document.getElementById('fs-lyrics-overlay');
+                    if (lyricsOverlay) {
+                        lyricsOverlay.style.background = generatedGradient;
+                    }
+
+                } catch (e) { 
+                    console.warn("Erro ao extrair cores:", e);
+                    aurora.style.background = "#121212"; 
+                }
+            };
+            img.src = `${track.cover}?t=${Date.now()}`;
+        }
+    }
+}
+
+function updateLyricsDisplay(track) {
+    const lyricsCard = document.getElementById('fs-lyrics-card');
+    const lyricsContent = document.getElementById('lyrics-content');
+    const lyricsOverlay = document.getElementById('fs-lyrics-overlay');
+    const scrollBody = document.getElementById('lyrics-scroll-body');
+    
+    // Mini info do topo do overlay
+    const miniCover = document.getElementById('lyrics-mini-cover');
+    const miniTitle = document.getElementById('lyrics-mini-title');
+    const miniArtist = document.getElementById('lyrics-mini-artist');
+
+    if (!lyricsCard || !lyricsContent) return;
+
+    if (track.lyrics && track.lyrics.trim() !== "") {
+        lyricsCard.classList.remove('hidden');
+        const formatted = track.lyrics.replace(/\n/g, '<br>');
+        
+        // Preenche os textos
+        lyricsContent.innerHTML = formatted;
+        if (scrollBody) scrollBody.innerHTML = formatted;
+
+        // Preenche a mini info
+        if (miniCover) miniCover.src = track.cover || "assets/10.png";
+        if (miniTitle) miniTitle.textContent = track.title || "Título";
+        if (miniArtist) miniArtist.textContent = track.artistName || "Artista";
+
+        // ⭐ SINCRONIZA O FUNDO COM A AURORA ⭐
+        const aurora = document.getElementById('fs-aurora-bg');
+        if (aurora && aurora.style.background) {
+            lyricsCard.style.background = aurora.style.background.replace('radial-gradient', 'linear-gradient');
+            
+            const overlay = document.getElementById('fs-lyrics-overlay');
+            if (overlay) overlay.style.background = aurora.style.background;
+        }
+    } else {
+        lyricsCard.classList.add('hidden');
+        if (lyricsOverlay) lyricsOverlay.classList.remove('active');
+    }
+}
+
+// 2. Configura os Cliques (Chame isso no seu DOMContentLoaded)
+function setupLyricsEvents() {
+    const lyricsCard = document.getElementById('fs-lyrics-card');
+    const lyricsOverlay = document.getElementById('fs-lyrics-overlay');
+    const closeBtn = document.getElementById('close-lyrics-overlay');
+
+    if (lyricsCard && lyricsOverlay) {
+        // CLIQUE NO CARD -> ABRE A TELA
+        lyricsCard.onclick = (e) => {
+            e.stopPropagation();
+            lyricsOverlay.classList.remove('hidden');
+            // Timeout pequeno para o navegador perceber que o display mudou antes da animação
+            setTimeout(() => {
+                lyricsOverlay.classList.add('active');
+            }, 10);
+        };
+    }
+
+    if (closeBtn && lyricsOverlay) {
+        // CLIQUE NO X -> FECHA A TELA
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            lyricsOverlay.classList.remove('active');
+            // Espera a animação de 0.5s acabar para colocar o hidden de volta
+            setTimeout(() => {
+                lyricsOverlay.classList.add('hidden');
+            }, 500);
+        };
+    }
 }
 
 // Helper necessário para manipular a cor
@@ -1599,6 +1827,7 @@ function checkCurrentTrack() {
 document.addEventListener("DOMContentLoaded", () => {
     setupPlayerListeners();
     setupSwipeToClose();
+    setupLyricsEvents();
     checkCurrentTrack();
     setupQueueControls();
 });

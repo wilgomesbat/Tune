@@ -109,19 +109,7 @@ if (window.currentUserUid) {
 }
 }
 
-async function verificarManutencao() {
-    const docRef = doc(db, "config", "status");
-    try {
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists() && docSnap.data().manutencao) {
-            window.location.href = "main";
-        }
-    } catch (e) {
-        console.error("Erro ao verificar status de manutenção: ", e);
-    }
-}
-verificarManutencao();
+
 
 const BLACKLIST_UIDS = [
   "5aZ74tlIUzcVjjrUBHdw1rLQPRF2"
@@ -427,7 +415,7 @@ async function populateUserProfile(user) {
                 // --- DEFINIÇÃO DA CHAVE ---
                 // Pegamos o valor da chave 'displayName' do Firestore. 
                 // Se não existir, tentamos o displayName do Auth, ou um padrão.
-                nomeUsuario = userData.displayName || user.displayName || "Usuário"; 
+                nomeUsuario = userData.apelido || user.apelido || "Usuário"; 
                 
                 // Carrega a foto
                 profilePicURL = userData.foto || user.photoURL || DEFAULT_PROFILE_PIC; 
@@ -463,7 +451,19 @@ async function populateUserProfile(user) {
     }
 }
 
-
+async function verificarManutencao() {
+    const docRef = doc(db, "config", "status");
+    try {
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().manutencao) {
+            window.location.href = "main";
+        }
+    } catch (e) {
+        console.error("Erro ao verificar status de manutenção: ", e);
+    }
+}
+verificarManutencao();
 
 // === SISTEMA DE FILA DE REPRODUÇÃO ===
 
@@ -810,6 +810,11 @@ function getTrendIndicator(lastStreamDate) {
     }
 }
 
+// No topo do arquivo, junto com as outras configurações
+let currentProfileUid = null; 
+
+// ... resto do código (Firebase config, etc)
+
 // Função para formatar números (ex: 100k, 1.2m)
 function formatNumber(num) {
     if (!num) return "0";
@@ -821,6 +826,7 @@ function formatNumber(num) {
 
 export async function setupArtistPage(artistUid) {
     if (!artistUid) return;
+    currentProfileUid = artistUid;
 
     // 1. LOCALIZA E MOSTRA O OVERLAY DE LOADING
     const loader = document.getElementById('loading-overlay');
@@ -828,6 +834,28 @@ export async function setupArtistPage(artistUid) {
         loader.classList.remove('hidden');
         loader.style.display = 'flex';
     }
+
+window.copiarUIDArtista = function(element) {
+    if (!currentProfileUid) {
+        window.showToast("Erro: ID não carregado", "error");
+        return;
+    }
+
+    navigator.clipboard.writeText(currentProfileUid).then(() => {
+        // Adiciona a classe visual de sucesso
+        element.classList.add('copied');
+        
+        // Remove a classe após 2 segundos para o botão voltar ao normal
+        setTimeout(() => {
+            element.classList.remove('copied');
+        }, 2000);
+
+        // Opcional: mantém o seu toast original
+        window.showToast("ID copiado!", "success");
+    }).catch(err => {
+        window.showToast("Erro ao copiar", "error");
+    });
+};
 
     try {
         // 2. CARREGAR DADOS BÁSICOS DO ARTISTA
@@ -955,8 +983,8 @@ if (headerEl && data.foto) {
                 loadTopSongs(artistUid),
                 loadArtistAlbums(artistUid),
                 loadArtistSingles(artistUid),
-                loadArtistStations(artistUid),
-                checkFollowStatus(artistUid)
+                loadArtistStations(artistUid)
+              
             ]);
 
             // --- 4. CONFIGURAÇÃO DOS FILTROS E ESTADO INICIAL ---
@@ -986,29 +1014,30 @@ if (headerEl && data.foto) {
 
 function initDiscographyLogic() {
     const buttons = document.querySelectorAll('.filter-btn');
-    const sections = {
-        albums: document.getElementById('section-albums'),
-        singles: document.getElementById('section-singles'),
-        sessions: document.getElementById('section-sessions')
-    };
-
+    
     buttons.forEach(btn => {
-        btn.onclick = () => { // Usando onclick direto para evitar duplicados
+        btn.onclick = (e) => {
+            e.preventDefault();
             const target = btn.getAttribute('data-target');
 
-            // Atualiza botões
+            // 1. Reset visual dos botões
             buttons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            // Esconde todas e mostra a selecionada
-            for (let key in sections) {
-                if (sections[key]) {
-                    sections[key].style.display = (key === target) ? 'block' : 'none';
-                }
+            // 2. Esconde todas as seções da discografia
+            document.querySelectorAll('.artist-section').forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // 3. Mostra a seção clicada
+            // Procuramos pelo ID que montamos: 'section-' + target (ex: section-albums)
+            const targetEl = document.getElementById(`section-${target}`);
+            if (targetEl) {
+                targetEl.style.display = 'block';
+                console.log("Mostrando seção:", target);
+            } else {
+                console.error("Seção não encontrada: section-" + target);
             }
-            
-            // Log para debug no console se necessário
-            console.log("Mostrando seção:", target);
         };
     });
 }
@@ -1309,7 +1338,7 @@ async function loadArtistSingles(artistUid) {
     try {
         const q = query(
             collection(db, "musicas"), 
-            where("artist", "==", artistUid),
+            where("artists", "array-contains", artistUid),
             where("single", "==", "true"),
             orderBy("timestamp", "desc")
         );
@@ -1349,56 +1378,7 @@ async function loadArtistSingles(artistUid) {
     } catch (e) { console.error(e); }
 }
 
-async function checkFollowStatus(artistUid) {
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    const followRef = doc(db, `usuarios/${user.uid}/seguindo`, artistUid);
-    const docSnap = await getDoc(followRef);
-    
-    const followBtn = document.querySelector('.btn-seguir-pill');
-    const followText = followBtn.querySelector('.follow-text');
-    const followIcon = followBtn.querySelector('.icon-asset');
 
-    if (docSnap.exists()) {
-        followBtn.classList.add('following');
-        if (followText) followText.innerText = "Seguindo";
-        if (followIcon) followIcon.src = "/assets/cancel_24dp_FFFFFF_FILL1_wght400_GRAD0_opsz24.svg"; // Ícone de check se tiver
-    } else {
-        followBtn.classList.remove('following');
-        if (followText) followText.innerText = "Seguir";
-        if (followIcon) followIcon.src = "/assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg";
-    }
-}
-
-async function toggleFollow(artistUid) {
-    const user = auth.currentUser;
-    if (!user) return alert("Inicia sessão para seguir!");
-
-    console.log("Tentando seguir artista:", artistUid); // LOG 1
-
-    const followRef = doc(db, "usuarios", user.uid, "seguindo", artistUid);
-    
-    try {
-        const docSnap = await getDoc(followRef);
-
-        if (docSnap.exists()) {
-            await deleteDoc(followRef);
-            console.log("Deixou de seguir com sucesso"); // LOG 2
-        } else {
-            await setDoc(followRef, { 
-                artistId: artistUid, 
-                dataSeguida: new Date() // Teste com Date simples primeiro
-            });
-            console.log("Começou a seguir com sucesso"); // LOG 3
-        }
-
-        await checkFollowStatus(artistUid);
-
-    } catch (error) {
-        console.error("ERRO FIREBASE:", error); // Esse log vai te dizer o erro real
-    }
-}
 
 async function playMusic(musicId) {
     try {
@@ -3207,7 +3187,323 @@ function updateCardWithArtist(cardId, photoUrl, artistName, descFallback = "") {
     `;
 }
 
+// Remova qualquer tentativa anterior de fazer btnMore.onclick e use isto:
 
+document.addEventListener('click', (e) => {
+    const btnMore = e.target.closest('#btn-more-options');
+    const dropdown = document.getElementById('dropdown-menu');
+
+    // Se clicou no botão de 3 pontos
+    if (btnMore) {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+    } 
+    // Se clicou em qualquer outro lugar, fecha o menu
+    else if (dropdown && !dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+    }
+});
+window.abrirModalDenuncia = () => {
+    const modal = document.getElementById('modal-denuncia');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
+};
+
+window.fecharModalDenuncia = () => {
+    const modal = document.getElementById('modal-denuncia');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+};
+
+// Lógica de envio (Coloque isso dentro do setupArtistPage ou no escopo global)
+const confirmBtn = document.getElementById('confirm-denuncia-btn');
+if (confirmBtn) {
+    confirmBtn.onclick = async () => {
+        const motivo = document.getElementById('motivo-denuncia').value.trim();
+        if (!motivo) return window.showToast("Descreva o motivo", "error");
+
+        try {
+            // "db" deve ser sua instância do Firestore
+            await addDoc(collection(db, "denuncias"), {
+                artistaId: currentProfileUid, // ID que você já captura no setup
+                motivo: motivo,
+                timestamp: serverTimestamp(),
+                tipo: "artista"
+            });
+            
+            window.showToast("Denúncia enviada!");
+            window.fecharModalDenuncia();
+            document.getElementById('motivo-denuncia').value = "";
+        } catch (e) {
+            console.error(e);
+            window.showToast("Erro ao enviar", "error");
+        }
+    };
+}
+
+window.abrirModalShare = async function() {
+    const modal = document.getElementById('share-artist-modal');
+    const previewContainer = document.getElementById('preview-image-container-artist');
+    if (!modal || !previewContainer) return;
+
+    // --- CORREÇÃO DO ERRO: Carregamento dinâmico se não existir ---
+    if (typeof window.html2canvas !== 'function') {
+        console.log("html2canvas não encontrado. Carregando agora...");
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+            script.onload = resolve;
+            script.onerror = () => reject(new Error("Falha ao carregar html2canvas via CDN"));
+            document.head.appendChild(script);
+        });
+    }
+
+    // 1. Coleta de dados
+    const artistName = document.getElementById('artist-name')?.innerText || "Artista";
+    const artistHeader = document.getElementById('artist-header');
+    
+    // Extração da URL da imagem do style inline do header
+    let artistImgUrl = "";
+    if (artistHeader) {
+        const bgImg = artistHeader.style.getPropertyValue('--bg-img') || artistHeader.style.backgroundImage;
+        artistImgUrl = bgImg.replace(/url\(['"]?|['"]?\)/g, "");
+    }
+
+    const storyImg = document.getElementById('share-artist-img');
+    const storyName = document.getElementById('share-artist-name');
+    const storyBg = document.getElementById('story-gradient-bg');
+    const innerCard = document.getElementById('story-inner-card');
+
+    if (storyName) storyName.innerText = artistName;
+    
+    // 2. Lógica de Cor com ColorThief
+    if (storyImg && artistImgUrl) {
+        const nocache = artistImgUrl + (artistImgUrl.includes('?') ? '&' : '?') + "t=" + Date.now();
+        storyImg.crossOrigin = "anonymous";
+        storyImg.src = nocache;
+
+        storyImg.onload = function() {
+            try {
+                if (window.ColorThief) {
+                    const colorThief = new ColorThief();
+                    const color = colorThief.getColor(storyImg);
+                    const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                    const darkRgb = `rgb(${Math.max(0, color[0]-50)}, ${Math.max(0, color[1]-50)}, ${Math.max(0, color[2]-50)})`;
+                    
+                    if (storyBg) storyBg.style.background = `linear-gradient(180deg, ${rgb} 0%, #000000 100%)`;
+                    innerCard.style.background = `
+    linear-gradient(
+        180deg,
+        rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.25) 0%,
+        rgba(0, 0, 0, 0.35) 60%
+    )
+`;
+                }
+            } catch (e) {
+                console.error("Erro ColorThief:", e);
+            }
+        };
+    }
+
+    // Aguarda um pouco para as fontes e cores processarem
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+        const card = document.getElementById('artist-share-card');
+        
+        const canvas = await window.html2canvas(card, {
+    useCORS: true,
+    width: 1080,
+    height: 1920,
+    scale: 2, // 🔥 mais qualidade e menos serrilhado
+    backgroundColor: "#0b0b0b", // 🔥 REMOVE BORDA FANTASMA
+    logging: false
+});
+
+        const imgData = canvas.toDataURL("image/png");
+        previewContainer.innerHTML = `<img src="${imgData}" style="width:100%; height:100%; object-fit:contain; border-radius:15px;">`;
+
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+
+        document.getElementById('confirm-share-artist').onclick = () => {
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], 'tune-artist.png', { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file] });
+                } else {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `tune-artist-${artistName}.png`;
+                    link.click();
+                }
+            });
+        };
+    } catch (e) {
+        console.error("Erro ao gerar Story:", e);
+    }
+};
+
+// --- LÓGICA DE DENÚNCIA ---
+window.abrirModalDenuncia = () => {
+    const modal = document.getElementById('modal-denuncia');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
+};
+
+window.fecharModalShare = () => {
+    const modal = document.getElementById('share-artist-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        
+        // Limpa o preview para não acumular imagens se abrir de novo
+        const preview = document.getElementById('preview-image-container-artist');
+        if (preview) preview.innerHTML = '';
+    }
+};
+
+window.fecharModalDenuncia = () => {
+    const modal = document.getElementById('modal-denuncia');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+};
+
+// Certifique-se de que currentProfileUid está definido no topo do seu script
+// Se não estiver, pegamos da URL direto na função.
+
+const btnEnviarDenuncia = document.getElementById('confirm-denuncia-btn');
+
+if (btnEnviarDenuncia) {
+    btnEnviarDenuncia.onclick = async () => {
+        const textarea = document.getElementById('motivo-denuncia');
+        const motivo = textarea.value.trim();
+        
+        // 1. Validação básica
+        if (!motivo) {
+            if (window.showToast) window.showToast("Por favor, descreva o motivo.", "error");
+            return;
+        }
+
+        // 2. Feedback visual de carregamento
+        const originalText = btnEnviarDenuncia.innerText;
+        btnEnviarDenuncia.innerText = "ENVIANDO...";
+        btnEnviarDenuncia.disabled = true;
+
+        try {
+            // Pegamos o ID do artista da URL (ex: ?id=ABC123)
+            const urlParams = new URLSearchParams(window.location.search);
+            const artistId = urlParams.get('id') || "ID_DESCONHECIDO";
+
+            // 3. Gravação no Firestore
+            // IMPORTANTE: 'db', 'collection', 'addDoc' e 'serverTimestamp' 
+            // devem estar importados do firebase/firestore no topo do seu arquivo!
+            await addDoc(collection(db, "denuncias"), {
+                tipo: "artista",
+                artistaId: artistId,
+                motivo: motivo,
+                data: serverTimestamp(),
+                status: "pendente",
+                userReporter: auth.currentUser?.uid || "anonimo"
+            });
+
+            // 4. Sucesso
+            if (window.showToast) window.showToast("Denúncia enviada com sucesso!", "success");
+            
+            // Limpa e fecha
+            textarea.value = "";
+            window.fecharModalDenuncia();
+
+        } catch (error) {
+            console.error("Erro ao enviar denúncia:", error);
+            if (window.showToast) window.showToast("Erro ao conectar com o servidor.", "error");
+        } finally {
+            // Volta o botão ao normal
+            btnEnviarDenuncia.innerText = originalText;
+            btnEnviarDenuncia.disabled = false;
+        }
+    };
+}
+
+// Função para abrir o menu dinâmico
+window.toggleOptionsMenu = function(event) {
+    event.stopPropagation();
+    
+    // Remove menu anterior se existir
+    const existingMenu = document.querySelector('.tune-dropdown-portal');
+    if (existingMenu) existingMenu.remove();
+
+    const btn = event.currentTarget;
+    const rect = btn.getBoundingClientRect();
+
+    // Cria o elemento do menu
+    const menu = document.createElement('div');
+    menu.className = 'tune-dropdown-portal';
+    
+    // Conteúdo do menu
+    menu.innerHTML = `
+        <button class="tune-dropdown-item" onclick="window.abrirModalShare()">
+            <img src="/assets/share-2.svg" style="width: 20px;"> Compartilhar Perfil
+        </button>
+        <button class="tune-dropdown-item" onclick="window.copiarIDDoItem()">
+            <img src="/assets/copy_all_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" style="width: 20px;"> Copiar ID
+        </button>
+        <div class="tune-dropdown-divider"></div>
+        <button class="tune-dropdown-item" style="color: #ffffff;" onclick="window.abrirModalDenuncia()">
+            <img src="/assets/do_not_disturb_on_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" style="width: 20px; hue-rotate(340deg);"> Denunciar
+        </button>
+    `;
+
+    // Anexa ao body para ficar por cima de TUDO
+    document.body.appendChild(menu);
+
+    // Posiciona o menu logo abaixo do botão
+    menu.style.top = `${rect.bottom + window.scrollY + 10}px`;
+    menu.style.left = `${rect.left + window.scrollX - 180}px`; // Ajuste o -180 para alinhar à direita ou esquerda
+};
+
+// Fecha o menu ao clicar fora
+document.addEventListener('click', () => {
+    const existingMenu = document.querySelector('.tune-dropdown-portal');
+    if (existingMenu) existingMenu.remove();
+});
+
+// No seu tunearts.js ou main.js
+
+// 1. Função para Copiar ID
+window.copiarIDDoItem = async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    if (!id) return;
+
+    try {
+        await navigator.clipboard.writeText(id);
+        if (window.showToast) window.showToast("ID copiado com sucesso!");
+    } catch (e) { 
+        console.error("Erro ao copiar:", e); 
+    }
+};
+
+
+
+// 3. Funções do Modal de Denúncia
+window.abrirModalDenuncia = () => {
+    const modal = document.getElementById('modal-denuncia');
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.fecharModalDenuncia = () => {
+    const modal = document.getElementById('modal-denuncia');
+    if (modal) modal.classList.add('hidden');
+};
 
 // Função para gerenciar o streamsDay
 async function trackAlbumDayStream(albumId) {

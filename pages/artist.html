@@ -11,8 +11,6 @@
 
 <body class="bg-main">
 
-
-
 <header id="artist-header" class="artist-header">
     <div class="header-side-bg left-bg"></div>
     <div class="header-main-bg"></div>
@@ -20,19 +18,16 @@
     <div class="header-overlay"></div>
 
     <div class="header-content">
-        <h1 id="artist-name" class="artist-name-flex">
-            Nome do Artista 
-           
-        </h1>
+        <h1 id="artist-name" class="artist-name-flex">Nome do Artista</h1>
         <p class="stats"><span id="total-streams">0</span> streams</p>
-        
-        <div class="action-bar">
+
+        <div class="action-bar flex items-center gap-4" style="position: relative; overflow: visible;">
             <button class="btn-play">
                 <span class="material-symbols-outlined">play_arrow</span> Reproduzir
             </button>
-            <button class="btn-seguir-pill" title="Seguir">
-                <span class="follow-text">Seguir</span>
-                <img src="/assets/add_circle_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" class="icon-asset">
+
+            <button id="btn-more-options" class="p-2 hover:bg-white/10 rounded-full transition-colors" onclick="window.toggleOptionsMenu(event)">
+                <img src="/assets/more_horiz_50dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png" style="width: 28px; height: 28px;">
             </button>
         </div>
     </div>
@@ -105,6 +100,148 @@
             <button class="close-modal-btn" onclick="window.fecharModalBio()">&times;</button>
         </div>
         <div id="full-bio-content" class="modal-body"></div>
+    </div>
+</div>
+
+<div id="share-artist-modal" class="fixed inset-0 z-[10000] hidden flex items-center justify-center bg-black/90 backdrop-blur-md p-6">
+    <div class="relative max-w-sm w-full flex flex-col items-center">
+        <div id="preview-image-container-artist" class="w-full aspect-[4/5] rounded-2xl overflow-hidden bg-zinc-900 shadow-2xl border border-white/5">
+            </div>
+        <button id="confirm-share-artist" class="w-full mt-6 bg-white text-black font-black py-4 rounded-full uppercase transition-transform hover:scale-105">Compartilhar no Instagram</button>
+        <button onclick="window.fecharModalShare()" class="mt-4 text-gray-400 font-bold text-xs uppercase tracking-widest">Fechar</button>
+    </div>
+</div>
+
+<div id="artist-share-card" style="
+    position: absolute;
+    left: -9999px;
+    width: 1080px;
+    height: 1920px;
+    background: radial-gradient(circle at top, #1a1a1a, #0d0d0d 70%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+">
+
+    <!-- fundo suave -->
+    <div id="story-gradient-bg" style="
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 40%);
+        z-index: 1;
+    "></div>
+
+    <div style="
+        position: relative;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+    ">
+
+        <!-- CARD -->
+        <div id="story-inner-card" style="
+            width: 850px;
+            background: #181818;
+            border-radius: 48px;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            /* profundidade limpa (sem borda) */
+            box-shadow: 
+                0 50px 120px rgba(0,0,0,0.7),
+                0 10px 30px rgba(0,0,0,0.4);
+
+            /* leve brilho interno */
+            position: relative;
+        ">
+
+            <!-- brilho sutil topo -->
+            <div style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 120px;
+                border-radius: 48px 48px 0 0;
+                background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent);
+                pointer-events: none;
+            "></div>
+
+            <!-- imagem -->
+            <img id="share-artist-img" src="" style="
+                width: 730px;
+                height: 730px;
+                border-radius: 28px;
+                object-fit: cover;
+                margin-bottom: 60px;
+
+                /* sombra estilo capa spotify */
+                box-shadow: 
+                    0 25px 60px rgba(0,0,0,0.6);
+            ">
+
+            <div style="width: 100%; text-align: left;">
+
+                <h1 id="share-artist-name" style="
+                    color: white;
+                    font-size: 90px;
+                    font-family: 'Nationale Black', sans-serif;
+                    font-weight: 900;
+                    margin: 0;
+                    letter-spacing: -4px;
+                    line-height: 0.9;
+                "></h1>
+
+                <p style="
+                    color: rgba(255,255,255,0.5);
+                    font-size: 45px;
+                    margin: 30px 0;
+                    font-family: 'Nationale Regular', sans-serif;
+                    font-weight: 500;
+                ">
+                    Artista
+                </p>
+
+                <div style="margin-top: 60px;">
+                    <img src="/assets/tunelogoh2.png" style="
+                        height: 70px;
+                        opacity: 1.0;
+                    ">
+                </div>
+
+            </div>
+        </div>
+
+        <!-- footer -->
+        <div style="
+            margin-top: 120px;
+            color: rgba(255, 255, 255, 0.405);
+            font-size: 30px;
+            
+            font-family: 'Nationale Bold', sans-serif;
+            
+        ">
+            tunedks.com
+        </div>
+
+    </div>
+</div>
+
+<div id="modal-denuncia" class="fixed inset-0 z-[10001] hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#181818] w-full max-w-md p-8 rounded-3xl shadow-2xl">
+        <h3 class="text-xl font-black text-white mb-2">Denunciar Artista</h3>
+        <p class="text-gray-400 text-sm mb-6">Por que você está denunciando este perfil?</p>
+        <textarea id="motivo-denuncia" class="w-full h-32 bg-black rounded-2xl p-4 text-white focus:border-white/30 outline-none resize-none" placeholder="Escreva o motivo aqui..."></textarea>
+        <div class="flex gap-4 mt-8">
+            <button onclick="window.fecharModalDenuncia()" class="flex-1 py-4 font-bold text-gray-400 hover:text-white transition-colors">CANCELAR</button>
+            <button id="confirm-denuncia-btn" class="flex-1 py-4 bg-white text-black font-black rounded-full hover:bg-red-500 hover:text-white transition-all">ENVIAR</button>
+        </div>
     </div>
 </div>
 

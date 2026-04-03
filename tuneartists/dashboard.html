@@ -1,47 +1,177 @@
-<style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
 
-    @font-face {
+<script src="/js/tunearts.js" defer></script>
+<style>
+/* --- 1. FONTES NATIONALE --- */
+@font-face {
     font-family: 'Nationale Regular';
-    src: url('./fonts/Nationale-Regular.woff2') format('woff2'),
-         url('./fonts/Nationale-Regular.woff') format('woff');
+    src: url('./fonts/Nationale-Regular.woff2') format('woff2');
     font-weight: normal; font-style: normal;
 }
 @font-face {
     font-family: 'Nationale Bold';
-    src: url('./fonts/Nationale-Bold.woff2') format('woff2'),
-         url('./fonts/Nationale-Bold.woff') format('woff');
+    src: url('./fonts/Nationale-Bold.woff2') format('woff2');
     font-weight: bold; font-style: normal;
 }
 @font-face {
     font-family: 'Nationale Black';
-    src: url('./fonts/Nationale-Black.woff2') format('woff2'),
-         url('./fonts/Nationale-Black.woff') format('woff');
+    src: url('./fonts/Nationale-Black.woff2') format('woff2');
     font-weight: bold; font-style: normal;
 }
 
+/* --- 2. ESTRUTURA PARA PC (SEM CORTAR) --- */
+.sfa-dashboard-wrapper { 
+    max-width: 1100px; /* Aumentado para não cortar no PC */
+    margin: 0 auto; 
+    padding: 20px; 
+    font-family: 'Nationale Regular', sans-serif; 
+    background: #ffffff; 
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
 
-.sfa-dashboard-wrapper { max-width: 500px; margin: 0 auto; padding: 20px; font-family: 'Nationale Regular'; background: #ffffff; }
+/* No PC, podemos usar Grid para colocar o Pick ao lado de outros cards menores se quiser */
+@media (min-width: 900px) {
+    .sfa-bottom-content-layout {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 20px;
+        align-items: start;
+    }
+}
 
-/* Card Vermelho Principal */
-.sfa-focus-card { background: #000000; border-radius: 24px; padding: 32px; margin-bottom: 25px; color: #fff; }
-.sfa-release-header { display: flex; align-items: center; gap: 15px; margin-bottom: 35px; }
-.sfa-cover-art { width: 90px; height: 90px; border-radius: 4px; object-fit: cover; }
+/* --- 3. CARD DE FOCO (MELHORADO PARA PC) --- */
+.sfa-focus-card { 
+    background-color: #cfef00; 
+    padding: 40px; 
+    border-radius: 24px;
+    color: #000000; 
+    transition: background-color 0.5s ease;
+}
+
+.sfa-release-header { display: flex; align-items: center; gap: 20px; }
+.sfa-cover-art { width: 100px; height: 100px; border-radius: 8px; object-fit: cover; }
 .sfa-upper-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.8; }
-.sfa-release-name { font-size: 22px; font-weight: 900; font-family: 'Nationale Black'; margin: 0; line-height: 1.1; }
+.sfa-release-name { font-size: 26px; font-weight: 900; font-family: 'Nationale Black'; margin: 0; }
 
-.sfa-stats-hero { display: flex; align-items: center; gap: 15px; }
-.sfa-big-number { font-size: 50px; font-family: 'Nationale Black'; font-weight: 900; line-height: 0.85; letter-spacing: -4px; }
-.sfa-horizontal-line { flex-grow: 1; height: 6px; background: #ffffff; border-radius: 10px; }
-.sfa-hero-desc { font-size: 28px; font-weight: 900; line-height: 1; margin: 15px 0 35px 0; width: 85%; }
+.sfa-stats-hero { display: flex; align-items: center; gap: 20px; margin-top: 15px; }
+.sfa-big-number { font-size: 70px; font-family: 'Nationale Black'; font-weight: 900; line-height: 0.85; letter-spacing: -4px; }
+.sfa-horizontal-line { flex-grow: 1; height: 8px; background: #000000; border-radius: 10px; }
+.sfa-hero-desc { font-size: 26px; font-weight: 900; line-height: 1; margin: 15px 0 30px 0; width: 85%; }
 
-/* Caixa Branca */
-.sfa-metrics-white { background: #fff; color: #000; border-radius: 20px; padding: 20px; }
-.sfa-live-row { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
-.sfa-pulse-dot { width: 10px; height: 10px; background: #13de72; border-radius: 50%; animation: sfa-blink 1.5s infinite; }
-.sfa-metrics-grid { display: flex; justify-content: space-between; }
-.sfa-mini-label { font-size: 10px; color: #888; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
-.sfa-value-bold { font-size: 19px; font-family: 'Nationale Black'; font-weight: 900; }
+.sfa-metrics-white { background: #fff; color: #000; border-radius: 50px; padding: 15px 25px; width: fit-content; }
+.sfa-live-row { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; }
+.sfa-pulse-dot { width: 12px; height: 12px; background: #cfef00; border-radius: 50%; animation: sfa-blink 1.5s infinite; border: 2px solid #000; }
 
+/* --- 4. ARTIST PICK (MANTIDO EXATAMENTE COMO VOCÊ ENVIOU) --- */
+.sfa-artist-pick-card { background: transparent; padding: 0; margin: 20px 0; }
+
+.sfa-dashed-box {
+    border: 2px dashed #d1d1d1 !important;
+    border-radius: 16px !important;
+    padding: 35px 20px !important;
+    text-align: center !important;
+    cursor: pointer !important;
+    background-color: #ffffff !important;
+    transition: all 0.2s ease-in-out !important;
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 20px;
+}
+
+.sfa-dashed-box p:first-child {
+    font-family: 'Nationale Bold', sans-serif !important;
+    color: #444444 !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+}
+
+.sfa-dashed-box p.sfa-sub-text {
+    font-family: 'Nationale Regular', sans-serif !important;
+    color: #999999 !important;
+    font-size: 11px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 8px 0 0 0 !important;
+    font-weight: 600 !important;
+}
+
+.sfa-dashed-box:hover {
+    border-color: #000000 !important;
+    background-color: #f9f9f9 !important;
+}
+
+.sfa-active-pick {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 20px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    margin: 10px 20px !important;
+    cursor: pointer;
+}
+
+.sfa-pick-img {
+    width: 120px !important;
+    height: 120px !important;
+    border-radius: 12px !important;
+    object-fit: cover !important;
+}
+
+.sfa-pick-details {
+    flex: 1;
+    background: #000000 !important;
+    padding: 20px !important;
+    border-radius: 16px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sfa-white-pill {
+    background: #ffffff;
+    padding: 4px 12px 4px 4px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    margin-bottom: 8px;
+}
+
+.sfa-pill-avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+.sfa-pill-text { color: #000000; font-size: 11px; font-weight: 800; }
+.sfa-pick-title { font-size: 20px !important; font-weight: 900 !important; color: #ffffff !important; margin: 0 !important; }
+.sfa-pick-tag { font-size: 11px !important; color: #b0b0b0 !important; text-transform: uppercase; font-weight: 700; }
+
+.sfa-pick-details:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+/* --- 5. OUTROS CARDS --- */
+.sfa-station-card {
+    background: #111;
+    padding: 25px;
+    border-radius: 20px;
+    color: white;
+    margin: 10px 20px;
+}
+
+.sfa-btn-white {
+    background: #fff;
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-weight: 800;
+    cursor: pointer;
+}
 
 @keyframes sfa-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 </style>
@@ -68,40 +198,29 @@
                 <span class="sfa-pulse-dot"></span>
                 <span id="live-count">0</span> ouvindo agora
             </div>
-
-            <div class="sfa-metrics-grid">
-                
-                <div class="sfa-metric-item">
-                    <span class="sfa-mini-label">Streams (UN)</span>
-                    <span id="stat-streams-7d" class="sfa-value-bold">0</span>
-                </div>
-                <div class="sfa-metric-item">
-                    <span class="sfa-mini-label">Total Artista</span>
-                    <span id="stat-total-artist-streams" class="sfa-value-bold">0</span>
-                </div>
-            </div>
         </div>
     </section>
 
     <section class="sfa-artist-pick-card">
-        <div id="artist-pick-container">
-            <div id="pinned-empty" class="sfa-dashed-box" onclick="abrirSeletorDestaque()">
-                <p>+ Escolher um destaque do artista</p>
-            </div>
+    <div id="artist-pick-container">
+        <div id="pinned-empty" class="sfa-dashed-box" onclick="abrirSeletorDestaque()">
+            <p>+ Escolher um destaque do artista</p>
+            <p class="sfa-sub-text">Clique no card para alterar</p>
+        </div>
 
-            <div id="pinned-active" class="sfa-active-pick hidden" onclick="abrirSeletorDestaque()">
-                <img id="pinned-img" src="" class="sfa-pick-img">
-                <div class="sfa-pick-details">
-                    <div class="sfa-white-pill">
-                        <img id="pill-artist-photo" src="" class="sfa-pill-avatar">
-                        <span id="pill-artist-name" class="sfa-pill-text">Artista</span>
-                    </div>
-                    <h2 id="pinned-title" class="sfa-pick-title">---</h2>
-                    <span class="sfa-pick-tag">Destaque do Artista</span>
+        <div id="pinned-active" class="sfa-active-pick hidden" onclick="abrirSeletorDestaque()">
+            <img id="pinned-img" src="" class="sfa-pick-img">
+            <div class="sfa-pick-details">
+                <div class="sfa-white-pill">
+                    <img id="pill-artist-photo" src="" class="sfa-pill-avatar">
+                    <span id="pill-artist-name" class="sfa-pill-text">Artista</span>
                 </div>
+                <h2 id="pinned-title" class="sfa-pick-title">---</h2>
+                <span class="sfa-pick-tag">Destaque do Artista</span>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
     <div class="sfa-bottom-grid">
         <div id="card-this-is-creator" class="sfa-station-card hidden">
@@ -110,10 +229,7 @@
             <button id="btn-gerar-thisis" class="sfa-btn-white">GERAR AGORA</button>
         </div>
 
-        <div class="sfa-top-tracks-card">
-            <h3 class="sfa-mini-label" style="margin-bottom: 20px;">Top Músicas</h3>
-            <div id="top-tracks-list"></div>
-        </div>
+      
     </div>
 </div>
 

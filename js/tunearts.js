@@ -59,15 +59,47 @@ export async function uploadImageToCloudinary(file) {
 }
 
 
-
 // Constantes Globais
 const ACTIVE_OPACITY = '1';
 const INACTIVE_OPACITY = '0.5';
 const MAIN_HTML_FILE = 'tuneartists.html'; 
 
+
+window.handleImagePreview = function(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const preview = document.getElementById('preview-img');
+        const uploadZone = input.closest('.upload-zone');
+        const textPlaceholder = uploadZone ? uploadZone.querySelector('div') : null;
+
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            if (preview) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                preview.style.width = '100%';
+                preview.style.height = '100%';
+                preview.style.objectFit = 'cover';
+                preview.style.position = 'absolute';
+                preview.style.inset = '0';
+                preview.style.zIndex = '1';
+            }
+            
+            if (textPlaceholder) {
+                textPlaceholder.style.display = 'none';
+            }
+        };
+
+        reader.readAsDataURL(file);
+    }
+};
+
 // Variáveis de Controle
 let currentUser = null;
 window.currentArtistUid = null;
+window.handleImagePreview = handleImagePreview;
+
 
 // ================================
 // 2. ESTADO DE AUTENTICAÇÃO E VERIFICAÇÃO DE PERFIL
@@ -132,6 +164,67 @@ window.hideDeleteConfirm = function() {
     document.getElementById('delete-confirm-modal').classList.add('hidden');
 };
 
+
+// --- FUNÇÃO DE VALIDAÇÃO DE ARTISTA (FEAT) ---
+async function validarArtistaPorUID() {
+    const uidInput = document.getElementById('collab-uid-input');
+    const uid = uidInput ? uidInput.value.trim() : null;
+    
+    // currentUser vem do seu estado de auth do Firebase
+    if (!uid || !auth.currentUser) {
+        window.showToast("Insira um UID válido.", "error");
+        return;
+    }
+
+    if (uid === auth.currentUser.uid) {
+        window.showToast("Você não pode adicionar a si mesmo!", "error");
+        return;
+    }
+
+    try {
+        const docRef = doc(db, "usuarios", uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            // Define variáveis globais para a submissão do formulário
+            window.collabIdSelecionado = uid; 
+            window.collabNomeSelecionado = data.nomeArtistico || data.nome;
+
+            // Atualiza o Preview no HTML
+            const previewImg = document.getElementById('collab-preview-img');
+            const previewName = document.getElementById('collab-preview-name');
+            const previewContainer = document.getElementById('collab-preview');
+
+            if (previewImg) previewImg.src = data.foto || './assets/artistpfp.png';
+            if (previewName) previewName.textContent = window.collabNomeSelecionado;
+            if (previewContainer) previewContainer.style.display = 'flex';
+
+            window.showToast("Artista validado!");
+        } else {
+            window.showToast("Artista não encontrado. Verifique o UID.", "error");
+        }
+    } catch (e) { 
+        console.error("Erro na validação:", e); 
+        window.showToast("Erro ao buscar artista.", "error");
+    }
+}
+
+// Aproveite e garanta o cancelamento também
+window.cancelarCollab = function() {
+    window.collabIdSelecionado = null;
+    window.collabNomeSelecionado = null;
+    const preview = document.getElementById('collab-preview');
+    if (preview) preview.style.display = 'none';
+    const input = document.getElementById('collab-uid-input');
+    if (input) input.value = "";
+};
+
+
+// 🌟 ESTA LINHA DEVE ESTAR FORA DE QUALQUER FUNÇÃO
+window.validarArtistaPorUID = validarArtistaPorUID
+
 // ============================================
 // ⭐ SISTEMA DE ABAS E NAVEGAÇÃO ⭐
 // ============================================
@@ -164,8 +257,22 @@ async function loadContent(pageName) {
 
         // Inicializa lógicas específicas
         if (pageName === 'dashboard') setupDashboardPage();
+        
+        if (pageName === 'notifc') {
+            if (typeof window.carregarPaginaNotificacoes === 'function') {
+                window.carregarPaginaNotificacoes();
+            }
+        }
+
         if (pageName === 'releases') listarGerenciamentoLancamentos();
-        if (pageName === 'addmusic') carregarAlbunsNoSelect();
+
+        // Chamada corrigida para addmusic
+        if (pageName === 'addmusic') {
+            if (typeof window.carregarAlbunsNoSelect === 'function') {
+                await window.carregarAlbunsNoSelect();
+            }
+        }
+
         if (pageName === 'editprofile') setupEditProfilePage();
 
         window.history.pushState({ page: pageName }, '', `${MAIN_HTML_FILE}?page=${pageName}`);
@@ -173,11 +280,7 @@ async function loadContent(pageName) {
     } catch (error) {
         console.error(error);
     }
-}/**
- * TUNE - EDITPROFILE.JS
- * Lógica para gerenciar Nome, Bio, Foto e Artist Pick (Destaque)
- */
-
+}
 
 // 1. CARREGAMENTO INICIAL DOS CAMPOS
 async function setupEditProfilePage() {
@@ -207,6 +310,78 @@ async function setupEditProfilePage() {
         console.error("Erro ao carregar dados de edição:", e);
     }
 }
+
+// Delegação de Eventos: Ouve cliques em todo o documento
+document.addEventListener('click', async (e) => {
+    // Verifica se o elemento clicado é o botão de confirmar playlist
+    if (e.target && e.target.id === 'btnPreviewTracks') {
+        const urlInput = document.getElementById("ytPlaylistUrl");
+        const grid = document.getElementById("trackCardsGrid");
+        const status = document.getElementById("trackStatus");
+        const container = document.getElementById("previewContainer");
+
+        // 🛡️ PROTEÇÃO: Se os elementos não existem na página atual, para aqui.
+        if (!grid || !status) {
+            console.warn("Elementos da playlist não encontrados nesta página.");
+            return;
+        }
+
+        const YT_API_KEY = 'AIzaSyCTy9IM54bO4CQudHJgnO_YNUSBtPrMzlU';
+        const url = urlInput.value.trim();
+        const playlistId = url.match(/[&?]list=([^&]+)/i)?.[1];
+
+        if (!playlistId) {
+            alert("Por favor, cole um link de playlist válido.");
+            return;
+        }
+
+        try {
+            // Agora o innerHTML não dará erro porque verificamos acima
+            status.innerHTML = "⏳ Buscando músicas...";
+            
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}`);
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error.message);
+
+            grid.innerHTML = ""; // Limpa com segurança
+            if (container) container.style.display = "block";
+
+            data.items.forEach((item, index) => {
+                const videoTitle = item.snippet.title;
+                const videoId = item.snippet.resourceId.videoId;
+
+                const card = document.createElement("div");
+                card.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #f4f4f4; border: 1px solid #ddd; border-radius: 10px; padding: 10px 15px; margin-bottom: 8px;";
+
+                card.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                        <span style="font-weight: bold; color: #888; font-size: 12px;">${index + 1}</span>
+                        <input type="text" class="track-title-input" 
+                               data-videoid="${videoId}" 
+                               value="${videoTitle}" 
+                               readonly
+                               style="background: transparent; border: none; color: #000; width: 100%; outline: none; font-size: 13px; font-family: inherit;">
+                    </div>
+                    <button type="button" class="btn-edit-track" style="background: none; border: none; cursor: pointer; color: #000; padding: 5px;">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+
+            status.innerHTML = `<span style="color: green; font-weight: bold;">✅ ${data.items.length} músicas prontas!</span>`;
+
+        } catch (err) {
+            console.error("Erro na importação:", err);
+            // Verifica se o elemento status ainda existe antes de escrever o erro
+            if (status) status.innerHTML = `<span style="color: red;">❌ Erro: ${err.message}</span>`;
+        }
+    }
+});
+
+
+
 
 function atualizarPreviewSorteio(pinned, artistPhoto, artistName) {
     const empty = document.getElementById('pinned-empty');
@@ -509,6 +684,402 @@ window.updateArtistPhoto = async () => {
     }
 };
 
+
+
+// ============================================
+// 1. SUBMISSÃO DE MÚSICA (SINGLE) COM FEAT
+// ============================================
+window.handleReleaseSubmission = async (e) => {
+    e.preventDefault();
+    
+    const btn = document.getElementById('btnSubmit'); // Certifique-se que o id no HTML é btnSubmit
+    if (!currentUser) {
+        window.showToast("Erro: Usuário não autenticado.", "error");
+        return;
+    }
+
+    // Captura de Inputs
+    const title = document.getElementById('relTitle').value.trim();
+    const youtubeUrl = document.getElementById('relAudioLink').value.trim();
+    const coverFileInput = document.getElementById('relCover');
+    const status = document.getElementById('relStatus').value;
+    const duration = document.getElementById('relDuration').value.trim();
+    const isExplicit = document.getElementById('relExplicit').checked;
+    const genre = document.getElementById('relGenre').value;
+    const releaseDateTime = document.getElementById('relReleaseDate').value;
+
+    // --- BLOCO DE VALIDAÇÕES RÍGIDAS ---
+    if (!duration.includes(':')) {
+        window.showToast("Informe a duração no formato mm:ss", "error");
+        return;
+    }
+
+    if (status === 'agendado' && !releaseDateTime) {
+        window.showToast("Escolha uma data e horário para o agendamento!", "error");
+        return;
+    }
+
+    if (title.length < 2) {
+        window.showToast("Insira o título da música!", "error");
+        return;
+    }
+
+    if (!coverFileInput.files || coverFileInput.files.length === 0) {
+        window.showToast("Selecione uma imagem de capa!", "error");
+        return;
+    }
+
+    const isValidYt = youtubeUrl.includes("youtube.com") || youtubeUrl.includes("youtu.be");
+    if (!isValidYt) {
+        window.showToast("Link inválido! Insira um link do YouTube.", "error");
+        return;
+    }
+
+    // Início do Processamento
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
+
+    try {
+        // A. Busca Nome Artístico do Dono
+        let nomeDoArtista = "Artista";
+        const userDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
+        if (userDoc.exists()) {
+            nomeDoArtista = userDoc.data().nomeArtistico || userDoc.data().nome || "Artista";
+        }
+
+        // B. Compressão e Upload da Capa
+        const originalFile = coverFileInput.files[0];
+        const compressedBlob = await compressImage(originalFile, 500, 500);
+
+        const formData = new FormData();
+        formData.append("file", compressedBlob);
+        formData.append("upload_preset", UPLOAD_PRESET);
+        formData.append("folder", `tune/posts/releases/${currentUser.uid}`);
+
+        const uploadResponse = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+            { method: "POST", body: formData }
+        );
+
+        const uploadData = await uploadResponse.json();
+        if (!uploadData.secure_url) throw new Error("Erro ao enviar capa.");
+
+        const coverUrl = uploadData.secure_url;
+
+        // C. Salvamento no Firestore (Adição do array 'artists')
+        // Inicializamos o array apenas com o dono. O feat entra após aceitar.
+        const musicaRef = await addDoc(collection(db, "musicas"), {
+            title: title,
+            artist: currentUser.uid, // Dono principal
+            artists: [currentUser.uid], // Array de busca para perfis
+            artistName: nomeDoArtista,
+            audioURL: youtubeUrl,
+            duration: duration,
+            explicit: isExplicit,
+            genre: genre,
+            cover: coverUrl,
+            album: "Single", 
+            streams: 0,
+            single: "true",
+            status: status,
+            scheduledTime: (status === 'publico') ? "Imediato" : releaseDateTime,
+            timestamp: serverTimestamp()
+        });
+
+        // D. Envio do Convite de Colaboração (Se um UID foi validado)
+        // 'collabIdSelecionado' deve ser a variável global definida na lógica de busca por UID
+        if (typeof collabIdSelecionado !== 'undefined' && collabIdSelecionado) {
+            await addDoc(collection(db, "convites_colaboracao"), {
+                fromArtistUid: currentUser.uid,
+                fromArtistName: nomeDoArtista,
+                toArtistUid: collabIdSelecionado,
+                musicId: musicaRef.id,
+                musicTitle: title,
+                musicCover: coverUrl,
+                status: "pendente",
+                timestamp: serverTimestamp()
+            });
+            window.showToast("Música enviada e convite de feat despachado!");
+        } else {
+            window.showToast("Música publicada com sucesso!", "success");
+        }
+
+        setTimeout(() => { if (typeof loadContent === 'function') loadContent('releases'); }, 1500);
+
+    } catch (err) {
+        console.error("Erro na submissão:", err);
+        window.showToast("Erro: " + err.message, "error");
+        btn.disabled = false;
+        btn.innerHTML = 'PUBLICAR MÚSICA';
+    }
+};
+
+// ============================================
+// 2. SUBMISSÃO DE ÁLBUM (BATCH)
+// ============================================
+window.handleAlbumSubmission = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnSubmitAlbum');
+    
+    if (!currentUser) return window.showToast("Usuário não logado", "error");
+
+    const trackInputs = document.querySelectorAll('.track-title-input');
+    if (trackInputs.length === 0) return window.showToast("Importe as músicas do YouTube antes!", "error");
+
+    // Bloqueio de UI
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO ÁLBUM...';
+
+    try {
+        const batch = writeBatch(db); // Inicializa a transação em lote
+
+        // 1. Upload da Capa do Álbum
+        const coverFileInput = document.getElementById('relCoverAlbum');
+        if (!coverFileInput.files[0]) throw new Error("Selecione a capa do álbum.");
+
+        const originalFile = coverFileInput.files[0];
+        const compressedBlob = await compressImage(originalFile, 600, 600); 
+        
+        const formData = new FormData();
+        formData.append("file", compressedBlob);
+        formData.append("upload_preset", UPLOAD_PRESET);
+        formData.append("folder", `tune/posts/albums/${currentUser.uid}`);
+        
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: "POST", body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadData.secure_url) throw new Error("Erro no upload da capa.");
+        
+        const coverUrl = uploadData.secure_url;
+
+        // 2. Criar Referência e Dados do Álbum
+        const albumRef = doc(collection(db, "albuns"));
+        const artistDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
+        const artistName = artistDoc.exists() ? (artistDoc.data().nomeArtistico || artistDoc.data().nome) : "Artista";
+
+        const albumData = {
+            album: document.getElementById('albumName').value.trim(),
+            artist: artistName,
+            cover: coverUrl,
+            date: document.getElementById('releaseDate').value,
+            duration: document.getElementById('duration').value,
+            genre: document.getElementById("genre").value,
+            uidars: currentUser.uid,
+            status: "Em Revisão",
+            timestamp: serverTimestamp()
+        };
+
+        batch.set(albumRef, albumData);
+
+        // 3. Criar Músicas Vinculadas ao Álbum
+        trackInputs.forEach((input, index) => {
+            const musicRef = doc(collection(db, "musicas"));
+            batch.set(musicRef, {
+                album: albumRef.id, // ID gerado acima
+                artist: currentUser.uid,
+                artistName: artistName,
+                audioURL: input.dataset.videoid,
+                cover: coverUrl,
+                genre: albumData.genre,
+                title: input.value.trim(),
+                trackNumber: index + 1,
+                status: "Em Revisão",
+                streams: 0,
+                single: "false"
+            });
+        });
+
+        // Execução Atômica (Ou vai tudo, ou não vai nada)
+        await batch.commit();
+
+        window.showToast("Álbum e músicas enviados!", "success");
+        setTimeout(() => { if (typeof loadContent === 'function') loadContent('releases'); }, 2000);
+
+    } catch (err) {
+        console.error("Erro detalhado no Álbum:", err);
+        window.showToast("Erro: " + err.message, "error");
+        btn.disabled = false;
+        btn.innerHTML = 'ENVIAR ÁLBUM';
+    }
+};
+
+
+window.carregarPaginaNotificacoes = function() {
+    if (!window.currentArtistUid) return;
+
+    const container = document.getElementById('container-notificacoes');
+    const emptyState = document.getElementById('notif-empty-state');
+
+    // Query em tempo real para convites pendentes
+    const q = query(
+        collection(db, "convites_colaboracao"), 
+        where("toArtistUid", "==", window.currentArtistUid), 
+        where("status", "==", "pendente"),
+        orderBy("timestamp", "desc")
+    );
+
+    onSnapshot(q, (snap) => {
+        if (!container) return; // Segurança caso o usuário mude de página
+
+        if (snap.empty) {
+            container.innerHTML = "";
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        container.innerHTML = "";
+
+        snap.forEach(d => {
+            const c = d.data();
+            container.innerHTML += `
+                <div class="card-convite">
+                    <img src="${c.musicCover}" style="width: 60px; height: 60px; border-radius: 12px; object-fit: cover;">
+                    <div style="flex: 1;">
+                        <p style="margin:0; font-size:14px; color:#000;">
+                            <b>${c.fromArtistName}</b> convidou você para colaborar na música <b>"${c.musicTitle}"</b>.
+                        </p>
+                        <p style="margin:5px 0 0; font-size:10px; color:#888;">Enviado em: ${c.timestamp?.toDate().toLocaleDateString() || 'Recentemente'}</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="window.responderConvite('${d.id}', '${c.musicId}', 'aceito')" class="btn-collab-aceitar">ACEITAR</button>
+                        <button onclick="window.responderConvite('${d.id}', '${c.musicId}', 'recusado')" class="btn-collab-recusar">RECUSAR</button>
+                    </div>
+                </div>`;
+        });
+    });
+};
+
+// --- ACEITAR OU RECUSAR ---
+window.responderConvite = async function(notifId, musicId, acao) {
+    try {
+        if (acao === 'aceito') {
+            const musicRef = doc(db, "musicas", musicId);
+            const musicSnap = await getDoc(musicRef);
+
+            if (musicSnap.exists()) {
+                const data = musicSnap.data();
+                const currentArtists = data.artists || [data.artist];
+                const currentNames = data.artistName || "";
+                
+                // Busca nome do usuário logado
+                const userDoc = await getDoc(doc(db, "usuarios", window.currentArtistUid));
+                const meuNome = userDoc.exists() ? (userDoc.data().nomeArtistico || userDoc.data().nome) : "Artista";
+
+                // Atualiza a música com o novo colaborador
+                await updateDoc(musicRef, {
+                    artists: [...new Set([...currentArtists, window.currentArtistUid])],
+                    artistName: currentNames.includes(meuNome) ? currentNames : `${currentNames}, ${meuNome}`
+                });
+            }
+        }
+
+        // Atualiza o convite no banco
+        await updateDoc(doc(db, "convites_colaboracao", notifId), { 
+            status: acao,
+            respondidoEm: serverTimestamp() 
+        });
+
+        window.showToast(acao === 'aceito' ? "Convite aceito com sucesso!" : "Convite recusado.");
+        
+    } catch (e) {
+        console.error("Erro ao responder convite:", e);
+        window.showToast("Erro ao processar resposta.", "error");
+    }
+};
+
+window.handleAlbumSubmission = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnSubmit'); 
+    
+    if (!btn) {
+        console.error("Botão de submissão não encontrado!");
+        return;
+    }    
+    if (!currentUser) return window.showToast("Usuário não logado", "error");
+
+    const trackInputs = document.querySelectorAll('.track-title-input');
+    if (trackInputs.length === 0) return window.showToast("Importe as músicas do YouTube antes!", "error");
+
+    // Bloqueio de UI
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO ÁLBUM...';
+
+    try {
+        const batch = writeBatch(db); // Inicializa a transação em lote
+
+        // 1. Upload da Capa do Álbum
+        const coverFileInput = document.getElementById('relCoverAlbum');
+        if (!coverFileInput.files[0]) throw new Error("Selecione a capa do álbum.");
+
+        const originalFile = coverFileInput.files[0];
+        const compressedBlob = await compressImage(originalFile, 600, 600); 
+        
+        const formData = new FormData();
+        formData.append("file", compressedBlob);
+        formData.append("upload_preset", UPLOAD_PRESET);
+        formData.append("folder", `tune/posts/albums/${currentUser.uid}`);
+        
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: "POST", body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadData.secure_url) throw new Error("Erro no upload da capa.");
+        
+        const coverUrl = uploadData.secure_url;
+
+        // 2. Criar Referência e Dados do Álbum
+        const albumRef = doc(collection(db, "albuns"));
+        const artistDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
+        const artistName = artistDoc.exists() ? (artistDoc.data().nomeArtistico || artistDoc.data().nome) : "Artista";
+
+        const albumData = {
+            album: document.getElementById('albumName').value.trim(),
+            artist: artistName,
+            cover: coverUrl,
+            date: document.getElementById('releaseDate').value,
+            duration: document.getElementById('duration').value,
+            genre: document.getElementById("genre").value,
+            uidars: currentUser.uid,
+            status: "Em Revisão",
+            timestamp: serverTimestamp()
+        };
+
+        batch.set(albumRef, albumData);
+
+        // 3. Criar Músicas Vinculadas ao Álbum
+        trackInputs.forEach((input, index) => {
+            const musicRef = doc(collection(db, "musicas"));
+            batch.set(musicRef, {
+                album: albumRef.id, // ID gerado acima
+                artist: currentUser.uid,
+                artistName: artistName,
+                audioURL: input.dataset.videoid,
+                cover: coverUrl,
+                genre: albumData.genre,
+                title: input.value.trim(),
+                trackNumber: index + 1,
+                status: "Em Revisão",
+                streams: 0,
+                single: "false"
+            });
+        });
+
+        // Execução Atômica (Ou vai tudo, ou não vai nada)
+        await batch.commit();
+
+        window.showToast("Álbum e músicas enviados!", "success");
+        setTimeout(() => { if (typeof loadContent === 'function') loadContent('releases'); }, 2000);
+
+    } catch (err) {
+        console.error("Erro detalhado no Álbum:", err);
+        window.showToast("Erro: " + err.message, "error");
+        btn.disabled = false;
+        btn.innerHTML = 'ENVIAR ÁLBUM';
+    }
+};
+
 // 4. MODAIS (Verificando existência antes de acessar classList)
 window.showPhotoEditModal = () => {
     const modal = document.getElementById("photo-edit-modal");
@@ -562,100 +1133,494 @@ export async function listarGerenciamentoLancamentos() {
     }
 }
 
-window.abrirModalEdicao = async function(id, colecao, tituloAtual) {
-    const modal = document.getElementById('modal-editar-lancamento');
-    const inputTitle = document.getElementById('edit-item-title-input');
-    const inputDate = document.getElementById('edit-item-date-input');
-    const inputGenre = document.getElementById('edit-item-genre-input');
-    const btnSalvar = document.getElementById('btn-salvar-edicao');
+
+// Função renomeada para evitar conflitos de SyntaxError
+async function processStudioCover(file, maxWidth = 500, maxHeight = 500, quality = 0.8) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = (e) => img.src = e.target.result;
+        img.onerror = () => { console.error("Erro ao ler arquivo"); resolve(file); };
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            
+            // Lógica de Crop Center (Corte Quadrado Perfeito)
+            let width = img.width;
+            let height = img.height;
+            const size = Math.min(width, height);
+            
+            canvas.width = maxWidth;
+            canvas.height = maxHeight;
+
+            ctx.drawImage(
+                img, 
+                (width - size) / 2, (height - size) / 2, size, size, // Origem
+                0, 0, maxWidth, maxHeight // Destino
+            );
+            
+            canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+// Função de Salvamento no Modal de Edição
+
+const salvarMudancas = async () => {
+    const btnPc = document.getElementById('btn-salvar-edicao-pc');
+    const btnMob = document.getElementById('btn-salvar-edicao-mob');
+    const fileInput = document.getElementById('input-edit-cover');
     
-    // Abre o modal e limpa estados anteriores
-    modal.style.display = 'flex';
-    inputTitle.value = "Carregando...";
+    // Captura valores dos inputs
+    const newTitle = document.getElementById('edit-item-title-input').value.trim();
+    const newDate = document.getElementById('edit-item-date-input').value;
+    const newGenre = document.getElementById('edit-item-genre-input').value;
+    const newCanvas = document.getElementById('edit-item-canvas-url').value.trim();
+    const newLyrics = document.getElementById('edit-item-lyrics').value.trim();
+
+    // Feedback visual nos botões
+    const btns = [btnPc, btnMob].filter(b => b !== null);
+    btns.forEach(b => { b.disabled = true; b.innerText = "SINC..."; });
 
     try {
-        // 1. Busca as informações atuais diretamente do Firebase
+        // 1. GARANTIA ANTI-UNDEFINED: Começamos com o valor que já existe no banco
+        // 'dadosOriginais' deve ter sido preenchido na função 'abrirModalEdicao'
+        let finalCoverUrl = dadosOriginais.cover || dadosOriginais.capa || "";
+
+        // 2. Só processa imagem se o usuário escolheu um arquivo novo
+        if (fileInput?.files?.[0]) {
+            try {
+                // Usando a função processStudioCover que criamos
+                const blob = await processStudioCover(fileInput.files[0]);
+                
+                const formData = new FormData();
+                formData.append("file", blob);
+                formData.append("upload_preset", UPLOAD_PRESET); // Usa sua const do topo
+
+                // CORREÇÃO DA URL: Agora usando a sua variável CLOUD_NAME
+                const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+                    method: "POST", 
+                    body: formData
+                });
+
+                if (resp.ok) {
+                    const cloudData = await resp.json();
+                    finalCoverUrl = cloudData.secure_url;
+                } else {
+                    const errorMsg = await resp.text();
+                    console.error("Erro Cloudinary:", errorMsg);
+                }
+            } catch (imgErr) {
+                console.warn("Falha no upload, mantendo a capa original.", imgErr);
+            }
+        }
+
+        // 3. Monta o objeto para o Firebase (Seguro contra undefined)
+        const updates = {
+            genre: newGenre || "Pop",
+            canvasUrl: newCanvas || "",
+            lyrics: newLyrics || ""
+        };
+
+        // Lógica de campos por coleção (Música ou Álbum)
+        if (dadosOriginais.colecao === 'musicas') {
+            updates.title = newTitle || dadosOriginais.title;
+            updates.releaseDate = newDate || dadosOriginais.releaseDate || "";
+            updates.cover = finalCoverUrl; // Nunca será undefined
+        } else {
+            updates.album = newTitle || dadosOriginais.album;
+            updates.date = newDate || dadosOriginais.date || "";
+            updates.capa = finalCoverUrl; // Nunca será undefined
+        }
+
+        // 4. Envia para o Firestore
+        const docRef = doc(db, dadosOriginais.colecao, dadosOriginais.id);
+        await updateDoc(docRef, updates);
+
+        window.showToast("Lançamento atualizado!");
+        window.hideModalEdicao();
+        
+        if (typeof listarGerenciamentoLancamentos === 'function') {
+            listarGerenciamentoLancamentos();
+        }
+
+    } catch (err) {
+        console.error("Erro Crítico no Firebase:", err);
+        window.showToast("Erro ao salvar no banco.", "error");
+    } finally {
+        btns.forEach(b => { b.disabled = false; b.innerText = "SALVAR ALTERAÇÕES"; });
+    }
+};
+
+// 1. Funções Auxiliares Globais (Acessíveis pelo HTML)
+window.previewEditImage = (input) => {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imgPreview = document.getElementById('preview-edit-cover');
+            if (imgPreview) imgPreview.src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+window.switchEditTab = (tabName, btnElement) => {
+    const allPills = document.querySelectorAll('.nav-pill');
+    allPills.forEach(pill => pill.classList.remove('active'));
+    if (btnElement) btnElement.classList.add('active');
+
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+        pane.style.display = 'none';
+    });
+    
+    const targetPane = document.getElementById(`edit-tab-${tabName}`);
+    if (targetPane) {
+        targetPane.classList.add('active');
+        targetPane.style.display = 'block';
+    }
+};
+
+window.updateCanvasPreview = () => {
+    const inputElement = document.getElementById('edit-item-canvas-url');
+    const url = inputElement ? inputElement.value.trim() : "";
+    const iframe = document.getElementById('canvas-iframe');
+    const container = document.getElementById('canvas-preview-container');
+
+    if (!iframe || !container) return;
+
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        let videoId = "";
+        try {
+            if (url.includes('v=')) {
+                videoId = url.split('v=')[1].split('&')[0];
+            } else if (url.includes('shorts/')) {
+                videoId = url.split('shorts/')[1].split('?')[0];
+            } else {
+                videoId = url.split('/').pop().split('?')[0];
+            }
+
+            if (videoId) {
+                iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&controls=0&mute=1&modestbranding=1&rel=0`;
+                container.classList.remove('hidden');
+            }
+        } catch (e) {
+            console.warn("Erro ao processar URL do YouTube");
+        }
+    } else {
+        container.classList.add('hidden');
+        iframe.src = "";
+    }
+};
+
+window.hideModalEdicao = () => {
+    const modal = document.getElementById('modal-editar-lancamento');
+    if (modal) modal.style.display = 'none';
+    const iframe = document.getElementById('canvas-iframe');
+    if (iframe) iframe.src = ""; 
+};
+
+// Variável de controle global
+let dadosOriginais = {};
+
+// --- FUNÇÃO DE ABERTURA DE MODAL COMPLETA ---
+window.abrirModalEdicao = async function(id, colecao, tituloAtual) {
+    const modal = document.getElementById('modal-editar-lancamento');
+    const btnSalvar = document.getElementById('btn-salvar-edicao-pc');
+    const btnSalvarMob = document.getElementById('btn-salvar-edicao-mob');
+
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    // --- 1. LÓGICA DE BLOQUEIO DE NAVEGAÇÃO (PÍLULAS) ---
+    const pills = document.querySelectorAll('.nav-pill');
+    let pillLetras = null;
+
+    // Localiza a pílula de letras para manipulação
+    pills.forEach(pill => {
+        if (pill.innerText.toLowerCase().includes('letras')) {
+            pillLetras = pill;
+        }
+    });
+
+    const seletorModoExibicao = document.querySelector('.display-mode-selector');
+
+    if (colecao !== 'musicas') {
+        // Se for ÁLBUM: bloqueia Letras e Canvas
+        if (pillLetras) pillLetras.style.display = 'none';
+        if (seletorModoExibicao) seletorModoExibicao.style.display = 'none';
+        console.log("Modo Álbum: Abas de Letras e opção de Canvas ocultadas.");
+    } else {
+        // Se for MÚSICA: exibe tudo
+        if (pillLetras) pillLetras.style.display = 'flex';
+        if (seletorModoExibicao) seletorModoExibicao.style.display = 'block';
+    }
+
+    // Força a abertura na aba 'geral' ao iniciar para evitar bugs de visualização
+    const firstPill = document.querySelector('.nav-pill');
+    window.switchEditTab('geral', firstPill);
+
+    try {
         const docRef = doc(db, colecao, id);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-            const data = docSnap.data();
+            dadosOriginais = docSnap.data();
+            dadosOriginais.id = id;
+            dadosOriginais.colecao = colecao;
 
-            // 2. Preenche os campos com o que já existe no banco (Valores de Backup)
-            const valorOriginalTitulo = colecao === 'musicas' ? data.title : data.album;
-            const valorOriginalData = data.date || data.releaseDate || "";
-            const valorOriginalGenero = data.genre || "Sertanejo";
+            // --- 2. CAPTURA DE ELEMENTOS DO DOM ---
+            const areaCapa = document.getElementById('area-upload-cover');
+            const areaCanvas = document.getElementById('area-upload-canvas');
+            const inputCanvas = document.getElementById('edit-item-canvas-url');
+            const inputLyrics = document.getElementById('edit-item-lyrics');
+            const previewCover = document.getElementById('preview-edit-cover');
+            
+            // Preenchimento dinâmico
+            document.getElementById('edit-item-title-input').value = (colecao === 'musicas') ? (dadosOriginais.title || "") : (dadosOriginais.album || "");
+            document.getElementById('edit-item-date-input').value = dadosOriginais.date || dadosOriginais.releaseDate || "";
+            document.getElementById('edit-item-genre-input').value = dadosOriginais.genre || "Pop";
+            
+            // Reset de campos bloqueados para álbuns
+            inputCanvas.value = (colecao === 'musicas') ? (dadosOriginais.canvasUrl || "") : "";
+            inputLyrics.value = (colecao === 'musicas') ? (dadosOriginais.lyrics || "") : "";
+            if (previewCover) previewCover.src = dadosOriginais.cover || dadosOriginais.capa || "/assets/default-cover.png";
 
-            inputTitle.value = valorOriginalTitulo;
-            inputDate.value = valorOriginalData;
-            inputGenre.value = valorOriginalGenero;
+            // --- 3. LÓGICA DE ALTERNÂNCIA VISUAL (INTERNA) ---
+            const alternarModoVisual = (modo) => {
+                if (!areaCapa || !areaCanvas) return;
+                
+                // Se for álbum, o modo visual é estritamente 'cover'
+                const modoFinal = (colecao !== 'musicas') ? 'cover' : modo;
 
-            // 3. Configura a ação de salvar
-            btnSalvar.onclick = async () => {
-                btnSalvar.disabled = true;
-                btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> SALVANDO...';
+                if (modoFinal === 'canvas') {
+                    areaCapa.classList.add('hidden');
+                    areaCanvas.classList.remove('hidden');
+                } else {
+                    areaCapa.classList.remove('hidden');
+                    areaCanvas.classList.add('hidden');
+                }
+            };
+
+            // Define o estado inicial do rádio e da visualização
+            const modoSalvo = dadosOriginais.displayMode || 'cover';
+            const modoInicial = (colecao === 'musicas' && inputCanvas.value.trim() !== "") ? modoSalvo : 'cover';
+
+            const radioAlvo = document.querySelector(`input[name="displayMode"][value="${modoInicial}"]`);
+            if (radioAlvo) radioAlvo.checked = true;
+            alternarModoVisual(modoInicial);
+
+            // Vincula evento de mudança nos rádios
+            document.querySelectorAll('input[name="displayMode"]').forEach(radio => {
+                radio.onchange = (e) => {
+                    alternarModoVisual(e.target.value);
+                    if (e.target.value === 'canvas') window.updateCanvasPreview();
+                };
+            });
+
+            // --- 4. FUNÇÃO DE SALVAMENTO ---
+            const executarSalvar = async () => {
+                const selectedMode = (colecao !== 'musicas') ? 'cover' : document.querySelector('input[name="displayMode"]:checked').value;
+                const fileInput = document.getElementById('input-edit-cover');
+                const btns = [btnSalvar, btnSalvarMob].filter(b => b !== null);
+                
+                btns.forEach(b => { b.disabled = true; b.innerText = "SINC..."; });
 
                 try {
-                    // Prepara o objeto de atualização com os valores dos inputs (mesmo se não mudarem)
-                    const novosDados = {
-                        genre: inputGenre.value,
-                        [colecao === 'musicas' ? 'title' : 'album']: inputTitle.value.trim()
+                    let finalCoverUrl = dadosOriginais.cover || dadosOriginais.capa || "";
+
+                    // Lógica de Upload para Cloudinary
+                    if (fileInput?.files?.[0]) {
+                        const blob = await processStudioCover(fileInput.files[0]);
+                        const formData = new FormData();
+                        formData.append("file", blob);
+                        formData.append("upload_preset", UPLOAD_PRESET);
+
+                        const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+                            method: "POST", body: formData
+                        });
+
+                        if (resp.ok) {
+                            const cloudData = await resp.json();
+                            finalCoverUrl = cloudData.secure_url;
+                        }
+                    }
+
+                    const updates = {
+                        displayMode: selectedMode,
+                        genre: document.getElementById('edit-item-genre-input').value,
+                        canvasUrl: (colecao === 'musicas') ? inputCanvas.value.trim() : "",
+                        lyrics: (colecao === 'musicas') ? inputLyrics.value.trim() : ""
                     };
 
-                    // Mantém a consistência da data para a coleção correta
+                    // Diferenciação de campos por coleção
                     if (colecao === 'musicas') {
-                        novosDados.releaseDate = inputDate.value;
+                        updates.title = document.getElementById('edit-item-title-input').value.trim();
+                        updates.releaseDate = document.getElementById('edit-item-date-input').value;
+                        updates.cover = finalCoverUrl; 
                     } else {
-                        novosDados.date = inputDate.value;
+                        updates.album = document.getElementById('edit-item-title-input').value.trim();
+                        updates.date = document.getElementById('edit-item-date-input').value;
+                        updates.capa = finalCoverUrl;
                     }
 
-                    // Envia para o Firestore
-                    await updateDoc(docRef, novosDados);
-                    
-                    window.showToast("Lançamento atualizado com sucesso!");
-                    modal.style.display = 'none';
-                    
-                    // Atualiza a lista na tela para refletir os novos dados
-                    if (typeof listarGerenciamentoLancamentos === 'function') {
-                        listarGerenciamentoLancamentos();
-                    }
+                    await updateDoc(docRef, updates);
+                    window.showToast("Salvo com sucesso!");
+                    window.hideModalEdicao();
+                    if (typeof listarGerenciamentoLancamentos === 'function') listarGerenciamentoLancamentos();
 
                 } catch (err) {
                     console.error("Erro ao salvar edição:", err);
-                    window.showToast("Erro ao salvar.", "error");
+                    window.showToast("Erro ao salvar alterações.", "error");
                 } finally {
-                    btnSalvar.disabled = false;
-                    btnSalvar.innerHTML = "SALVAR ALTERAÇÕES";
+                    btns.forEach(b => { b.disabled = false; b.innerText = "SALVAR ALTERAÇÕES"; });
                 }
             };
+
+            // Atribui os eventos de clique aos botões de salvar
+            if (btnSalvar) btnSalvar.onclick = executarSalvar;
+            if (btnSalvarMob) btnSalvarMob.onclick = executarSalvar;
         }
-
-        
-
-    } catch (error) {
-        console.error("Erro ao carregar dados para edição:", error);
-        window.showToast("Erro ao carregar informações.", "error");
-        modal.style.display = 'none';
+    } catch (e) {
+        console.error("Erro ao carregar dados do Firebase:", e);
     }
 };
 
-window.handleImagePreview = function(input) {
-    const preview = document.getElementById('preview-img');
+// Define a função globalmente para que o modal consiga chamá-la
+window.showToast = (message, type = 'success') => {
+    // Cria o elemento do toast se não existir (exemplo simples)
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.innerText = message;
+    
+    // Estilo rápido para teste (você pode mover isso para o CSS)
+    Object.assign(toast.style, {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        backgroundColor: type === 'success' ? '#1db954' : '#ff4444',
+        color: 'white',
+        padding: '12px 24px',
+        borderRadius: '50px',
+        fontFamily: 'Nationale Bold, sans-serif',
+        zIndex: '10000',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+    });
+
+    document.body.appendChild(toast);
+
+    // Remove após 3 segundos
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+};
+
+// --- FUNÇÕES DE INTERAÇÃO DO MODAL ---
+
+// Troca as Abas Principais (Visual / Letras)
+window.switchEditTab = (tabName, btnElement) => {
+    // 1. Remove active de todas as pílulas da navegação
+    const allPills = document.querySelectorAll('.nav-pill');
+    allPills.forEach(pill => pill.classList.remove('active'));
+
+    // 2. Ativa a pílula clicada
+    if (btnElement) btnElement.classList.add('active');
+
+    // 3. Esconde todas as seções e mostra a correta
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+        pane.style.display = 'none';
+    });
+    
+    const targetPane = document.getElementById(`edit-tab-${tabName}`);
+    if (targetPane) {
+        targetPane.classList.add('active');
+        targetPane.style.display = 'block';
+    }
+};
+
+const areaCapa = document.getElementById('area-upload-cover');
+const areaCanvas = document.getElementById('area-upload-canvas');
+
+const alternarModoVisual = (modo) => {
+    if (modo === 'canvas') {
+        areaCapa.classList.add('hidden');    // Esconde total a Capa
+        areaCanvas.classList.remove('hidden'); // Mostra total o Canvas
+    } else {
+        areaCapa.classList.remove('hidden'); // Mostra total a Capa
+        areaCanvas.classList.add('hidden');    // Esconde total o Canvas
+    }
+};
+
+// Escuta a mudança nas pílulas
+document.querySelectorAll('input[name="displayMode"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        alternarModoVisual(e.target.value);
+    });
+});
+
+// Inicializa o estado baseado no que veio do banco
+const modoInicial = dadosOriginais.displayMode || 'cover';
+alternarModoVisual(modoInicial);
+
+// Preview da Imagem ao escolher arquivo
+window.previewEditImage = (input) => {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(e) {
-            if (preview) {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-                
-                // Esconde o texto/ícone "Adicionar Arte"
-                const uploadIcon = input.closest('.upload-zone').querySelector('div');
-                if (uploadIcon) uploadIcon.style.opacity = '0';
-            }
-        }
+        reader.onload = (e) => {
+            const imgPreview = document.getElementById('preview-edit-cover');
+            if (imgPreview) imgPreview.src = e.target.result;
+        };
         reader.readAsDataURL(input.files[0]);
     }
 };
+
+
+
+window.updateCanvasPreview = () => {
+    // 1. Pegamos o valor do input (id correto conforme seu HTML)
+    const inputElement = document.getElementById('edit-item-canvas-url');
+    const url = inputElement ? inputElement.value.trim() : "";
+    
+    const iframe = document.getElementById('canvas-iframe');
+    const container = document.getElementById('canvas-preview-container');
+
+    if (!iframe || !container) return;
+
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        let videoId = "";
+        
+        // Lógica para extrair ID de vídeos normais, Shorts ou links curtos
+        if (url.includes('v=')) {
+            videoId = url.split('v=')[1].split('&')[0];
+        } else if (url.includes('shorts/')) {
+            // CORREÇÃO: Usando a variável 'url' em vez de 'urlInput'
+            videoId = url.split('shorts/')[1].split('?')[0];
+        } else {
+            videoId = url.split('/').pop().split('?')[0];
+        }
+
+        if (videoId) {
+            // Monta o embed otimizado para Canvas (Mudo, Loop e sem controles)
+            iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&controls=0&mute=1&modestbranding=1&rel=0`;
+            container.classList.remove('hidden');
+            
+            if (window.showToast) window.showToast("Preview do Canvas carregado!");
+        }
+    } else {
+        // Se o campo for limpo ou o link for inválido
+        container.classList.add('hidden');
+        iframe.src = "";
+    }
+};
+
+window.hideModalEdicao = () => {
+    const modal = document.getElementById('modal-editar-lancamento');
+    modal.classList.add('hidden');
+    document.getElementById('canvas-iframe').src = ""; // Para o vídeo
+};
+
 
 // Aproveite e adicione também a função de alternar campos do formulário
 window.toggleFormBehavior = function(type) {
@@ -674,47 +1639,86 @@ window.toggleDateInfo = function(status) {
     }
 };
 
-function renderizarCards(snapshot, colecao, container, loader) {
-    if (loader) loader.classList.add('hidden');
-    
-    snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        const id = docSnap.id;
-        if (document.getElementById(`item-${id}`)) return;
+// Função para formatar números (ex: 100k, 1.2m)
+function formatNumber(num) {
+    if (!num) return "0";
+    const n = Number(num);
+    if (n >= 1000000000) return (n / 1000000000).toFixed(1).replace(/\.0$/, '') + 'b';
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return n.toString();
+}
 
-        const titulo = data.title || data.album || "Sem título";
-        const status = data.status || 'Público';
-        const isArquivado = status.toLowerCase() === 'arquivado' || status.toLowerCase() === 'em revisão';
+async function renderizarCards(snapshot, tipoOriginal, container, loadingMsg) {
+    if (loadingMsg) loadingMsg.classList.add('hidden');
 
-        const li = document.createElement('li');
-        li.id = `item-${id}`;
-        li.className = "bg-white border border-gray-200 p-4 rounded-xl flex items-center justify-between mb-3 shadow-sm";
-        // Dentro da função renderizarCards no seu tunearts.js
-li.innerHTML = `
-    <div class="flex items-center space-x-4">
-        <img src="${data.cover}" class="w-12 h-12 rounded-lg object-cover">
-        <div>
-            <h3 class="font-bold text-black">${titulo}</h3>
-            <p class="text-xs text-gray-500 uppercase">${colecao === 'musicas' ? 'Single' : 'Álbum'}</p>
+    for (const change of snapshot.docChanges()) {
+        const data = change.doc.data();
+        const id = change.doc.id;
+        // Usa o título da música ou o nome do álbum como título do card
+        const tituloValue = data.title || data.titulo || data.album || "Sem título";
 
-        </div>
-    </div>
+        if (change.type === "added") {
+            const li = document.createElement('li');
+            li.id = `item-${id}`;
+            li.className = "flex items-center justify-between p-4 bg-white rounded-lg border border-gray-100 hover:shadow-md transition-shadow";
+            
+            let exibicaoStreams = "0 streams";
 
-    <div class="flex space-x-2">
-        ${isArquivado ? `<button onclick="window.publicarItem('${id}', '${colecao}')" class="p-2 text-green-600 hover:bg-green-50 rounded-full"><i class="fas fa-check"></i></button>` : ''}
-        
+            if (tipoOriginal === 'albuns') {
+                try {
+                    const musicasRef = collection(db, "musicas");
+                    // Busca músicas onde o campo 'album' é o ID deste álbum
+                    const q = query(musicasRef, where("album", "==", id));
+                    const querySnapshot = await getDocs(q);
+                    
+                    let totalAlbumStreams = 0;
+                    querySnapshot.forEach((docMusica) => {
+                        totalAlbumStreams += (docMusica.data().streams || 0);
+                    });
+                    
+                    exibicaoStreams = `${formatNumber(totalAlbumStreams)} streams (Total)`;
+                } catch (err) {
+                    console.error("Erro ao calcular streams do álbum:", err);
+                }
+            } else {
+                const streamsSimples = data.streams || 0;
+                exibicaoStreams = `${formatNumber(streamsSimples)} streams`;
+            }
 
-<button onclick="window.abrirModalEdicao('${id}', '${colecao}', '${titulo.replace(/'/g, "\\'")}')" 
-                class="p-2 hover:bg-blue-50 rounded-full transition-colors" 
-                title="Editar">
-            <span class="material-symbols-outlined">
-                edit_square
-            </span>
-        </button>
-    </div>
-`;
-        container.appendChild(li);
-    });
+            li.innerHTML = `
+                <div class="flex items-center gap-4">
+                    <img src="${data.cover || data.capa || 'assets/default.png'}" class="w-12 h-12 rounded object-cover">
+                    <div style="flex: 1;">
+                        <h4 class="font-bold text-gray-900">${tituloValue}</h4>
+                        <p class="text-sm text-gray-500">
+                            ${exibicaoStreams}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window.abrirModalEdicao('${id}', '${tipoOriginal}', '${tituloValue.replace(/'/g, "\\'")}')" 
+                            class="p-2 hover:bg-blue-50 rounded-full transition-colors" 
+                            title="Editar">
+                        <span class="material-symbols-outlined">edit_square</span>
+                    </button>
+                </div>
+            `;
+            container.appendChild(li);
+        }
+
+        if (change.type === "modified") {
+            const item = document.getElementById(`item-${id}`);
+            if (item && tipoOriginal !== 'albuns') {
+                const p = item.querySelector('p');
+                if (p) p.innerText = `${formatNumber(data.streams || 0)} streams`;
+            }
+        }
+
+        if (change.type === "removed") {
+            document.getElementById(`item-${id}`)?.remove();
+        }
+    }
 }
 
 // No seu tunearts.js
@@ -875,6 +1879,7 @@ if (!document.getElementById('toast-style')) {
     document.head.appendChild(style);
 }
 
+
 // Função para comprimir a imagem antes do upload
 async function compressImage(file, maxWidth = 500, maxHeight = 500) {
     return new Promise((resolve) => {
@@ -905,375 +1910,7 @@ async function compressImage(file, maxWidth = 500, maxHeight = 500) {
     });
 }
 
-// Delegação de Eventos: Ouve cliques em todo o documento
-document.addEventListener('click', async (e) => {
-    // Verifica se o elemento clicado é o botão de confirmar playlist
-    if (e.target && e.target.id === 'btnPreviewTracks') {
-        const urlInput = document.getElementById("ytPlaylistUrl");
-        const grid = document.getElementById("trackCardsGrid");
-        const status = document.getElementById("trackStatus");
-        const container = document.getElementById("previewContainer");
-        const YT_API_KEY = 'AIzaSyCTy9IM54bO4CQudHJgnO_YNUSBtPrMzlU';
 
-        const url = urlInput.value.trim();
-        const playlistId = url.match(/[&?]list=([^&]+)/i)?.[1];
-
-        if (!playlistId) {
-            alert("Por favor, cole um link de playlist válido.");
-            return;
-        }
-
-        try {
-            status.innerHTML = "⏳ Buscando músicas...";
-            
-            // Certifique-se que YT_API_KEY esteja disponível globalmente
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}`);
-            const data = await response.json();
-
-            if (data.error) throw new Error(data.error.message);
-
-            grid.innerHTML = "";
-            container.style.display = "block";
-
-            data.items.forEach((item, index) => {
-                const videoTitle = item.snippet.title;
-                const videoId = item.snippet.resourceId.videoId;
-
-                const card = document.createElement("div");
-                card.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #f4f4f4; border: 1px solid #ddd; border-radius: 10px; padding: 10px 15px; margin-bottom: 8px;";
-
-                card.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                        <span style="font-weight: bold; color: #888; font-size: 12px;">${index + 1}</span>
-                        <input type="text" class="track-title-input" 
-                               data-videoid="${videoId}" 
-                               value="${videoTitle}" 
-                               readonly
-                               style="background: transparent; border: none; color: #000; width: 100%; outline: none; font-size: 13px; font-family: inherit;">
-                    </div>
-                    <button type="button" class="btn-edit-track" style="background: none; border: none; cursor: pointer; color: #000; padding: 5px;">
-                        <i class="fas fa-pencil-alt"></i>
-                    </button>
-                `;
-                grid.appendChild(card);
-            });
-
-            status.innerHTML = `<span style="color: green; font-weight: bold;">✅ ${data.items.length} músicas prontas!</span>`;
-
-        } catch (err) {
-            console.error("Erro na importação:", err);
-            status.innerHTML = `<span style="color: red;">❌ Erro: ${err.message}</span>`;
-        }
-    }
-
-    // Lógica para o botão de Editar (Lápis) usando a mesma técnica
-    if (e.target && (e.target.classList.contains('btn-edit-track') || e.target.closest('.btn-edit-track'))) {
-        const btn = e.target.classList.contains('btn-edit-track') ? e.target : e.target.closest('.btn-edit-track');
-        const input = btn.parentElement.querySelector('.track-title-input');
-        const icon = btn.querySelector('i');
-        
-        if (input.readOnly) {
-            input.readOnly = false;
-            input.focus();
-            input.style.background = "#fff";
-            input.style.border = "1px solid #ccc";
-            icon.classList.replace('fa-pencil-alt', 'fa-check');
-            icon.style.color = "green";
-        } else {
-            input.readOnly = true;
-            input.style.background = "transparent";
-            input.style.border = "none";
-            icon.classList.replace('fa-check', 'fa-pencil-alt');
-            icon.style.color = "#000";
-        }
-    }
-});
-
-// ============================================
-// 1. SUBMISSÃO DE MÚSICA (SINGLE)
-// ============================================
-window.handleReleaseSubmission = async (e) => {
-    e.preventDefault();
-    
-    const btn = document.getElementById('btnSubmit');
-    if (!currentUser) {
-        window.showToast("Erro: Usuário não autenticado.", "error");
-        return;
-    }
-
-    // Captura de Inputs
-    const title = document.getElementById('relTitle').value.trim();
-    const youtubeUrl = document.getElementById('relAudioLink').value.trim();
-    const coverFileInput = document.getElementById('relCover');
-    const status = document.getElementById('relStatus').value;
-    const duration = document.getElementById('relDuration').value.trim();
-    const isExplicit = document.getElementById('relExplicit').checked;
-    const genre = document.getElementById('relGenre').value;
-    const releaseDateTime = document.getElementById('relReleaseDate').value;
-
-    // --- BLOCO DE VALIDAÇÕES RÍGIDAS ---
-    if (!duration.includes(':')) {
-        window.showToast("Informe a duração no formato mm:ss", "error");
-        return;
-    }
-
-    if (status === 'agendado' && !releaseDateTime) {
-        window.showToast("Escolha uma data e horário para o agendamento!", "error");
-        return;
-    }
-
-    if (title.length < 2) {
-        window.showToast("Insira o título da música!", "error");
-        return;
-    }
-
-    if (!coverFileInput.files || coverFileInput.files.length === 0) {
-        window.showToast("Selecione uma imagem de capa!", "error");
-        return;
-    }
-
-    const isValidYt = youtubeUrl.includes("youtube.com") || youtubeUrl.includes("youtu.be");
-    if (!isValidYt) {
-        window.showToast("Link inválido! Insira um link do YouTube.", "error");
-        return;
-    }
-
-    // Início do Processamento
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
-
-    try {
-        // A. Busca Nome Artístico
-        let nomeDoArtista = "Artista";
-        const userDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
-        if (userDoc.exists()) {
-            nomeDoArtista = userDoc.data().nomeArtistico || userDoc.data().nome || "Artista";
-        }
-
-        // B. Compressão e Upload da Capa
-        const originalFile = coverFileInput.files[0];
-        const compressedBlob = await compressImage(originalFile, 500, 500);
-
-        const formData = new FormData();
-        formData.append("file", compressedBlob);
-        formData.append("upload_preset", UPLOAD_PRESET);
-        formData.append("folder", `tune/posts/releases/${currentUser.uid}`);
-
-        const uploadResponse = await fetch(
-            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-            { method: "POST", body: formData }
-        );
-
-        const uploadData = await uploadResponse.json();
-        if (!uploadData.secure_url) throw new Error("Erro ao enviar capa.");
-
-        const coverUrl = uploadData.secure_url;
-
-        // C. Salvamento no Firestore
-        await addDoc(collection(db, "musicas"), {
-            title: title,
-            artist: currentUser.uid,
-            artistName: nomeDoArtista,
-            audioURL: youtubeUrl,
-            duration: duration,
-            explicit: isExplicit,
-            genre: genre,
-            cover: coverUrl,
-            album: "Single", 
-            streams: 0,
-            single: "true",
-            status: status,
-            scheduledTime: (status === 'publico') ? "Imediato" : releaseDateTime,
-            timestamp: serverTimestamp()
-        });
-
-        window.showToast("Música publicada com sucesso!", "success");
-        setTimeout(() => { if (typeof loadContent === 'function') loadContent('releases'); }, 1500);
-
-    } catch (err) {
-        console.error("Erro na submissão:", err);
-        window.showToast("Erro: " + err.message, "error");
-        btn.disabled = false;
-        btn.innerHTML = 'PUBLICAR MÚSICA';
-    }
-};
-
-// ============================================
-// 2. SUBMISSÃO DE ÁLBUM (BATCH)
-// ============================================
-window.handleAlbumSubmission = async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('btnSubmitAlbum');
-    
-    if (!currentUser) return window.showToast("Usuário não logado", "error");
-
-    const trackInputs = document.querySelectorAll('.track-title-input');
-    if (trackInputs.length === 0) return window.showToast("Importe as músicas do YouTube antes!", "error");
-
-    // Bloqueio de UI
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO ÁLBUM...';
-
-    try {
-        const batch = writeBatch(db); // Inicializa a transação em lote
-
-        // 1. Upload da Capa do Álbum
-        const coverFileInput = document.getElementById('relCoverAlbum');
-        if (!coverFileInput.files[0]) throw new Error("Selecione a capa do álbum.");
-
-        const originalFile = coverFileInput.files[0];
-        const compressedBlob = await compressImage(originalFile, 600, 600); 
-        
-        const formData = new FormData();
-        formData.append("file", compressedBlob);
-        formData.append("upload_preset", UPLOAD_PRESET);
-        formData.append("folder", `tune/posts/albums/${currentUser.uid}`);
-        
-        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-            method: "POST", body: formData
-        });
-        const uploadData = await uploadRes.json();
-        if (!uploadData.secure_url) throw new Error("Erro no upload da capa.");
-        
-        const coverUrl = uploadData.secure_url;
-
-        // 2. Criar Referência e Dados do Álbum
-        const albumRef = doc(collection(db, "albuns"));
-        const artistDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
-        const artistName = artistDoc.exists() ? (artistDoc.data().nomeArtistico || artistDoc.data().nome) : "Artista";
-
-        const albumData = {
-            album: document.getElementById('albumName').value.trim(),
-            artist: artistName,
-            cover: coverUrl,
-            date: document.getElementById('releaseDate').value,
-            duration: document.getElementById('duration').value,
-            genre: document.getElementById("genre").value,
-            uidars: currentUser.uid,
-            status: "Em Revisão",
-            timestamp: serverTimestamp()
-        };
-
-        batch.set(albumRef, albumData);
-
-        // 3. Criar Músicas Vinculadas ao Álbum
-        trackInputs.forEach((input, index) => {
-            const musicRef = doc(collection(db, "musicas"));
-            batch.set(musicRef, {
-                album: albumRef.id, // ID gerado acima
-                artist: currentUser.uid,
-                artistName: artistName,
-                audioURL: input.dataset.videoid,
-                cover: coverUrl,
-                genre: albumData.genre,
-                title: input.value.trim(),
-                trackNumber: index + 1,
-                status: "Em Revisão",
-                streams: 0,
-                single: "false"
-            });
-        });
-
-        // Execução Atômica (Ou vai tudo, ou não vai nada)
-        await batch.commit();
-
-        window.showToast("Álbum e músicas enviados!", "success");
-        setTimeout(() => { if (typeof loadContent === 'function') loadContent('releases'); }, 2000);
-
-    } catch (err) {
-        console.error("Erro detalhado no Álbum:", err);
-        window.showToast("Erro: " + err.message, "error");
-        btn.disabled = false;
-        btn.innerHTML = 'ENVIAR ÁLBUM';
-    }
-};
-
-window.handleAlbumSubmission = async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('btnSubmitAlbum');
-    
-    if (!currentUser) return window.showToast("Usuário não logado", "error");
-
-    const trackInputs = document.querySelectorAll('.track-title-input');
-    if (trackInputs.length === 0) return window.showToast("Importe as músicas do YouTube antes!", "error");
-
-    // Bloqueio de UI
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO ÁLBUM...';
-
-    try {
-        const batch = writeBatch(db); // Inicializa a transação em lote
-
-        // 1. Upload da Capa do Álbum
-        const coverFileInput = document.getElementById('relCoverAlbum');
-        if (!coverFileInput.files[0]) throw new Error("Selecione a capa do álbum.");
-
-        const originalFile = coverFileInput.files[0];
-        const compressedBlob = await compressImage(originalFile, 600, 600); 
-        
-        const formData = new FormData();
-        formData.append("file", compressedBlob);
-        formData.append("upload_preset", UPLOAD_PRESET);
-        formData.append("folder", `tune/posts/albums/${currentUser.uid}`);
-        
-        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-            method: "POST", body: formData
-        });
-        const uploadData = await uploadRes.json();
-        if (!uploadData.secure_url) throw new Error("Erro no upload da capa.");
-        
-        const coverUrl = uploadData.secure_url;
-
-        // 2. Criar Referência e Dados do Álbum
-        const albumRef = doc(collection(db, "albuns"));
-        const artistDoc = await getDoc(doc(db, "usuarios", currentUser.uid));
-        const artistName = artistDoc.exists() ? (artistDoc.data().nomeArtistico || artistDoc.data().nome) : "Artista";
-
-        const albumData = {
-            album: document.getElementById('albumName').value.trim(),
-            artist: artistName,
-            cover: coverUrl,
-            date: document.getElementById('releaseDate').value,
-            duration: document.getElementById('duration').value,
-            genre: document.getElementById("genre").value,
-            uidars: currentUser.uid,
-            status: "Em Revisão",
-            timestamp: serverTimestamp()
-        };
-
-        batch.set(albumRef, albumData);
-
-        // 3. Criar Músicas Vinculadas ao Álbum
-        trackInputs.forEach((input, index) => {
-            const musicRef = doc(collection(db, "musicas"));
-            batch.set(musicRef, {
-                album: albumRef.id, // ID gerado acima
-                artist: currentUser.uid,
-                artistName: artistName,
-                audioURL: input.dataset.videoid,
-                cover: coverUrl,
-                genre: albumData.genre,
-                title: input.value.trim(),
-                trackNumber: index + 1,
-                status: "Em Revisão",
-                streams: 0,
-                single: "false"
-            });
-        });
-
-        // Execução Atômica (Ou vai tudo, ou não vai nada)
-        await batch.commit();
-
-        window.showToast("Álbum e músicas enviados!", "success");
-        setTimeout(() => { if (typeof loadContent === 'function') loadContent('releases'); }, 2000);
-
-    } catch (err) {
-        console.error("Erro detalhado no Álbum:", err);
-        window.showToast("Erro: " + err.message, "error");
-        btn.disabled = false;
-        btn.innerHTML = 'ENVIAR ÁLBUM';
-    }
-};
 
 async function verificarERenderizarBotaoThisIs() {
     if (!currentUser) return;
@@ -1431,59 +2068,108 @@ async function setupDashboardPage() {
     if (!uid) return;
 
     try {
-        // 1. DADOS DO ARTISTA E DESTAQUE (ARTIST PICK)
+        // 1. DADOS DO ARTISTA E DESTAQUE
         const artistDoc = await getDoc(doc(db, "usuarios", uid));
         const artistData = artistDoc.exists() ? artistDoc.data() : {};
         const artistName = artistData.nomeArtistico || artistData.nome || "Artista";
         
-        // Carrega o Destaque se existir (Usando sua lógica de pílula)
         if (artistData.pinnedItem) {
             atualizarPreviewSorteio(artistData.pinnedItem, artistData.foto, artistName);
         }
 
-        // 2. BUSCAR ÚLTIMO LANÇAMENTO PARA O CARD VERMELHO
-        const qLatest = query(collection(db, "musicas"), where("artist", "==", uid), orderBy("timestamp", "desc"), limit(1));
+        // 2. BUSCAR ÚLTIMO LANÇAMENTO
+        const qLatest = query(collection(db, "musicas"), 
+            where("artist", "==", uid), 
+            orderBy("timestamp", "desc"), 
+            limit(1)
+        );
         const snapLatest = await getDocs(qLatest);
         
         if (!snapLatest.empty) {
             const latest = snapLatest.docs[0].data();
-            document.getElementById('latest-title').textContent = latest.title;
-            document.getElementById('latest-cover').src = latest.cover || latest.capa;
+            const focusCard = document.querySelector('.sfa-focus-card');
+            const coverImg = document.getElementById('latest-cover');
 
+            // Atualiza textos
+            document.getElementById('latest-title').textContent = latest.title;
             const totalStreamsMusica = latest.streams || 0;
             document.getElementById('latest-total-streams').textContent = totalStreamsMusica.toLocaleString('pt-BR');
 
-            // --- MÉTRICAS 7 DIAS ---
-            const seteDias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-            const q7d = query(collection(db, "logs_atividades"), where("itemTitle", "==", latest.title), where("timestamp", ">=", seteDias));
-            const snap7d = await getDocs(q7d);
-            document.getElementById('stat-streams-7d').textContent = snap7d.size.toLocaleString('pt-BR');
+            // --- LÓGICA DE COR DINÂMICA (LADO ESQUERDO) ---
+            const imageUrl = latest.cover || latest.capa;
             
-          
+            // 1. Atualizamos a imagem visual imediatamente
+            coverImg.src = imageUrl;
+
+            // 2. Criamos uma imagem auxiliar para extrair a cor (Evita erro de Canvas Sujo)
+            const colorImg = new Image();
+            colorImg.crossOrigin = "Anonymous"; // Crucial para permitir leitura de pixels
+            
+            // Adicionamos um timestamp para forçar o navegador a pedir permissão de CORS de novo
+            colorImg.src = imageUrl + (imageUrl.includes('?') ? '&' : '?') + "t=" + new Date().getTime();
+
+            colorImg.onload = function() {
+                const extrairCor = () => {
+                    if (typeof ColorThief !== 'undefined') {
+                        try {
+                            const colorThief = new ColorThief();
+                            
+                            // Criamos um canvas interno para recortar o lado esquerdo
+                            const tempCanvas = document.createElement('canvas');
+                            const ctx = tempCanvas.getContext('2d');
+                            
+                            // Recorte: 20% da largura na extrema esquerda
+                            const sw = colorImg.naturalWidth * 0.2;
+                            const sh = colorImg.naturalHeight;
+                            tempCanvas.width = sw;
+                            tempCanvas.height = sh;
+
+                            ctx.drawImage(colorImg, 0, 0, sw, sh, 0, 0, sw, sh);
+
+                            // Pega a cor predominante desse recorte lateral
+                            const color = colorThief.getColor(tempCanvas);
+
+                            if (focusCard && color) {
+                                const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                                focusCard.style.backgroundColor = rgb;
+                                console.log("Cor lateral aplicada:", rgb);
+                            }
+                        } catch (err) {
+                            console.warn("Erro ao extrair cor (CORS provável):", err);
+                            // Fallback: Se o recorte falhar, tenta a cor total da imagem
+                            try {
+                                const color = new ColorThief().getColor(colorImg);
+                                focusCard.style.backgroundColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                            } catch(e) {
+                                focusCard.style.backgroundColor = "#1a1a1a";
+                            }
+                        }
+                    } else {
+                        // Se a lib ainda não carregou, espera 150ms
+                        setTimeout(extrairCor, 150);
+                    }
+                };
+                extrairCor();
+            };
+
             // --- OUVINDO AGORA ---
             const agoraLimit = new Date(Date.now() - 3 * 60000);
-            const qLive = query(collection(db, "logs_atividades"), where("itemTitle", "==", latest.title), where("timestamp", ">=", agoraLimit));
+            const qLive = query(collection(db, "stream_logs"), 
+                where("itemTitle", "==", latest.title), 
+                where("timestamp", ">=", agoraLimit)
+            );
             const liveSnap = await getDocs(qLive);
             document.getElementById('live-count').textContent = liveSnap.size;
         }
 
-        // 3. SOMA TOTAL DE STREAMS DO ARTISTA (SUA FUNÇÃO ORIGINAL)
-        const qTodasMusicas = query(collection(db, "musicas"), where("artist", "==", uid));
-        const musSnap = await getDocs(qTodasMusicas);
-        let somaTotalArtista = 0;
-        musSnap.forEach(doc => {
-            somaTotalArtista += (doc.data().streams || 0);
-        });
-        document.getElementById('stat-total-artist-streams').textContent = somaTotalArtista.toLocaleString('pt-BR');
-
-        // 4. CHAMAR RESTANTE DO SETUP
-        loadTopTracks(uid); 
+        loadTopTracks(uid);
         verificarERenderizarBotaoThisIs();
 
     } catch (e) {
         console.error("Erro na Dashboard:", e);
     }
 }
+
 
 async function loadTopTracks(uid) {
     const list = document.getElementById('top-tracks-list');
