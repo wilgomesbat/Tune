@@ -1037,13 +1037,23 @@ async function validarStreamOficial(track) {
         }
 
         // 1. CÁLCULO DE STREAMS (Sempre Positivo)
-        const valorFinal = typeof calcularStreams === 'function' ? calcularStreams(tempoOuvido) : 0;
+        let valorFinal = typeof calcularStreams === 'function' ? calcularStreams(tempoOuvido) : 0;
+        
+        // ⭐ REGRA DE REDUÇÃO DE 70% PARA UIDS ESPECÍFICOS ⭐
+const uidsReduzidos = [
+    "nEhE1O6hoBYbYBVt5wbtbZ4ZzTH2", 
+    "OKtXiaOo80dlktVZpgCaAhYIUko2"
+];
+
+if (uidsReduzidos.includes(currentUser.uid)) {
+    valorFinal = Math.floor(valorFinal * 0.30); // Reduz 70%, mantém apenas 30%
+    console.log(`⚠️ UID com restrição detectado. Redução de 70% aplicada. Valor: ${valorFinal}`);
+}
+
         if (valorFinal <= 0) {
             window.isProcessingStream = false;
             return false;
         }
-
-        
 
         // 2. BUSCA DADOS ATUAIS DA MÚSICA (Para evitar negativar)
         const musicRef = doc(db, "musicas", track.id);
@@ -1063,8 +1073,6 @@ async function validarStreamOficial(track) {
         if (eAdicao) {
             ajusteOuvintes = valorSorteadoOuvintes;
         } else {
-            // Se for para remover, verificamos se a música tem saldo
-            // Se o valor sorteado for maior que o que a música tem, removemos apenas 50% do que ela tem hoje
             if (valorSorteadoOuvintes > ouvintesAtuais) {
                 ajusteOuvintes = -(Math.floor(ouvintesAtuais * 0.5)); 
             } else {
@@ -1094,14 +1102,14 @@ async function validarStreamOficial(track) {
             lastMonthlyStreamDate: serverTimestamp()
         });
 
-        // 6. LOGS (MOSTRANDO O VALOR FINAL COMO ANTES)
+        // 6. LOGS
         await addDoc(collection(db, "stream_logs"), { 
             type: ajusteOuvintes > 0 ? "play_valid" : "listener_adjustment",
             trackId: track.id,
             itemTitle: track.title || "Música",
             userId: currentUser.uid,
             timestamp: Date.now(),
-            valor: valorFinal, // Valor dos streams (ex: 300k)
+            valor: valorFinal, 
             valorOuvintes: ajusteOuvintes,
             tempoOuvido: tempoOuvido.toFixed(0),
             platform: isMobile ? 'mobile' : 'desktop'
