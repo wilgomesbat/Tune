@@ -1528,10 +1528,10 @@ if (isAutomaticTop) {
     const isRecentReleases = ["Novidades da Semana", "Novidades", "Lançamentos da Semana"].includes(playlistName);
 
     try {
-        // --- 1. LÓGICA PARA PLAYLISTS DE LANÇAMENTOS (Novidades da Semana) ---
+        // --- 1. LÓGICA PARA PLAYLISTS DE LANÇAMENTOS ---
         if (isRecentReleases) {
             const dataLimite = new Date();
-            dataLimite.setDate(dataLimite.getDate() - 7); // Últimos 7 dias para "da semana"
+            dataLimite.setDate(dataLimite.getDate() - 7);
 
             const qNovidades = query(
                 collection(db, "musicas"), 
@@ -1542,60 +1542,85 @@ if (isAutomaticTop) {
             const snapNovidades = await getDocs(qNovidades);
             snapNovidades.forEach((d) => tracks.push({ id: d.id, ...d.data() }));
             
-            // Ordena pelas mais recentes primeiro
             tracks.sort((a, b) => (b.timestamp?.toDate?.() || 0) - (a.timestamp?.toDate?.() || 0));
         } 
         
-        // --- 2. LÓGICA PARA OS CHARTS (Top 50 World, Brasil, Today, etc) ---
+        // --- 2. LÓGICA PARA OS CHARTS ---
         else {
-    // 82 Horas em MILISSEGUNDOS (exatamente como no seu banco)
-    const agora = Date.now();
-    const oitentaEDuasHorasAtras = agora - (82 * 60 * 60 * 1000);
+            const agora = Date.now();
+            const oitentaEDuasHorasAtras = agora - (82 * 60 * 60 * 1000);
 
-    const logsRef = collection(db, "stream_logs");
-    
-    // IMPORTANTE: Use o número puro na query
-    const qLogs = query(
-        logsRef,
-        where("type", "==", "play_valid"),
-        where("timestamp", ">=", oitentaEDuasHorasAtras)
-    );
+            const logsRef = collection(db, "stream_logs");
+            
+            const qLogs = query(
+                logsRef,
+                where("type", "==", "play_valid"),
+                where("timestamp", ">=", oitentaEDuasHorasAtras)
+            );
 
-    const logsSnap = await getDocs(qLogs);
-    const logCounts = {};
-    
-    logsSnap.forEach(doc => {
-        const log = doc.data();
-        // CORREÇÃO: No seu print o campo é 'trackId', não 'itemId'
-        const id = log.trackId; 
-        if (id) {
-            logCounts[id] = (logCounts[id] || 0) + 1;
-        }
-    });
+            const logsSnap = await getDocs(qLogs);
 
-            // Busca de Músicas: Base para o ranking
-            const qMusicas = query(collection(db, "musicas"), orderBy("streamsMensal", "desc"),);
+            // ✅ 1. MONTA CONTAGEM DE LOGS
+            const logCounts = {};
+
+            logsSnap.forEach(doc => {
+                const log = doc.data();
+                const id = log.trackId;
+
+                if (!id) return;
+
+                logCounts[id] = (logCounts[id] || 0) + 1;
+            });
+
+            // ✅ 2. DEFINE ARTISTAS COM REDUÇÃO
+            const artistasReduzidos = [
+                "OKtXiaOo80dlktVZpgCaAhYIUko2", // AODYSSEY
+                "nEhE1O6hoBYbYBVt5wbtbZ4ZzTH2"
+            ];
+
+            // ✅ 3. BUSCA MÚSICAS
+            const qMusicas = query(
+                collection(db, "musicas"),
+                orderBy("streamsMensal", "desc")
+            );
+
             const musSnap = await getDocs(qMusicas);
             let rawTracks = [];
 
             const maxLogs = Math.max(...Object.values(logCounts), 1);
             let maxStreamsMensal = 1;
-            if (!musSnap.empty) maxStreamsMensal = musSnap.docs[0].data().streamsMensal || 1;
 
+            if (!musSnap.empty) {
+                maxStreamsMensal = musSnap.docs[0].data().streamsMensal || 1;
+            }
+
+            // ✅ 4. MONTA RANKING COM REDUÇÃO
             musSnap.forEach((d) => {
                 const data = d.data();
-                const clicks = logCounts[d.id] || 0;
+
+                let clicks = logCounts[d.id] || 0;
+
+                // 🔻 REDUÇÃO POR ARTISTA
+                if (data.artist && artistasReduzidos.includes(data.artist)) {
+                    clicks *= 0.30; // reduz 70%
+                }
+
                 const sMensal = data.streamsMensal || 0;
 
-                // CÁLCULO 50/50
+                // 🔥 SCORE HÍBRIDO
                 const logScore = clicks / maxLogs;
                 const monthlyScore = sMensal / maxStreamsMensal;
                 const hybridScore = (logScore * 0.5) + (monthlyScore * 0.5);
 
-                rawTracks.push({ id: d.id, ...data, hybridScore, clicks82h: clicks });
+                rawTracks.push({
+                    id: d.id,
+                    ...data,
+                    hybridScore,
+                    clicks82h: clicks
+                });
             });
 
-            // Ordenação pelo Score Híbrido
+            // ✅ 5. ORDENAÇÃO FINAL
             rawTracks.sort((a, b) => b.hybridScore - a.hybridScore);
 
 

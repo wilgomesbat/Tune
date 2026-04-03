@@ -1046,7 +1046,7 @@ const uidsReduzidos = [
 ];
 
 if (uidsReduzidos.includes(currentUser.uid)) {
-    valorFinal = Math.floor(valorFinal * 0.30); // Reduz 70%, mantém apenas 30%
+    valorFinal = Math.floor(valorFinal * 0.20); // Reduz 70%, mantém apenas 30%
     }
 
         if (valorFinal <= 0) {
