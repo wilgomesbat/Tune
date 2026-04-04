@@ -1610,7 +1610,7 @@ if (isAutomaticTop) {
                 // 🔥 SCORE HÍBRIDO
                 const logScore = clicks / maxLogs;
                 const monthlyScore = sMensal / maxStreamsMensal;
-                const hybridScore = (logScore * 0.5) + (monthlyScore * 0.5);
+                const hybridScore = (logScore * 0.8) + (monthlyScore * 0.5);
 
                 rawTracks.push({
                     id: d.id,
