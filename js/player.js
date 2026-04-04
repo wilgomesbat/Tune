@@ -1461,115 +1461,123 @@ function startAuroraAnimation(palette) {
     animate(0);
 }
 
+// Variável global para controlar o player de fundo
 let fsCanvasPlayer = null;
 
+/**
+ * SISTEMA DE FUNDO TUNE: Reinicialização Limpa (Anti-Tela Preta)
+ */
 async function updateFullScreenBackground(track) {
     const auroraLegacy = document.getElementById("fs-aurora-bg");
     const canvasContainer = document.getElementById("fs-canvas-bg-container");
-    const canvasElement = document.getElementById("fs-canvas-player");
     const coverWrapper = document.getElementById("fs-cover-wrapper");
     const lyricsCard = document.getElementById('fs-lyrics-card');
     
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
     const canvasId = (track.canvasUrl && track.canvasUrl.trim() !== "") ? parseTuneCanvasID(track.canvasUrl) : null;
 
-    // --- 1. PROCESSO DE CORES (Sempre atualiza para as letras) ---
+    // --- 1. LIMPEZA TOTAL (Reset de Estado) ---
+    if (fsCanvasPlayer) {
+        try {
+            fsCanvasPlayer.destroy(); // Mata o iframe e o objeto da memória
+            fsCanvasPlayer = null;
+        } catch (e) { console.warn("Erro ao limpar player anterior:", e); }
+    }
+
+    // Recria o elemento interno para garantir que o YouTube tenha um "ninho" limpo
+    if (canvasContainer) {
+        canvasContainer.innerHTML = '<div id="fs-canvas-player"></div>';
+    }
+
+    // --- 2. EXTRAÇÃO DE CORES PARA UI (Sempre executa) ---
     if (track.cover) {
         const img = new Image();
         img.crossOrigin = "Anonymous";
         img.onload = () => {
-            const colorThief = new ColorThief();
-            const palette = colorThief.getPalette(img, 5);
-            const best = palette.map(rgb => ({ rgb, hsl: rgbToHsl(rgb[0], rgb[1], rgb[2]) }))
-                                .sort((a, b) => b.hsl.s - a.hsl.s)[0];
+            try {
+                const colorThief = new ColorThief();
+                const palette = colorThief.getPalette(img, 5);
+                const best = palette.map(rgb => ({ rgb, hsl: rgbToHsl(rgb[0], rgb[1], rgb[2]) }))
+                                    .sort((a, b) => b.hsl.s - a.hsl.s)[0];
 
-            const finalRgb = best ? best.rgb : palette[0];
-            let { h, s, l } = rgbToHsl(finalRgb[0], finalRgb[1], finalRgb[2]);
-            
-            if (lyricsCard) {
-                const glassColor = `hsla(${h * 360}, ${s * 100}%, 15%, 0.8)`; 
-                lyricsCard.style.background = `linear-gradient(180deg, ${glassColor}, rgba(0,0,0,0.95))`;
-                lyricsCard.style.backdropFilter = "blur(30px) saturate(150%)";
-            }
+                const finalRgb = best ? best.rgb : palette[0];
+                let { h, s, l } = rgbToHsl(finalRgb[0], finalRgb[1], finalRgb[2]);
+                
+                // Aplicar Glassmorphism no card de letras
+                if (lyricsCard) {
+                    const glassColor = `hsla(${h * 360}, ${s * 100}%, 15%, 0.8)`; 
+                    lyricsCard.style.background = `linear-gradient(180deg, ${glassColor}, rgba(0,0,0,0.95))`;
+                    lyricsCard.style.backdropFilter = "blur(35px) saturate(150%)";
+                    
+                    if (!isMobile) {
+                        lyricsCard.style.paddingLeft = "120px";
+                        lyricsCard.style.paddingRight = "60px";
+                    }
+                }
 
-            if (auroraLegacy) {
-                auroraLegacy.style.background = `radial-gradient(circle at 50% 30%, hsl(${h*360},${s*100}%,${l*100}%) 0%, #000 85%)`;
-            }
+                // Atualizar Aurora (Cortina de transição)
+                if (auroraLegacy) {
+                    auroraLegacy.style.background = `radial-gradient(circle at 50% 30%, hsl(${h*360},${s*100}%,${l*100}%) 0%, #000 90%)`;
+                    auroraLegacy.style.opacity = "1"; // Volta a ser visível durante a troca
+                }
+            } catch (e) { console.error(e); }
         };
         img.src = `${track.cover}?t=${Date.now()}`;
     }
 
-    // --- 2. LÓGICA DE EXIBIÇÃO ---
+    // --- 3. LÓGICA DO CANVAS (VÍDEO) ---
     if (canvasId && isMobile) {
-        // MODO CANVAS
+        // Preparar interface para vídeo
         if (coverWrapper) coverWrapper.style.opacity = "0";
-        if (auroraLegacy) {
-            auroraLegacy.style.opacity = "1"; // Mostra a capa como fundo inicial
-            auroraLegacy.style.zIndex = "1";
-        }
         if (canvasContainer) {
             canvasContainer.style.display = "block";
             canvasContainer.classList.remove("hidden");
-            canvasContainer.style.zIndex = "2";
         }
 
-        if (window.fsCanvasPlayer && typeof window.fsCanvasPlayer.loadVideoById === 'function') {
-            // Se já existe, recarrega
-            window.fsCanvasPlayer.loadVideoById({
-                videoId: canvasId,
-                startSeconds: 0,
-                suggestedQuality: 'small'
-            });
-            window.fsCanvasPlayer.mute(); // Essencial para o autoplay não falhar
-            window.fsCanvasPlayer.playVideo();
-
-            // FALLBACK: Mostra o vídeo em 1.5s mesmo que o evento de State não dispare
-            setTimeout(() => {
-                if (canvasElement) canvasElement.style.opacity = "1";
-                if (auroraLegacy) auroraLegacy.style.opacity = "0.3"; // Deixa um brilho da capa por trás
-            }, 1500);
-
-        } else {
-            // Criação inicial
-            window.fsCanvasPlayer = new YT.Player("fs-canvas-player", {
-                videoId: canvasId,
-                playerVars: {
-                    autoplay: 1, controls: 0, loop: 1, playlist: canvasId,
-                    mute: 1, modestbranding: 1, rel: 0, playsinline: 1, iv_load_policy: 3
+        // Criar NOVO player do zero
+        fsCanvasPlayer = new YT.Player("fs-canvas-player", {
+            videoId: canvasId,
+            playerVars: {
+                autoplay: 1,
+                controls: 0,
+                loop: 1,
+                playlist: canvasId, // Playlist de 1 vídeo = Loop infinito real
+                mute: 1,            // Obrigatório para rodar automático no Mobile
+                modestbranding: 1,
+                rel: 0,
+                iv_load_policy: 3,
+                playsinline: 1
+            },
+            events: {
+                onReady: (e) => {
+                    e.target.mute();
+                    e.target.playVideo();
                 },
-                events: {
-                    onReady: (e) => {
-                        e.target.mute();
+                onStateChange: (e) => {
+                    // Revelar o vídeo apenas quando ele de fato começar (evita flash preto)
+                    if (e.data === YT.PlayerState.PLAYING) {
+                        const iframe = document.querySelector("#fs-canvas-bg-container iframe");
+                        if (iframe) iframe.style.opacity = "1";
+                        if (auroraLegacy) auroraLegacy.style.opacity = "0"; // Esconde a "cortina"
+                    }
+                    // Garantia extra de loop
+                    if (e.data === YT.PlayerState.ENDED) {
                         e.target.playVideo();
-                    },
-                    onStateChange: (e) => {
-                        if (e.data === YT.PlayerState.PLAYING) {
-                            if (canvasElement) canvasElement.style.opacity = "1";
-                            if (auroraLegacy) auroraLegacy.style.opacity = "0.3";
-                        }
-                        if (e.data === YT.PlayerState.ENDED) e.target.playVideo();
                     }
                 }
-            });
-        }
+            }
+        });
     } else {
         // MODO SEM CANVAS (Reset Total)
         if (canvasContainer) {
             canvasContainer.style.display = "none";
             canvasContainer.classList.add("hidden");
         }
-        if (window.fsCanvasPlayer && typeof window.fsCanvasPlayer.stopVideo === 'function') {
-            window.fsCanvasPlayer.stopVideo();
-        }
-        if (canvasElement) canvasElement.style.opacity = "0";
         if (coverWrapper) {
             coverWrapper.style.opacity = "1";
             coverWrapper.style.display = "block";
         }
-        if (auroraLegacy) {
-            auroraLegacy.style.opacity = "1";
-            auroraLegacy.style.zIndex = "0";
-        }
+        if (auroraLegacy) auroraLegacy.style.opacity = "1";
     }
 }
 
